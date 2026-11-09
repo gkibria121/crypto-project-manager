@@ -1,7 +1,12 @@
 "use client";
 
 import React, { useEffect, useId, useRef, useState } from "react";
-import { CryptoProject, ProjectContextItem } from "@/types/project";
+import {
+  BUSINESS_STATUS_META,
+  CryptoProject,
+  ProjectBusinessStatus,
+  ProjectContextItem,
+} from "@/types/project";
 import { ProjectAvatar } from "@/components/ProjectAvatar";
 import {
   Sparkles,
@@ -15,8 +20,6 @@ import {
   SlidersHorizontal,
   PlusCircle,
   PanelRightOpen,
-  Flame,
-  Wallet,
   RotateCcw,
   SendHorizontal,
 } from "lucide-react";
@@ -27,6 +30,7 @@ interface AiChatPaneProps {
   setDraftPrompt: React.Dispatch<React.SetStateAction<string>>;
   onSendMessage: (content: string) => void;
   onResetConversation: () => void;
+  onUpdateBusinessStatus: (status: ProjectBusinessStatus) => void;
   onOpenAddContextModal: () => void;
   onOpenEditLogoModal: () => void;
   isContextPanelOpen: boolean;
@@ -148,6 +152,7 @@ export function AiChatPane({
   setDraftPrompt,
   onSendMessage,
   onResetConversation,
+  onUpdateBusinessStatus,
   onOpenAddContextModal,
   onOpenEditLogoModal,
   isContextPanelOpen,
@@ -155,6 +160,7 @@ export function AiChatPane({
   isAiTyping,
 }: AiChatPaneProps) {
   const chatInputId = useId();
+  const statusSelectId = useId();
   const formRef = useRef<HTMLFormElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const lastCompositionEndAtRef = useRef<number | null>(null);
@@ -227,6 +233,70 @@ export function AiChatPane({
               <span className="px-2 py-0.5 text-[11px] font-medium rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
                 {project.chain} • {project.stage}
               </span>
+
+              {/* Business Status Selector Badge */}
+              <div
+                className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg border text-[11px] font-semibold ${
+                  BUSINESS_STATUS_META[project.businessStatus].badgeClass
+                }`}
+              >
+                <span
+                  className={`w-2 h-2 rounded-full ${
+                    BUSINESS_STATUS_META[project.businessStatus].dotClass
+                  }`}
+                />
+                <label htmlFor={statusSelectId} className="sr-only">
+                  Project business status
+                </label>
+                <select
+                  id={statusSelectId}
+                  name="project-business-status"
+                  value={project.businessStatus}
+                  onChange={(e) =>
+                    onUpdateBusinessStatus(
+                      e.target.value as ProjectBusinessStatus
+                    )
+                  }
+                  className="status-auto-select bg-transparent font-semibold outline-none cursor-pointer"
+                >
+                  <option
+                    value="new"
+                    className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100"
+                  >
+                    New Lead
+                  </option>
+                  <option
+                    value="contacted"
+                    className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100"
+                  >
+                    Contacted
+                  </option>
+                  <option
+                    value="collaborated"
+                    className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100"
+                  >
+                    Collaborated
+                  </option>
+                  <option
+                    value="completed"
+                    className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100"
+                  >
+                    Completed
+                  </option>
+                  <option
+                    value="unresponsive"
+                    className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100"
+                  >
+                    Unresponsive
+                  </option>
+                  <option
+                    value="archived"
+                    className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100"
+                  >
+                    Archived
+                  </option>
+                </select>
+              </div>
             </div>
             <p className="text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5">
               {project.tagline}
@@ -234,20 +304,8 @@ export function AiChatPane({
           </div>
         </div>
 
-        {/* Right Header Telemetry & Context Drawer Toggle */}
+        {/* Right Header Actions & Context Drawer Toggle */}
         <div className="flex items-center gap-2 shrink-0">
-          <div className="hidden xl:flex items-center gap-3 mr-2 px-3 py-1.5 rounded-xl bg-slate-100/80 dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 text-xs">
-            <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-semibold">
-              <Flame className="w-3.5 h-3.5" />
-              {project.sentimentScore}% CT Sentiment
-            </span>
-            <span className="text-slate-300 dark:text-slate-700">|</span>
-            <span className="flex items-center gap-1 text-slate-600 dark:text-slate-300 font-medium">
-              <Wallet className="w-3.5 h-3.5 text-indigo-500" />
-              {project.campaignBudget}
-            </span>
-          </div>
-
           <button
             type="button"
             onClick={onOpenAddContextModal}

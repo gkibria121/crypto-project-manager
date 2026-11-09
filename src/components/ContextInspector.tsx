@@ -1,7 +1,12 @@
 "use client";
 
 import React, { useState } from "react";
-import { CryptoProject, ProjectContextItem } from "@/types/project";
+import {
+  BUSINESS_STATUS_META,
+  CryptoProject,
+  ProjectBusinessStatus,
+  ProjectContextItem,
+} from "@/types/project";
 import { ProjectAvatar } from "@/components/ProjectAvatar";
 import {
   Globe,
@@ -22,6 +27,7 @@ import {
 
 interface ContextInspectorProps {
   project: CryptoProject;
+  onUpdateBusinessStatus: (status: ProjectBusinessStatus) => void;
   onToggleContext: (contextId: string) => void;
   onToggleAllContexts: (enable: boolean) => void;
   onDeleteContext: (contextId: string) => void;
@@ -72,6 +78,7 @@ function getContextTypeMeta(type: ProjectContextItem["type"]) {
 
 export function ContextInspector({
   project,
+  onUpdateBusinessStatus,
   onToggleContext,
   onToggleAllContexts,
   onDeleteContext,
@@ -124,6 +131,51 @@ export function ContextInspector({
         <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-2">
           {project.tagline}
         </p>
+
+        {/* Business State CRM Pipeline Pills */}
+        <div className="w-full mt-3 pt-2.5 border-t border-slate-200/60 dark:border-slate-800/60 text-left">
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+              Business State
+            </span>
+            <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400">
+              {BUSINESS_STATUS_META[project.businessStatus].label}
+            </span>
+          </div>
+          <div className="grid grid-cols-3 gap-1">
+            {(
+              [
+                "new",
+                "contacted",
+                "collaborated",
+                "completed",
+                "unresponsive",
+                "archived",
+              ] as const
+            ).map((statusKey) => {
+              const meta = BUSINESS_STATUS_META[statusKey];
+              const isSelected = project.businessStatus === statusKey;
+              return (
+                <button
+                  key={statusKey}
+                  type="button"
+                  onClick={() => onUpdateBusinessStatus(statusKey)}
+                  title={meta.description}
+                  className={`flex items-center justify-center gap-1 py-1 px-1.5 rounded-lg text-[10px] font-semibold border transition cursor-pointer ${
+                    isSelected
+                      ? meta.badgeClass
+                      : "bg-slate-100/70 dark:bg-slate-900/60 text-slate-500 dark:text-slate-400 border-transparent hover:bg-slate-200/60 dark:hover:bg-slate-800"
+                  }`}
+                >
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full shrink-0 ${meta.dotClass}`}
+                  />
+                  <span className="truncate">{meta.shortLabel}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
 
         {/* Quick Social & Web Link Pills */}
         <div className="flex items-center justify-center gap-1.5 mt-3 flex-wrap">

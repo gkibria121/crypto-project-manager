@@ -2,11 +2,20 @@
 
 import React, { useRef, useState } from "react";
 import { INITIAL_PROJECTS } from "@/data/mockProjects";
-import { CryptoProject, ProjectContextItem } from "@/types/project";
+import {
+  BUSINESS_STATUS_META,
+  CryptoProject,
+  ProjectBusinessStatus,
+  ProjectContextItem,
+} from "@/types/project";
 import { ProjectSidebar } from "@/components/ProjectSidebar";
 import { AiChatPane } from "@/components/AiChatPane";
 import { ContextInspector } from "@/components/ContextInspector";
-import { AddContextDialog, NewProjectDialog } from "@/components/Modals";
+import {
+  AddContextDialog,
+  NewProjectDialog,
+  UpdateProjectLogoDialog,
+} from "@/components/Modals";
 
 function buildContextualAiResponse(
   project: CryptoProject,
@@ -17,6 +26,7 @@ function buildContextualAiResponse(
   const xCtx = activeContexts.find((c) => c.type === "x_handle");
   const linkedinCtx = activeContexts.find((c) => c.type === "linkedin");
   const noteCtx = activeContexts.find((c) => c.type === "message");
+  const statusMeta = BUSINESS_STATUS_META[project.businessStatus];
 
   const lower = userPrompt.toLowerCase();
 
@@ -59,7 +69,7 @@ Tailored for ${xCtx ? `\`${xCtx.value}\`` : project.ticker} (${project.stage} on
 
   return {
     content: `### Coordinated Campaign Strategy — ${project.name} (${project.ticker})
-Synthesized from **${activeContexts.length} active project contexts** (${activeContexts.map((c) => c.title).join(", ") || "General Project Profile"}):
+Synthesized from **${activeContexts.length} active project contexts** • Business State: **${statusMeta.label}** (${activeContexts.map((c) => c.title).join(", ") || "General Project Profile"}):
 
 ### 1. X / Crypto Twitter Angle ${xCtx ? `(\`${xCtx.value}\`)` : ""}
 - **Hook:** "${project.name} (${project.ticker}) is redefining ${project.chain}: ${project.tagline}."
@@ -87,6 +97,7 @@ export default function CryptoMessengerDashboard() {
 
   const addContextDialogRef = useRef<HTMLDialogElement | null>(null);
   const newProjectDialogRef = useRef<HTMLDialogElement | null>(null);
+  const editLogoDialogRef = useRef<HTMLDialogElement | null>(null);
 
   const activeProject =
     projects.find((p) => p.id === selectedProjectId) ?? projects[0];
@@ -261,6 +272,31 @@ export default function CryptoMessengerDashboard() {
     setSelectedProjectId(newProj.id);
   };
 
+  const handleUpdateProjectLogo = (logoUrl: string | undefined) => {
+    setProjects((prev) =>
+      prev.map((proj) =>
+        proj.id === activeProject.id ? { ...proj, logoUrl } : proj
+      )
+    );
+  };
+
+  const handleUpdateBusinessStatus = (
+    projectId: string,
+    status: ProjectBusinessStatus
+  ) => {
+    setProjects((prev) =>
+      prev.map((proj) =>
+        proj.id === projectId
+          ? {
+              ...proj,
+              businessStatus: status,
+              lastActivityTime: "Just now",
+            }
+          : proj
+      )
+    );
+  };
+
   return (
     <div className="h-dvh w-full overflow-hidden flex bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
       {/* Left Sidebar: Crypto Projects List (Messenger Contacts Style) */}
@@ -268,6 +304,7 @@ export default function CryptoMessengerDashboard() {
         projects={projects}
         selectedProjectId={activeProject.id}
         onSelectProject={handleSelectProject}
+        onUpdateBusinessStatus={handleUpdateBusinessStatus}
         onOpenNewProjectModal={() => newProjectDialogRef.current?.showModal()}
       />
 
@@ -278,7 +315,11 @@ export default function CryptoMessengerDashboard() {
         setDraftPrompt={setDraftPrompt}
         onSendMessage={handleSendMessage}
         onResetConversation={handleResetConversation}
+        onUpdateBusinessStatus={(status) =>
+          handleUpdateBusinessStatus(activeProject.id, status)
+        }
         onOpenAddContextModal={() => addContextDialogRef.current?.showModal()}
+        onOpenEditLogoModal={() => editLogoDialogRef.current?.showModal()}
         isContextPanelOpen={isContextPanelOpen}
         onToggleContextPanel={() => setIsContextPanelOpen((v) => !v)}
         isAiTyping={isAiTyping}
@@ -288,11 +329,15 @@ export default function CryptoMessengerDashboard() {
       {isContextPanelOpen && (
         <ContextInspector
           project={activeProject}
+          onUpdateBusinessStatus={(status) =>
+            handleUpdateBusinessStatus(activeProject.id, status)
+          }
           onToggleContext={handleToggleContext}
           onToggleAllContexts={handleToggleAllContexts}
           onDeleteContext={handleDeleteContext}
           onReferenceInPrompt={handleReferenceInPrompt}
           onOpenAddContextModal={() => addContextDialogRef.current?.showModal()}
+          onOpenEditLogoModal={() => editLogoDialogRef.current?.showModal()}
         />
       )}
 
@@ -306,6 +351,12 @@ export default function CryptoMessengerDashboard() {
       <NewProjectDialog
         dialogRef={newProjectDialogRef}
         onCreateProject={handleCreateProject}
+      />
+
+      <UpdateProjectLogoDialog
+        dialogRef={editLogoDialogRef}
+        project={activeProject}
+        onUpdateLogo={handleUpdateProjectLogo}
       />
     </div>
   );

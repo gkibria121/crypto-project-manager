@@ -87,6 +87,12 @@ body {
   max-block-size: 7lh;
 }
 
+.status-auto-select {
+  field-sizing: content;
+  width: auto;
+  max-inline-size: 28ch;
+}
+
 /* Canonical visually-hidden utility keeping inputs in the accessibility tree */
 .visually-hidden:where(:not(:focus-within, :active)) {
   position: absolute !important;

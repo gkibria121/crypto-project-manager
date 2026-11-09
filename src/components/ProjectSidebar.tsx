@@ -1,7 +1,11 @@
 "use client";
 
 import React, { useId, useState } from "react";
-import { CryptoProject } from "@/types/project";
+import {
+  BUSINESS_STATUS_META,
+  CryptoProject,
+  ProjectBusinessStatus,
+} from "@/types/project";
 import { ProjectAvatar } from "@/components/ProjectAvatar";
 import {
   Search,
@@ -11,44 +15,87 @@ import {
   Layers,
   TrendingUp,
   CheckCircle2,
+  Archive,
+  ArchiveRestore,
 } from "lucide-react";
 
 interface ProjectSidebarProps {
   projects: CryptoProject[];
   selectedProjectId: string;
   onSelectProject: (id: string) => void;
+  onUpdateBusinessStatus: (
+    projectId: string,
+    status: ProjectBusinessStatus
+  ) => void;
   onOpenNewProjectModal: () => void;
 }
+
+type SidebarFilter = "active" | ProjectBusinessStatus;
 
 export function ProjectSidebar({
   projects,
   selectedProjectId,
   onSelectProject,
+  onUpdateBusinessStatus,
   onOpenNewProjectModal,
 }: ProjectSidebarProps) {
   const searchInputId = useId();
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeFilter, setActiveFilter] = useState<
-    "all" | "pinned" | "Pre-TGE" | "Mainnet Live"
-  >("all");
+  const [activeFilter, setActiveFilter] = useState<SidebarFilter>("active");
 
-  const filteredProjects = projects.filter((project) => {
-    const matchesQuery =
-      project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      project.ticker.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      project.chain.toLowerCase().includes(searchQuery.toLowerCase());
+  const countByStatus = (status: SidebarFilter) => {
+    if (status === "active") {
+      return projects.filter((p) => p.businessStatus !== "archived").length;
+    }
+    return projects.filter((p) => p.businessStatus === status).length;
+  };
 
-    if (!matchesQuery) return false;
-    if (activeFilter === "pinned") return Boolean(project.isPinned);
-    if (activeFilter === "Pre-TGE") return project.stage === "Pre-TGE";
-    if (activeFilter === "Mainnet Live") return project.stage === "Mainnet Live";
-    return true;
-  });
+  const STATUS_SORT_PRIORITY: Record<ProjectBusinessStatus, number> = {
+    new: 0,
+    contacted: 1,
+    collaborated: 2,
+    completed: 3,
+    unresponsive: 4,
+    archived: 5,
+  };
+
+  const filteredProjects = projects
+    .filter((project) => {
+      const matchesQuery =
+        project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        project.ticker.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        project.chain.toLowerCase().includes(searchQuery.toLowerCase());
+
+      if (!matchesQuery) return false;
+
+      // Initial state in the chat list is "active" (all non-archived projects)
+      if (activeFilter === "active") {
+        return searchQuery.trim()
+          ? true
+          : project.businessStatus !== "archived";
+      }
+      return project.businessStatus === activeFilter;
+    })
+    .sort(
+      (a, b) =>
+        STATUS_SORT_PRIORITY[a.businessStatus] -
+        STATUS_SORT_PRIORITY[b.businessStatus]
+    );
+
+  const filterTabs: { id: SidebarFilter; label: string }[] = [
+    { id: "new", label: "New" },
+    { id: "active", label: "Active" },
+    { id: "contacted", label: "Contacted" },
+    { id: "collaborated", label: "Collaborated" },
+    { id: "completed", label: "Completed" },
+    { id: "unresponsive", label: "Unresponsive" },
+    { id: "archived", label: "Archived" },
+  ];
 
   return (
     <aside
       aria-label="Crypto Projects"
-      className="w-80 lg:w-88 shrink-0 h-full border-r border-slate-200/80 dark:border-slate-800/80 bg-white/90 dark:bg-slate-950/90 backdrop-blur-xl flex flex-col"
+      className="w-80 lg:w-92 shrink-0 h-full border-r border-slate-200/80 dark:border-slate-800/80 bg-white/90 dark:bg-slate-950/90 backdrop-blur-xl flex flex-col"
     >
       {/* Messenger-style Top Agency Header */}
       <div className="px-4 pt-4 pb-3 border-b border-slate-200/60 dark:border-slate-800/60">
@@ -63,11 +110,12 @@ export function ProjectSidebar({
                   PulseOS
                 </h1>
                 <span className="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
-                  Agency AI
+                  Agency CRM
                 </span>
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                {projects.length} Managed Web3 Clients
+                {countByStatus("active")} Active •{" "}
+                {countByStatus("collaborated")} Collaborated
               </p>
             </div>
           </div>
@@ -104,29 +152,38 @@ export function ProjectSidebar({
           />
         </div>
 
-        {/* Filter Pills */}
-        <div className="flex items-center gap-1.5 mt-2.5 overflow-x-auto no-scrollbar">
-          {(
-            [
-              { id: "all", label: "All Clients" },
-              { id: "pinned", label: "Pinned" },
-              { id: "Pre-TGE", label: "Pre-TGE" },
-              { id: "Mainnet Live", label: "Mainnet" },
-            ] as const
-          ).map((tab) => {
+        {/* Business State Filter Pills */}
+        <div className="flex items-center gap-1.5 mt-2.5 overflow-x-auto scroller pb-1">
+          {filterTabs.map((tab) => {
             const isActive = activeFilter === tab.id;
+            const count = countByStatus(tab.id);
+            const dotClass =
+              tab.id !== "active" ? BUSINESS_STATUS_META[tab.id].dotClass : "";
+
             return (
               <button
                 key={tab.id}
                 type="button"
                 onClick={() => setActiveFilter(tab.id)}
-                className={`px-2.5 py-1 rounded-full text-[11px] font-medium transition cursor-pointer whitespace-nowrap ${
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium transition cursor-pointer whitespace-nowrap shrink-0 ${
                   isActive
                     ? "bg-slate-900 text-white dark:bg-white dark:text-slate-950 shadow-xs"
                     : "bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-200/70 dark:hover:bg-slate-800"
                 }`}
               >
-                {tab.label}
+                {dotClass && (
+                  <span className={`w-1.5 h-1.5 rounded-full ${dotClass}`} />
+                )}
+                <span>{tab.label}</span>
+                <span
+                  className={`text-[10px] px-1 rounded-full ${
+                    isActive
+                      ? "bg-white/20 text-white dark:bg-slate-900/15 dark:text-slate-950"
+                      : "bg-slate-200/80 dark:bg-slate-800 text-slate-500 dark:text-slate-400"
+                  }`}
+                >
+                  {count}
+                </span>
               </button>
             );
           })}
@@ -138,7 +195,13 @@ export function ProjectSidebar({
         {filteredProjects.length === 0 ? (
           <div className="text-center py-12 px-4">
             <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
-              No matching crypto projects found.
+              No projects in the{" "}
+              <strong>
+                {activeFilter === "active"
+                  ? "Active"
+                  : BUSINESS_STATUS_META[activeFilter].label}
+              </strong>{" "}
+              category.
             </p>
           </div>
         ) : (
@@ -148,78 +211,116 @@ export function ProjectSidebar({
               (c) => c.isActive
             ).length;
             const lastMsg = project.messages[project.messages.length - 1];
+            const statusMeta = BUSINESS_STATUS_META[project.businessStatus];
+            const isArchived = project.businessStatus === "archived";
 
             return (
-              <button
+              <div
                 key={project.id}
-                type="button"
-                onClick={() => onSelectProject(project.id)}
-                className={`w-full text-left p-2.5 rounded-2xl transition flex items-start gap-3 group cursor-pointer relative ${
+                className={`w-full rounded-2xl transition flex items-start gap-3 p-2.5 group relative ${
                   isSelected
                     ? "bg-indigo-50/90 dark:bg-indigo-950/50 border border-indigo-500/30 shadow-xs"
                     : "hover:bg-slate-100/80 dark:hover:bg-slate-900/60 border border-transparent"
-                }`}
+                } ${isArchived ? "opacity-75" : ""}`}
               >
-                {/* Project Avatar with Online/Campaign Dot */}
-                <ProjectAvatar
-                  project={project}
-                  size="lg"
-                  showOnlineDot
-                  decorative
-                />
+                <button
+                  type="button"
+                  onClick={() => onSelectProject(project.id)}
+                  className="flex items-start gap-3 flex-1 min-w-0 text-left cursor-pointer"
+                >
+                  {/* Project Avatar with Business Status Dot */}
+                  <ProjectAvatar
+                    project={project}
+                    size="lg"
+                    showOnlineDot
+                    decorative
+                  />
 
-                {/* Project Info & Last Message Preview */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-1">
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      <span
-                        className={`text-sm font-semibold truncate ${
-                          isSelected
-                            ? "text-indigo-950 dark:text-white"
-                            : "text-slate-900 dark:text-slate-100"
-                        }`}
-                      >
-                        {project.name}
+                  {/* Project Info & Last Message Preview */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-1">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span
+                          className={`text-sm font-semibold truncate ${
+                            isSelected
+                              ? "text-indigo-950 dark:text-white"
+                              : "text-slate-900 dark:text-slate-100"
+                          }`}
+                        >
+                          {project.name}
+                        </span>
+                        {project.isPinned && !isArchived && (
+                          <Pin className="w-3 h-3 text-indigo-500 shrink-0 rotate-45" />
+                        )}
+                      </div>
+                      <span className="text-[11px] text-slate-400 dark:text-slate-500 shrink-0 group-hover:hidden">
+                        {project.lastActivityTime}
                       </span>
-                      {project.isPinned && (
-                        <Pin className="w-3 h-3 text-indigo-500 shrink-0 rotate-45" />
-                      )}
                     </div>
-                    <span className="text-[11px] text-slate-400 dark:text-slate-500 shrink-0">
-                      {project.lastActivityTime}
-                    </span>
-                  </div>
 
-                  {/* Stage & Active Contexts Row */}
-                  <div className="flex items-center gap-1.5 mt-0.5">
-                    <span className="text-[10px] font-mono font-semibold text-indigo-600 dark:text-indigo-400">
-                      {project.ticker}
-                    </span>
-                    <span className="text-slate-300 dark:text-slate-700">•</span>
-                    <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-slate-200/70 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-medium">
-                      {project.stage}
-                    </span>
-                    <span className="inline-flex items-center gap-0.5 text-[10px] text-emerald-600 dark:text-emerald-400 font-medium ml-auto">
-                      <Layers className="w-2.5 h-2.5" />
-                      {activeContextsCount}/{project.contexts.length} ctx
-                    </span>
-                  </div>
-
-                  {/* Last Message / Tagline Snippet */}
-                  <div className="flex items-center justify-between gap-2 mt-1">
-                    <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
-                      {lastMsg
-                        ? `${lastMsg.sender === "admin" ? "You: " : "AI: "}${lastMsg.content.replace(/[#*>`]/g, "")}`
-                        : project.tagline}
-                    </p>
-                    {project.unreadInsights ? (
-                      <span className="shrink-0 w-4 h-4 rounded-full bg-indigo-600 text-white text-[10px] font-bold flex items-center justify-center">
-                        {project.unreadInsights}
+                    {/* Business State Badge & Ticker Row */}
+                    <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                      <span
+                        className={`inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-md border font-semibold ${statusMeta.badgeClass}`}
+                      >
+                        <span
+                          className={`w-1.5 h-1.5 rounded-full ${statusMeta.dotClass}`}
+                        />
+                        {statusMeta.shortLabel}
                       </span>
-                    ) : null}
+                      <span className="text-[10px] font-mono font-semibold text-indigo-600 dark:text-indigo-400">
+                        {project.ticker}
+                      </span>
+                      <span className="inline-flex items-center gap-0.5 text-[10px] text-emerald-600 dark:text-emerald-400 font-medium ml-auto">
+                        <Layers className="w-2.5 h-2.5" />
+                        {activeContextsCount}/{project.contexts.length} ctx
+                      </span>
+                    </div>
+
+                    {/* Last Message / Tagline Snippet */}
+                    <div className="flex items-center justify-between gap-2 mt-1">
+                      <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
+                        {lastMsg
+                          ? `${lastMsg.sender === "admin" ? "You: " : "AI: "}${lastMsg.content.replace(/[#*>`]/g, "")}`
+                          : project.tagline}
+                      </p>
+                      {project.unreadInsights ? (
+                        <span className="shrink-0 w-4 h-4 rounded-full bg-indigo-600 text-white text-[10px] font-bold flex items-center justify-center">
+                          {project.unreadInsights}
+                        </span>
+                      ) : null}
+                    </div>
                   </div>
-                </div>
-              </button>
+                </button>
+
+                {/* Hover Quick Archive / Restore Button */}
+                <button
+                  type="button"
+                  onClick={() =>
+                    onUpdateBusinessStatus(
+                      project.id,
+                      isArchived ? "new" : "archived"
+                    )
+                  }
+                  aria-label={
+                    isArchived
+                      ? `Restore ${project.name} from archive`
+                      : `Archive ${project.name}`
+                  }
+                  title={
+                    isArchived
+                      ? "Restore project to New"
+                      : "Archive project"
+                  }
+                  className="hidden group-hover:inline-flex focus-visible:inline-flex p-1.5 rounded-lg bg-white/90 dark:bg-slate-800 text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 shadow-xs border border-slate-200/70 dark:border-slate-700 absolute top-2 right-2 cursor-pointer"
+                >
+                  {isArchived ? (
+                    <ArchiveRestore className="w-3.5 h-3.5" />
+                  ) : (
+                    <Archive className="w-3.5 h-3.5" />
+                  )}
+                </button>
+              </div>
             );
           })
         )}

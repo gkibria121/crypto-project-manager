@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { CryptoProject } from "@/types/project";
+import { BUSINESS_STATUS_META, CryptoProject } from "@/types/project";
 import { Camera } from "lucide-react";
 
 export const PRESET_PROJECT_LOGOS: { label: string; url: string }[] = [
@@ -35,7 +35,9 @@ interface ProjectAvatarProps {
   project: Pick<
     CryptoProject,
     "name" | "ticker" | "chain" | "avatarBg" | "logoUrl"
-  >;
+  > & {
+    businessStatus?: CryptoProject["businessStatus"];
+  };
   size?: "sm" | "md" | "lg" | "xl";
   showOnlineDot?: boolean;
   onEditClick?: () => void;
@@ -77,6 +79,14 @@ export function ProjectAvatar({
     </div>
   );
 
+  const statusMeta = project.businessStatus
+    ? BUSINESS_STATUS_META[project.businessStatus]
+    : null;
+  const dotColorClass = statusMeta ? statusMeta.dotClass : "bg-emerald-500";
+  const dotTitle = statusMeta
+    ? `Business Status: ${statusMeta.label}`
+    : "AI Agent Context Ready";
+
   if (onEditClick) {
     return (
       <div className="relative inline-block shrink-0 group/avatar">
@@ -95,8 +105,8 @@ export function ProjectAvatar({
         </button>
         {showOnlineDot && (
           <span
-            title="AI Agent Context Ready"
-            className="w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-white dark:border-slate-950 absolute -bottom-0.5 -right-0.5 pointer-events-none"
+            title={dotTitle}
+            className={`w-3.5 h-3.5 rounded-full ${dotColorClass} border-2 border-white dark:border-slate-950 absolute -bottom-0.5 -right-0.5 pointer-events-none`}
           />
         )}
       </div>
@@ -108,8 +118,8 @@ export function ProjectAvatar({
       {badgeContent}
       {showOnlineDot && (
         <span
-          title="AI Agent Context Ready"
-          className="w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-white dark:border-slate-950 absolute -bottom-0.5 -right-0.5"
+          title={dotTitle}
+          className={`w-3.5 h-3.5 rounded-full ${dotColorClass} border-2 border-white dark:border-slate-950 absolute -bottom-0.5 -right-0.5`}
         />
       )}
     </div>
