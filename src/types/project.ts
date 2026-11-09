@@ -1,63 +1,78 @@
-export type ContextType =
-  | "website"
-  | "x_handle"
-  | "linkedin"
-  | "telegram"
-  | "message";
+export {
+  contextTypeSchema,
+  projectStageSchema,
+  projectBusinessStatusSchema,
+  projectChainSchema,
+  messageSenderSchema,
+  projectContextItemSchema,
+  chatMessageSchema,
+  promptTemplateSchema,
+  checklistItemConfigSchema,
+  projectChecklistItemStateSchema,
+  cryptoProjectSchema,
+  addContextFormSchema,
+  updateProjectLogoFormSchema,
+  newProjectFormSchema,
+  promptTemplateFormSchema,
+  checklistItemFormSchema,
+  chatComposerFormSchema,
+  type ContextType,
+  type ProjectStage,
+  type ProjectBusinessStatus,
+  type ProjectChain,
+  type ProjectContextItem,
+  type ChatMessage,
+  type PromptTemplate,
+  type ChecklistItemConfig,
+  type ProjectChecklistItemState,
+  type CryptoProject,
+  type AddContextFormValues,
+  type UpdateProjectLogoFormValues,
+  type NewProjectFormValues,
+  type PromptTemplateFormValues,
+  type ChecklistItemFormValues,
+  type ChatComposerFormValues,
+} from "@/schemas/project.schema";
 
-export interface ProjectContextItem {
-  id: string;
-  type: ContextType;
-  title: string;
-  value: string;
-  url?: string;
-  summary?: string;
-  isActive: boolean;
-  updatedAt: string;
-}
+import type {
+  ProjectBusinessStatus,
+  ProjectChain,
+  ProjectStage,
+} from "@/schemas/project.schema";
 
-export interface ChatMessage {
-  id: string;
-  sender: "admin" | "ai";
-  content: string;
-  timestamp: string;
-  usedContextIds?: string[];
-  suggestedActions?: string[];
-  appliedSystemPromptTitle?: string;
-}
+export const PROJECT_CHAINS: readonly ProjectChain[] = [
+  "Solana",
+  "Ethereum L2",
+  "Base",
+  "Arbitrum",
+  "Sui",
+  "Monad / EVM",
+] as const;
 
-export interface PromptTemplate {
-  id: string;
-  label: string;
-  systemPrompt: string;
-}
+export const PROJECT_STAGES: readonly ProjectStage[] = [
+  "Pre-TGE",
+  "Mainnet Live",
+  "IDO / Launchpad",
+  "Ecosystem Growth",
+  "Stealth",
+] as const;
 
-export interface ChecklistItemConfig {
-  id: string;
-  label: string;
-  scanPrompt: string;
-}
+export const BUSINESS_STATUS_ORDER: readonly ProjectBusinessStatus[] = [
+  "new",
+  "contacted",
+  "collaborated",
+  "completed",
+  "unresponsive",
+  "archived",
+] as const;
 
-export interface ProjectChecklistItemState {
-  checked: boolean;
-  scanResultNote?: string;
-  scannedAt?: string;
-}
-
-export type ProjectStage =
-  | "Pre-TGE"
-  | "Mainnet Live"
-  | "IDO / Launchpad"
-  | "Ecosystem Growth"
-  | "Stealth";
-
-export type ProjectBusinessStatus =
-  | "new"
-  | "contacted"
-  | "collaborated"
-  | "completed"
-  | "unresponsive"
-  | "archived";
+export const SOLID_AVATAR_COLORS = [
+  "bg-[#1d4ed8]",
+  "bg-[#00a884]",
+  "bg-[#0f172a]",
+  "bg-[#334155]",
+  "bg-[#0369a1]",
+] as const;
 
 export const BUSINESS_STATUS_META: Record<
   ProjectBusinessStatus,
@@ -67,6 +82,7 @@ export const BUSINESS_STATUS_META: Record<
     description: string;
     badgeClass: string;
     dotClass: string;
+    sortPriority: number;
   }
 > = {
   new: {
@@ -76,6 +92,7 @@ export const BUSINESS_STATUS_META: Record<
     badgeClass:
       "bg-[#e7f3ff] text-[#0084ff] dark:bg-[#0084ff]/15 dark:text-[#4599ff]",
     dotClass: "bg-[#0084ff]",
+    sortPriority: 0,
   },
   contacted: {
     label: "Contacted",
@@ -83,6 +100,7 @@ export const BUSINESS_STATUS_META: Record<
     description: "Outreach sent, awaiting reply",
     badgeClass: "bg-amber-500/10 text-amber-700 dark:text-amber-400",
     dotClass: "bg-amber-500",
+    sortPriority: 1,
   },
   collaborated: {
     label: "Collaborated",
@@ -90,6 +108,7 @@ export const BUSINESS_STATUS_META: Record<
     description: "Active partnership",
     badgeClass: "bg-emerald-500/12 text-emerald-700 dark:text-emerald-400",
     dotClass: "bg-[#00a884]",
+    sortPriority: 2,
   },
   completed: {
     label: "Completed",
@@ -98,6 +117,7 @@ export const BUSINESS_STATUS_META: Record<
     badgeClass:
       "bg-slate-200/80 text-slate-700 dark:bg-[#2a3942] dark:text-[#d1d7db]",
     dotClass: "bg-slate-500",
+    sortPriority: 3,
   },
   unresponsive: {
     label: "Unresponsive",
@@ -105,6 +125,7 @@ export const BUSINESS_STATUS_META: Record<
     description: "No response after follow-up",
     badgeClass: "bg-rose-500/10 text-rose-700 dark:text-rose-400",
     dotClass: "bg-rose-500",
+    sortPriority: 4,
   },
   archived: {
     label: "Archived",
@@ -113,25 +134,6 @@ export const BUSINESS_STATUS_META: Record<
     badgeClass:
       "bg-slate-200/60 text-slate-500 dark:bg-[#202c33] dark:text-[#8696a0]",
     dotClass: "bg-slate-400",
+    sortPriority: 5,
   },
 };
-
-export interface CryptoProject {
-  id: string;
-  name: string;
-  ticker: string;
-  chain: string;
-  stage: ProjectStage;
-  businessStatus: ProjectBusinessStatus;
-  avatarBg: string;
-  logoUrl?: string;
-  tagline: string;
-  campaignBudget: string;
-  sentimentScore: number;
-  isPinned?: boolean;
-  unreadInsights?: number;
-  lastActivityTime: string;
-  contexts: ProjectContextItem[];
-  messages: ChatMessage[];
-  checklistState?: Record<string, ProjectChecklistItemState>;
-}

@@ -1,13 +1,14 @@
 "use client";
 
 import React, { useId, useState } from "react";
+import { Archive, ArchiveRestore, Plus, Search, Settings } from "lucide-react";
 import {
   BUSINESS_STATUS_META,
-  CryptoProject,
-  ProjectBusinessStatus,
+  type CryptoProject,
+  type ProjectBusinessStatus,
 } from "@/types/project";
 import { ProjectAvatar } from "@/components/ProjectAvatar";
-import { Search, Plus, Archive, ArchiveRestore, Settings } from "lucide-react";
+import { FilterChip } from "@/components/ui";
 
 interface ProjectSidebarProps {
   projects: CryptoProject[];
@@ -22,6 +23,16 @@ interface ProjectSidebarProps {
 }
 
 type SidebarFilter = "active" | ProjectBusinessStatus;
+
+const FILTER_TABS: { id: SidebarFilter; label: string }[] = [
+  { id: "new", label: "New" },
+  { id: "active", label: "Active" },
+  { id: "contacted", label: "Contacted" },
+  { id: "collaborated", label: "Collaborated" },
+  { id: "completed", label: "Completed" },
+  { id: "unresponsive", label: "Unresponsive" },
+  { id: "archived", label: "Archived" },
+];
 
 export function ProjectSidebar({
   projects,
@@ -42,15 +53,6 @@ export function ProjectSidebar({
     return projects.filter((p) => p.businessStatus === status).length;
   };
 
-  const STATUS_SORT_PRIORITY: Record<ProjectBusinessStatus, number> = {
-    new: 0,
-    contacted: 1,
-    collaborated: 2,
-    completed: 3,
-    unresponsive: 4,
-    archived: 5,
-  };
-
   const filteredProjects = projects
     .filter((project) => {
       const matchesQuery =
@@ -69,19 +71,9 @@ export function ProjectSidebar({
     })
     .sort(
       (a, b) =>
-        STATUS_SORT_PRIORITY[a.businessStatus] -
-        STATUS_SORT_PRIORITY[b.businessStatus]
+        BUSINESS_STATUS_META[a.businessStatus].sortPriority -
+        BUSINESS_STATUS_META[b.businessStatus].sortPriority
     );
-
-  const filterTabs: { id: SidebarFilter; label: string }[] = [
-    { id: "new", label: "New" },
-    { id: "active", label: "Active" },
-    { id: "contacted", label: "Contacted" },
-    { id: "collaborated", label: "Collaborated" },
-    { id: "completed", label: "Completed" },
-    { id: "unresponsive", label: "Unresponsive" },
-    { id: "archived", label: "Archived" },
-  ];
 
   return (
     <aside
@@ -141,28 +133,16 @@ export function ProjectSidebar({
 
         {/* Messenger / WhatsApp Filter Chips */}
         <div className="flex items-center gap-1.5 mt-2.5 overflow-x-auto scroller pb-1">
-          {filterTabs.map((tab) => {
-            const isActive = activeFilter === tab.id;
-            const count = countByStatus(tab.id);
-
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setActiveFilter(tab.id)}
-                className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold transition cursor-pointer whitespace-nowrap shrink-0 ${
-                  isActive
-                    ? "bg-[#e7f3ff] text-[#0084ff] dark:bg-[#0084ff]/20 dark:text-[#4599ff]"
-                    : "bg-[#f0f2f5] text-[#65676b] hover:bg-[#e4e6eb] dark:bg-[#202c33] dark:text-[#8696a0] dark:hover:bg-[#2a3942]"
-                }`}
-              >
-                <span>{tab.label}</span>
-                {count > 0 && (
-                  <span className="text-[11px] opacity-80">{count}</span>
-                )}
-              </button>
-            );
-          })}
+          {FILTER_TABS.map((tab) => (
+            <FilterChip
+              key={tab.id}
+              active={activeFilter === tab.id}
+              onClick={() => setActiveFilter(tab.id)}
+              count={countByStatus(tab.id)}
+            >
+              {tab.label}
+            </FilterChip>
+          ))}
         </div>
       </div>
 

@@ -2,23 +2,20 @@
 
 import React, { useState } from "react";
 import {
+  CornerDownLeft,
+  ExternalLink,
+  Plus,
+  Trash2,
+} from "lucide-react";
+import {
   BUSINESS_STATUS_META,
-  CryptoProject,
-  ProjectBusinessStatus,
-  ProjectContextItem,
+  BUSINESS_STATUS_ORDER,
+  type CryptoProject,
+  type ProjectBusinessStatus,
+  type ProjectContextItem,
 } from "@/types/project";
 import { ProjectAvatar } from "@/components/ProjectAvatar";
-import {
-  Globe,
-  AtSign,
-  Briefcase,
-  MessageSquareText,
-  Plus,
-  ExternalLink,
-  Trash2,
-  CornerDownLeft,
-  SendHorizontal,
-} from "lucide-react";
+import { ContextTypeIcon, FilterChip } from "@/components/ui";
 
 interface ContextInspectorProps {
   project: CryptoProject;
@@ -29,21 +26,6 @@ interface ContextInspectorProps {
   onReferenceInPrompt: (ctx: ProjectContextItem) => void;
   onOpenAddContextModal: () => void;
   onOpenEditLogoModal: () => void;
-}
-
-function getContextTypeIcon(type: ProjectContextItem["type"]) {
-  switch (type) {
-    case "website":
-      return <Globe className="w-4 h-4 text-[#0084ff]" />;
-    case "x_handle":
-      return <AtSign className="w-4 h-4 text-[#050505] dark:text-[#e9edef]" />;
-    case "linkedin":
-      return <Briefcase className="w-4 h-4 text-[#0a66c2]" />;
-    case "telegram":
-      return <SendHorizontal className="w-4 h-4 text-[#229ed9]" />;
-    case "message":
-      return <MessageSquareText className="w-4 h-4 text-[#00a884]" />;
-  }
 }
 
 export function ContextInspector({
@@ -110,16 +92,7 @@ export function ContextInspector({
             </span>
           </div>
           <div className="grid grid-cols-3 gap-1">
-            {(
-              [
-                "new",
-                "contacted",
-                "collaborated",
-                "completed",
-                "unresponsive",
-                "archived",
-              ] as const
-            ).map((statusKey) => {
+            {BUSINESS_STATUS_ORDER.map((statusKey) => {
               const meta = BUSINESS_STATUS_META[statusKey];
               const isSelected = project.businessStatus === statusKey;
               return (
@@ -180,18 +153,14 @@ export function ContextInspector({
               { id: "messages", label: "Notes" },
             ] as const
           ).map((tab) => (
-            <button
+            <FilterChip
               key={tab.id}
-              type="button"
+              active={filterTab === tab.id}
               onClick={() => setFilterTab(tab.id)}
-              className={`px-3 py-1 rounded-full text-xs font-semibold transition cursor-pointer ${
-                filterTab === tab.id
-                  ? "bg-[#e7f3ff] text-[#0084ff] dark:bg-[#0084ff]/20 dark:text-[#4599ff]"
-                  : "bg-[#f0f2f5] dark:bg-[#202c33] text-[#65676b] dark:text-[#8696a0] hover:bg-[#e4e6eb]"
-              }`}
+              className="py-1"
             >
               {tab.label}
-            </button>
+            </FilterChip>
           ))}
         </div>
       </div>
@@ -223,7 +192,7 @@ export function ContextInspector({
               <div className="flex items-start gap-3">
                 {/* Circular Icon */}
                 <div className="w-9 h-9 rounded-full bg-[#f0f2f5] dark:bg-[#202c33] flex items-center justify-center shrink-0 mt-0.5">
-                  {getContextTypeIcon(ctx.type)}
+                  <ContextTypeIcon type={ctx.type} variant="md" />
                 </div>
 
                 {/* Content */}
@@ -260,7 +229,6 @@ export function ContextInspector({
                     </p>
                   )}
 
-                  {/* Collapsible secondary summary details per content-first-noise-reduction */}
                   {ctx.summary && (
                     <details className="mt-1 text-[11px] text-[#65676b] dark:text-[#8696a0]">
                       <summary className="cursor-pointer select-none hover:text-[#050505] dark:hover:text-[#e9edef]">

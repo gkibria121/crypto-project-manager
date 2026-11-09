@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { QueryProvider } from "@/providers/QueryProvider";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -28,7 +29,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <meta name="color-scheme" content="light dark" />
       </head>
       <body className="h-full overflow-hidden flex flex-col select-none sm:select-auto">
-        {children}
+        <QueryProvider>{children}</QueryProvider>
       </body>
     </html>
   );

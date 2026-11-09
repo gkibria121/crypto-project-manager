@@ -1,30 +1,35 @@
 "use client";
 
-import React, { useEffect, useId, useRef, useState } from "react";
+import React, { useCallback, useEffect, useId, useRef } from "react";
+import { useForm, useWatch } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import {
+  Check,
+  Copy,
+  Info,
+  ListChecks,
+  Plus,
+  RotateCcw,
+  Send,
+  Settings,
+} from "lucide-react";
 import {
   BUSINESS_STATUS_META,
-  ChecklistItemConfig,
-  CryptoProject,
-  ProjectBusinessStatus,
-  ProjectContextItem,
-  PromptTemplate,
+  BUSINESS_STATUS_ORDER,
+  chatComposerFormSchema,
+  type ChatComposerFormValues,
+  type ChecklistItemConfig,
+  type CryptoProject,
+  type ProjectBusinessStatus,
+  type PromptTemplate,
 } from "@/types/project";
 import { ProjectAvatar } from "@/components/ProjectAvatar";
 import {
-  Send,
-  Globe,
-  AtSign,
-  Briefcase,
-  MessageSquareText,
-  Copy,
-  Check,
-  Plus,
-  Info,
-  RotateCcw,
-  SendHorizontal,
-  ListChecks,
-  Settings,
-} from "lucide-react";
+  ContextTypeIcon,
+  FormattedMessageContent,
+} from "@/components/ui";
+import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
+import { useImeSafeSubmit } from "@/hooks/useImeSafeSubmit";
 
 interface AiChatPaneProps {
   project: CryptoProject;
@@ -42,97 +47,6 @@ interface AiChatPaneProps {
   isContextPanelOpen: boolean;
   onToggleContextPanel: () => void;
   isAiTyping: boolean;
-}
-
-function getContextIcon(type: ProjectContextItem["type"]) {
-  switch (type) {
-    case "website":
-      return <Globe className="w-3 h-3 text-[#65676b] dark:text-[#8696a0]" />;
-    case "x_handle":
-      return <AtSign className="w-3 h-3 text-[#65676b] dark:text-[#8696a0]" />;
-    case "linkedin":
-      return (
-        <Briefcase className="w-3 h-3 text-[#65676b] dark:text-[#8696a0]" />
-      );
-    case "telegram":
-      return (
-        <SendHorizontal className="w-3 h-3 text-[#65676b] dark:text-[#8696a0]" />
-      );
-    case "message":
-      return (
-        <MessageSquareText className="w-3 h-3 text-[#65676b] dark:text-[#8696a0]" />
-      );
-  }
-}
-
-function FormattedMessageContent({ content }: { content: string }) {
-  const lines = content.split("\n");
-
-  const formatInline = (text: string) => {
-    const parts = text.split(/(\*\*.*?\*\*|`.*?`)/g);
-    return parts.map((part, idx) => {
-      if (part.startsWith("**") && part.endsWith("**")) {
-        return (
-          <strong key={idx} className="font-semibold">
-            {part.slice(2, -2)}
-          </strong>
-        );
-      }
-      if (part.startsWith("`") && part.endsWith("`")) {
-        return (
-          <code
-            key={idx}
-            className="px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/10 font-mono text-[12px]"
-          >
-            {part.slice(1, -1)}
-          </code>
-        );
-      }
-      return part;
-    });
-  };
-
-  return (
-    <div className="space-y-1.5 text-[14px] leading-relaxed">
-      {lines.map((line, idx) => {
-        const trimmed = line.trim();
-        if (!trimmed) return <div key={idx} className="h-1" />;
-
-        if (trimmed.startsWith("### ")) {
-          return (
-            <h3
-              key={idx}
-              className="text-[13px] font-semibold text-[#050505] dark:text-[#e9edef] pt-1"
-            >
-              {trimmed.replace("### ", "")}
-            </h3>
-          );
-        }
-
-        if (trimmed.startsWith("- ")) {
-          return (
-            <div key={idx} className="flex items-start gap-2 pl-1">
-              <span className="w-1 h-1 rounded-full bg-current mt-2 shrink-0 opacity-60" />
-              <p className="flex-1">{formatInline(trimmed.slice(2))}</p>
-            </div>
-          );
-        }
-
-        if (trimmed.startsWith("> ")) {
-          return (
-            <blockquote
-              key={idx}
-              className="border-l-2 border-[#0084ff] pl-3 py-0.5 my-1 text-[#65676b] dark:text-[#d1d7db]"
-            >
-              {formatInline(trimmed.slice(2))}
-            </blockquote>
-          );
-        }
-
-        return <p key={idx}>{formatInline(line)}</p>;
-      })}
-    </div>
-  );
 }
 
 export function AiChatPane({
@@ -156,8 +70,27 @@ export function AiChatPane({
   const statusSelectId = useId();
   const formRef = useRef<HTMLFormElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const lastCompositionEndAtRef = useRef<number | null>(null);
-  const [copiedMsgId, setCopiedMsgId] = useState<string | null>(null);
+
+  const { copiedId, copy } = useCopyToClipboard();
+
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    reset,
+    control,
+  } = useForm<ChatComposerFormValues>({
+    resolver: zodResolver(chatComposerFormSchema),
+    defaultValues: {
+      content: draftPrompt,
+    },
+  });
+
+  const watchedContent = useWatch({ control, name: "content" }) ?? "";
+
+  useEffect(() => {
+    setValue("content", draftPrompt, { shouldValidate: false });
+  }, [draftPrompt, setValue]);
 
   const activeContexts = project.contexts.filter((c) => c.isActive);
   const checkedCount = checklistItems.filter(
@@ -168,42 +101,25 @@ export function AiChatPane({
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [project.id, project.messages.length, isAiTyping]);
 
-  const handleCopy = async (id: string, text: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopiedMsgId(id);
-      setTimeout(() => setCopiedMsgId(null), 1800);
-    } catch {
-      // Clipboard fallback ignored
-    }
+  const handleFormSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    void handleSubmit((values) => {
+      onSendMessage(values.content);
+      reset({ content: "" });
+      setDraftPrompt("");
+    })(e);
   };
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const trimmed = draftPrompt.trim();
-    if (!trimmed) return;
-    onSendMessage(trimmed);
-    setDraftPrompt("");
-  };
+  const triggerSubmit = useCallback(() => {
+    formRef.current?.requestSubmit();
+  }, []);
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
+  const { onCompositionEnd, onKeyDown } = useImeSafeSubmit(triggerSubmit);
 
-      if (e.nativeEvent.isComposing || e.keyCode === 229) {
-        return;
-      }
-
-      if (
-        lastCompositionEndAtRef.current !== null &&
-        Math.abs(e.timeStamp - lastCompositionEndAtRef.current) < 50
-      ) {
-        return;
-      }
-
-      formRef.current?.requestSubmit();
-    }
-  };
+  const contentRegister = register("content", {
+    onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+      setDraftPrompt(e.target.value);
+    },
+  });
 
   return (
     <main className="flex-1 h-full flex flex-col min-w-0 bg-[#f0f2f5] dark:bg-[#0b141a]">
@@ -248,42 +164,15 @@ export function AiChatPane({
                 }
                 className="status-auto-select bg-transparent font-medium text-[#050505] dark:text-[#e9edef] outline-none cursor-pointer"
               >
-                <option
-                  value="new"
-                  className="bg-white dark:bg-[#202c33] text-[#050505] dark:text-[#e9edef]"
-                >
-                  New
-                </option>
-                <option
-                  value="contacted"
-                  className="bg-white dark:bg-[#202c33] text-[#050505] dark:text-[#e9edef]"
-                >
-                  Contacted
-                </option>
-                <option
-                  value="collaborated"
-                  className="bg-white dark:bg-[#202c33] text-[#050505] dark:text-[#e9edef]"
-                >
-                  Collaborated
-                </option>
-                <option
-                  value="completed"
-                  className="bg-white dark:bg-[#202c33] text-[#050505] dark:text-[#e9edef]"
-                >
-                  Completed
-                </option>
-                <option
-                  value="unresponsive"
-                  className="bg-white dark:bg-[#202c33] text-[#050505] dark:text-[#e9edef]"
-                >
-                  Unresponsive
-                </option>
-                <option
-                  value="archived"
-                  className="bg-white dark:bg-[#202c33] text-[#050505] dark:text-[#e9edef]"
-                >
-                  Archived
-                </option>
+                {BUSINESS_STATUS_ORDER.map((statusKey) => (
+                  <option
+                    key={statusKey}
+                    value={statusKey}
+                    className="bg-white dark:bg-[#202c33] text-[#050505] dark:text-[#e9edef]"
+                  >
+                    {BUSINESS_STATUS_META[statusKey].label}
+                  </option>
+                ))}
               </select>
               <span>·</span>
               <span>
@@ -400,7 +289,7 @@ export function AiChatPane({
                             title={`${ctx.title}: ${ctx.value}`}
                             className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#f0f2f5] dark:bg-[#2a3942] text-[10px] text-[#65676b] dark:text-[#d1d7db]"
                           >
-                            {getContextIcon(ctx.type)}
+                            <ContextTypeIcon type={ctx.type} variant="sm" />
                             <span className="max-w-24 truncate">
                               {ctx.title}
                             </span>
@@ -413,10 +302,10 @@ export function AiChatPane({
                       {!isAdmin && (
                         <button
                           type="button"
-                          onClick={() => handleCopy(msg.id, msg.content)}
+                          onClick={() => copy(msg.id, msg.content)}
                           className="inline-flex items-center gap-1 hover:text-[#050505] dark:hover:text-white transition cursor-pointer"
                         >
-                          {copiedMsgId === msg.id ? (
+                          {copiedId === msg.id ? (
                             <>
                               <Check className="w-3 h-3 text-[#00a884]" />
                               <span>Copied</span>
@@ -475,11 +364,12 @@ export function AiChatPane({
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Single-Row Messenger / WhatsApp Composer Footer */}
+      {/* Single-Row Messenger / WhatsApp Composer Footer (React Hook Form + Zod) */}
       <div className="px-3 py-2.5 bg-white dark:bg-[#202c33] border-t border-[#e4e6eb] dark:border-[#222d34] shrink-0">
         <form
           ref={formRef}
-          onSubmit={handleSubmit}
+          onSubmit={handleFormSubmit}
+          noValidate
           className="flex items-end gap-2"
         >
           <button
@@ -498,12 +388,9 @@ export function AiChatPane({
             </label>
             <textarea
               id={chatInputId}
-              value={draftPrompt}
-              onChange={(e) => setDraftPrompt(e.target.value)}
-              onCompositionEnd={(e) => {
-                lastCompositionEndAtRef.current = e.timeStamp;
-              }}
-              onKeyDown={handleKeyDown}
+              {...contentRegister}
+              onCompositionEnd={onCompositionEnd}
+              onKeyDown={onKeyDown}
               placeholder={`Message ${project.name} (${activeContexts.length} contexts active)...`}
               className="chat-auto-textarea bg-transparent text-[14px] text-[#050505] dark:text-[#e9edef] placeholder:text-[#65676b] dark:placeholder:text-[#8696a0] outline-none resize-none"
             />
@@ -511,7 +398,7 @@ export function AiChatPane({
 
           <button
             type="submit"
-            disabled={!draftPrompt.trim()}
+            disabled={!watchedContent.trim()}
             aria-label="Send message"
             className="w-9 h-9 rounded-full bg-[#0084ff] hover:bg-[#0073e6] disabled:opacity-40 disabled:pointer-events-none text-white flex items-center justify-center shrink-0 transition cursor-pointer"
           >

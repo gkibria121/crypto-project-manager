@@ -154,3 +154,11 @@ dialog::backdrop {
   overscroll-behavior: contain;
   background-color: rgba(0, 0, 0, 0.5);
 }
+
+input:user-invalid,
+textarea:user-invalid,
+input[aria-invalid="true"],
+textarea[aria-invalid="true"] {
+  outline: 1.5px solid #e11d48;
+  outline-offset: -1.5px;
+}
