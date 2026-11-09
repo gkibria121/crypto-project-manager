@@ -1,8 +1,46 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: light dark;
+
+  --bg-canvas-light: #f8fafc;
+  --bg-canvas-dark: #060913;
+  --fg-canvas-light: #0f172a;
+  --fg-canvas-dark: #f1f5f9;
+
+  --brand-accent-light: #4f46e5;
+  --brand-accent-dark: #818cf8;
+
+  --scrollbar-thumb-light: #cbd5e1;
+  --scrollbar-thumb-dark: #334155;
+  --scrollbar-track-light: transparent;
+  --scrollbar-track-dark: transparent;
+
+  --background: var(--bg-canvas-light);
+  --foreground: var(--fg-canvas-light);
+  --accent-color: var(--brand-accent-light);
+  --scrollbar-thumb: var(--scrollbar-thumb-light);
+  --scrollbar-track: var(--scrollbar-track-light);
+
+  @media (prefers-color-scheme: dark) {
+    --background: var(--bg-canvas-dark);
+    --foreground: var(--fg-canvas-dark);
+    --accent-color: var(--brand-accent-dark);
+    --scrollbar-thumb: var(--scrollbar-thumb-dark);
+    --scrollbar-track: var(--scrollbar-track-dark);
+  }
+
+  @supports (color: light-dark(white, black)) {
+    --background: light-dark(var(--bg-canvas-light), var(--bg-canvas-dark));
+    --foreground: light-dark(var(--fg-canvas-light), var(--fg-canvas-dark));
+    --accent-color: light-dark(var(--brand-accent-light), var(--brand-accent-dark));
+    --scrollbar-thumb: light-dark(var(--scrollbar-thumb-light), var(--scrollbar-thumb-dark));
+    --scrollbar-track: light-dark(var(--scrollbar-track-light), var(--scrollbar-track-dark));
+  }
+
+  accent-color: var(--accent-color);
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+  scrollbar-width: thin;
 }
 
 @theme inline {
@@ -12,15 +50,64 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
+}
+
+/* Custom scrollable containers with standard scrollbar-color + scrollbar-width and legacy fallback */
+.scroller {
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+  scrollbar-width: thin;
+}
+
+@supports not (scrollbar-color: auto) {
+  .scroller::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .scroller::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+    border-radius: 9999px;
+  }
+
+  .scroller::-webkit-scrollbar-track {
+    background: var(--scrollbar-track);
+  }
+}
+
+/* Auto-fitting chat textarea following form-fields-automatically-fit-contents */
+.chat-auto-textarea {
+  field-sizing: content;
+  height: auto;
+  width: 100%;
+  min-block-size: 1.5lh;
+  max-block-size: 7lh;
+}
+
+/* Canonical visually-hidden utility keeping inputs in the accessibility tree */
+.visually-hidden:where(:not(:focus-within, :active)) {
+  position: absolute !important;
+  clip-path: inset(50%) !important;
+  overflow: hidden !important;
+  width: 1px !important;
+  height: 1px !important;
+  margin: -1px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  white-space: nowrap !important;
+}
+
+/* Native modal dialog scroll containment and backdrop styling */
+dialog:modal {
+  overscroll-behavior: contain;
+}
+
+dialog::backdrop {
+  overflow: hidden;
+  overscroll-behavior: contain;
+  background-color: rgba(2, 6, 23, 0.72);
+  backdrop-filter: blur(4px);
 }
