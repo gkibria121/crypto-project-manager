@@ -19,9 +19,7 @@ import {
   MessageSquareText,
   SendHorizontal,
   X,
-  Sparkles,
   Upload,
-  Image as ImageIcon,
   Trash2,
 } from "lucide-react";
 
@@ -108,9 +106,7 @@ export function AddContextDialog({
       title: title.trim(),
       value: value.trim(),
       url: normalizeUrl(type, value),
-      summary:
-        summary.trim() ||
-        "Added by Admin for AI campaign context grounding.",
+      summary: summary.trim() || undefined,
       isActive: true,
     });
 
@@ -125,46 +121,40 @@ export function AddContextDialog({
       ref={dialogRef}
       aria-labelledby={titleId}
       {...({ closedby: "any" } as React.DialogHTMLAttributes<HTMLDialogElement>)}
-      className="m-auto w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 border border-slate-200 dark:border-slate-800 p-0 shadow-2xl"
+      className="m-auto w-full max-w-md rounded-2xl bg-white dark:bg-[#202c33] text-[#050505] dark:text-[#e9edef] border border-[#e4e6eb] dark:border-[#2a3942] p-0 shadow-xl"
     >
       <div className="p-5">
-        <div className="flex items-center justify-between pb-3 border-b border-slate-200/70 dark:border-slate-800">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
-              <Sparkles className="w-4 h-4" />
-            </div>
-            <div>
-              <h2 id={titleId} className="text-sm font-bold">
-                Add Project Context
-              </h2>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                Ground AI responses for <strong>{projectName}</strong>
-              </p>
-            </div>
+        <div className="flex items-center justify-between pb-3 border-b border-[#e4e6eb] dark:border-[#2a3942]">
+          <div>
+            <h2 id={titleId} className="text-base font-bold">
+              Add Context
+            </h2>
+            <p className="text-xs text-[#65676b] dark:text-[#8696a0]">
+              {projectName}
+            </p>
           </div>
 
           <button
             type="button"
             onClick={() => dialogRef.current?.close()}
             aria-label="Close dialog"
-            className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
+            className="w-8 h-8 rounded-full text-[#65676b] dark:text-[#8696a0] hover:bg-[#f0f2f5] dark:hover:bg-[#2a3942] flex items-center justify-center transition cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-3.5 mt-4">
-          {/* Context Type Selector */}
           <div>
-            <span className="block text-xs font-semibold mb-1.5 text-slate-700 dark:text-slate-300">
-              Context Source Type
+            <span className="block text-xs font-semibold mb-1.5 text-[#65676b] dark:text-[#8696a0]">
+              Type
             </span>
             <div className="grid grid-cols-5 gap-1.5">
               {(
                 [
                   {
                     id: "x_handle",
-                    label: "X Handle",
+                    label: "X",
                     icon: <AtSign className="w-3.5 h-3.5" />,
                   },
                   {
@@ -184,7 +174,7 @@ export function AddContextDialog({
                   },
                   {
                     id: "message",
-                    label: "Note/Brief",
+                    label: "Note",
                     icon: <MessageSquareText className="w-3.5 h-3.5" />,
                   },
                 ] as const
@@ -193,10 +183,10 @@ export function AddContextDialog({
                   key={option.id}
                   type="button"
                   onClick={() => setType(option.id)}
-                  className={`flex flex-col items-center justify-center gap-1 py-2 px-1 rounded-xl text-[10px] font-semibold border transition cursor-pointer ${
+                  className={`flex flex-col items-center justify-center gap-1 py-2 px-1 rounded-xl text-[11px] font-medium transition cursor-pointer ${
                     type === option.id
-                      ? "bg-indigo-600 text-white border-indigo-600 shadow-xs"
-                      : "bg-slate-50 dark:bg-slate-800/70 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100"
+                      ? "bg-[#e7f3ff] text-[#0084ff] dark:bg-[#0084ff]/20 dark:text-[#4599ff] font-semibold"
+                      : "bg-[#f0f2f5] dark:bg-[#2a3942] text-[#65676b] dark:text-[#8696a0]"
                   }`}
                 >
                   {option.icon}
@@ -209,9 +199,9 @@ export function AddContextDialog({
           <div>
             <label
               htmlFor={titleInputId}
-              className="block text-xs font-semibold mb-1 text-slate-700 dark:text-slate-300"
+              className="block text-xs font-semibold mb-1 text-[#65676b] dark:text-[#8696a0]"
             >
-              Context Label
+              Title
             </label>
             <input
               id={titleInputId}
@@ -223,25 +213,23 @@ export function AddContextDialog({
               onChange={(e) => setTitle(e.target.value)}
               placeholder={
                 type === "x_handle"
-                  ? "e.g., Founder X Handle or Official X"
+                  ? "Official X Handle"
                   : type === "linkedin"
-                    ? "e.g., Executive LinkedIn Page"
+                    ? "Company LinkedIn"
                     : type === "website"
-                      ? "e.g., Official Docs & Tokenomics"
-                      : "e.g., Q4 KOL Campaign Guardrails"
+                      ? "Website & Docs"
+                      : "Campaign Brief"
               }
-              className="w-full px-3 py-2 text-xs rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:border-indigo-500 outline-none"
+              className="w-full px-3 py-2 text-sm rounded-lg bg-[#f0f2f5] dark:bg-[#2a3942] text-[#050505] dark:text-[#e9edef] outline-none"
             />
           </div>
 
           <div>
             <label
               htmlFor={valueInputId}
-              className="block text-xs font-semibold mb-1 text-slate-700 dark:text-slate-300"
+              className="block text-xs font-semibold mb-1 text-[#65676b] dark:text-[#8696a0]"
             >
-              {type === "message"
-                ? "Marketing Directive / Context Message"
-                : "Link or Handle"}
+              {type === "message" ? "Message / Note" : "Link or Handle"}
             </label>
             {type === "message" ? (
               <textarea
@@ -251,8 +239,8 @@ export function AddContextDialog({
                 rows={3}
                 value={value}
                 onChange={(e) => setValue(e.target.value)}
-                placeholder="Write instructions, tokenomics facts, or campaign messaging for the AI..."
-                className="w-full px-3 py-2 text-xs rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:border-indigo-500 outline-none resize-none"
+                placeholder="Enter campaign instructions or context note..."
+                className="w-full px-3 py-2 text-sm rounded-lg bg-[#f0f2f5] dark:bg-[#2a3942] text-[#050505] dark:text-[#e9edef] outline-none resize-none"
               />
             ) : (
               <input
@@ -267,12 +255,12 @@ export function AddContextDialog({
                 onChange={(e) => setValue(e.target.value)}
                 placeholder={
                   type === "x_handle"
-                    ? "@ProjectHandle"
+                    ? "@handle"
                     : type === "linkedin"
-                      ? "linkedin.com/company/your-project"
-                      : "https://yourproject.xyz"
+                      ? "linkedin.com/company/..."
+                      : "https://..."
                 }
-                className="w-full px-3 py-2 text-xs rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:border-indigo-500 outline-none"
+                className="w-full px-3 py-2 text-sm rounded-lg bg-[#f0f2f5] dark:bg-[#2a3942] text-[#050505] dark:text-[#e9edef] outline-none"
               />
             )}
           </div>
@@ -280,9 +268,9 @@ export function AddContextDialog({
           <div>
             <label
               htmlFor={summaryInputId}
-              className="block text-xs font-semibold mb-1 text-slate-700 dark:text-slate-300"
+              className="block text-xs font-semibold mb-1 text-[#65676b] dark:text-[#8696a0]"
             >
-              AI Tone / Key Takeaways (Optional)
+              Notes (Optional)
             </label>
             <input
               id={summaryInputId}
@@ -290,8 +278,8 @@ export function AddContextDialog({
               type="text"
               value={summary}
               onChange={(e) => setSummary(e.target.value)}
-              placeholder="e.g., Focus on institutional RWA yield and zero slippage"
-              className="w-full px-3 py-2 text-xs rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:border-indigo-500 outline-none"
+              placeholder="Optional summary or tone note"
+              className="w-full px-3 py-2 text-sm rounded-lg bg-[#f0f2f5] dark:bg-[#2a3942] text-[#050505] dark:text-[#e9edef] outline-none"
             />
           </div>
 
@@ -299,15 +287,15 @@ export function AddContextDialog({
             <button
               type="button"
               onClick={() => dialogRef.current?.close()}
-              className="px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
+              className="px-4 py-2 rounded-lg text-xs font-semibold text-[#65676b] dark:text-[#8696a0] hover:bg-[#f0f2f5] dark:hover:bg-[#2a3942] transition cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-4 py-2 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white shadow-sm transition cursor-pointer"
+              className="px-4 py-2 rounded-lg text-xs font-semibold bg-[#0084ff] hover:bg-[#0073e6] text-white transition cursor-pointer"
             >
-              Save to AI Context
+              Save
             </button>
           </div>
         </form>
@@ -358,38 +346,31 @@ export function UpdateProjectLogoDialog({
       ref={dialogRef}
       aria-labelledby={titleId}
       {...({ closedby: "any" } as React.DialogHTMLAttributes<HTMLDialogElement>)}
-      className="m-auto w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 border border-slate-200 dark:border-slate-800 p-0 shadow-2xl"
+      className="m-auto w-full max-w-md rounded-2xl bg-white dark:bg-[#202c33] text-[#050505] dark:text-[#e9edef] border border-[#e4e6eb] dark:border-[#2a3942] p-0 shadow-xl"
     >
       <div className="p-5">
-        <div className="flex items-center justify-between pb-3 border-b border-slate-200/70 dark:border-slate-800">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
-              <ImageIcon className="w-4 h-4" />
-            </div>
-            <div>
-              <h2 id={titleId} className="text-sm font-bold">
-                Project Logo & Profile Image
-              </h2>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                Customize identity for <strong>{project.name}</strong> (
-                {project.ticker})
-              </p>
-            </div>
+        <div className="flex items-center justify-between pb-3 border-b border-[#e4e6eb] dark:border-[#2a3942]">
+          <div>
+            <h2 id={titleId} className="text-base font-bold">
+              Project Photo
+            </h2>
+            <p className="text-xs text-[#65676b] dark:text-[#8696a0]">
+              {project.name} ({project.ticker})
+            </p>
           </div>
 
           <button
             type="button"
             onClick={() => dialogRef.current?.close()}
             aria-label="Close dialog"
-            className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
+            className="w-8 h-8 rounded-full text-[#65676b] dark:text-[#8696a0] hover:bg-[#f0f2f5] dark:hover:bg-[#2a3942] flex items-center justify-center transition cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4 mt-4">
-          {/* Live Avatar Preview + File Upload Control */}
-          <div className="flex items-center gap-4 p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200/80 dark:border-slate-800">
+          <div className="flex items-center gap-4 p-3.5 rounded-xl bg-[#f0f2f5] dark:bg-[#2a3942]">
             <ProjectAvatar
               project={{
                 ...project,
@@ -412,36 +393,35 @@ export function UpdateProjectLogoDialog({
                 />
                 <label
                   htmlFor={fileInputId}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white shadow-xs transition cursor-pointer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#0084ff] hover:bg-[#0073e6] text-white transition cursor-pointer"
                 >
                   <Upload className="w-3.5 h-3.5" />
-                  <span>Upload Image</span>
+                  <span>Upload photo</span>
                 </label>
 
                 {previewUrl && (
                   <button
                     type="button"
                     onClick={() => setPreviewUrl("")}
-                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-rose-600 dark:text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 transition cursor-pointer"
+                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-black/5 transition cursor-pointer"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
-                    <span>Reset to Ticker</span>
+                    <span>Remove</span>
                   </button>
                 )}
               </div>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                Supports PNG, JPG, SVG, or WebP token/project logos.
+              <p className="text-[11px] text-[#65676b] dark:text-[#8696a0]">
+                PNG, JPG, SVG, or WebP.
               </p>
             </div>
           </div>
 
-          {/* Paste Direct Image URL */}
           <div>
             <label
               htmlFor={logoUrlInputId}
-              className="block text-xs font-semibold mb-1 text-slate-700 dark:text-slate-300"
+              className="block text-xs font-semibold mb-1 text-[#65676b] dark:text-[#8696a0]"
             >
-              Or Paste Logo / Profile Image URL
+              Image URL
             </label>
             <input
               id={logoUrlInputId}
@@ -452,15 +432,14 @@ export function UpdateProjectLogoDialog({
               spellCheck={false}
               value={previewUrl.startsWith("data:") ? "" : previewUrl}
               onChange={(e) => setPreviewUrl(e.target.value)}
-              placeholder="https://assets.coingecko.com/.../logo.png"
-              className="w-full px-3 py-2 text-xs rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:border-indigo-500 outline-none"
+              placeholder="https://..."
+              className="w-full px-3 py-2 text-sm rounded-lg bg-[#f0f2f5] dark:bg-[#2a3942] text-[#050505] dark:text-[#e9edef] outline-none"
             />
           </div>
 
-          {/* Preset Web3 Badges */}
           <div>
-            <span className="block text-xs font-semibold mb-1.5 text-slate-700 dark:text-slate-300">
-              Or Pick a Web3 Emblem Preset
+            <span className="block text-xs font-semibold mb-1.5 text-[#65676b] dark:text-[#8696a0]">
+              Default Icons
             </span>
             <div className="grid grid-cols-4 gap-2">
               {PRESET_PROJECT_LOGOS.map((preset) => {
@@ -470,16 +449,16 @@ export function UpdateProjectLogoDialog({
                     key={preset.label}
                     type="button"
                     onClick={() => setPreviewUrl(preset.url)}
-                    className={`flex flex-col items-center gap-1 p-2 rounded-xl border text-[10px] font-medium transition cursor-pointer ${
+                    className={`flex flex-col items-center gap-1 p-2 rounded-xl border text-[11px] font-medium transition cursor-pointer ${
                       isSelected
-                        ? "border-indigo-500 bg-indigo-500/10 text-indigo-600 dark:text-indigo-300"
-                        : "border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800/70 text-slate-600 dark:text-slate-400"
+                        ? "border-[#0084ff] bg-[#e7f3ff] text-[#0084ff] dark:bg-[#0084ff]/20 dark:text-[#4599ff]"
+                        : "border-[#e4e6eb] dark:border-[#2a3942] text-[#65676b] dark:text-[#8696a0]"
                     }`}
                   >
                     <img
                       src={preset.url}
                       alt=""
-                      className="w-9 h-9 rounded-xl object-cover"
+                      className="w-9 h-9 rounded-full object-cover"
                     />
                     <span className="truncate w-full text-center">
                       {preset.label}
@@ -490,19 +469,19 @@ export function UpdateProjectLogoDialog({
             </div>
           </div>
 
-          <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-200/60 dark:border-slate-800">
+          <div className="flex items-center justify-end gap-2 pt-2">
             <button
               type="button"
               onClick={() => dialogRef.current?.close()}
-              className="px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
+              className="px-4 py-2 rounded-lg text-xs font-semibold text-[#65676b] dark:text-[#8696a0] hover:bg-[#f0f2f5] dark:hover:bg-[#2a3942] transition cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-4 py-2 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white shadow-sm transition cursor-pointer"
+              className="px-4 py-2 rounded-lg text-xs font-semibold bg-[#0084ff] hover:bg-[#0073e6] text-white transition cursor-pointer"
             >
-              Save Project Logo
+              Save
             </button>
           </div>
         </form>
@@ -516,11 +495,12 @@ interface NewProjectDialogProps {
   onCreateProject: (project: CryptoProject) => void;
 }
 
-const AVATAR_GRADIENTS = [
-  "from-indigo-600 via-violet-600 to-cyan-500",
-  "from-emerald-500 via-teal-600 to-sky-600",
-  "from-amber-500 via-orange-600 to-rose-600",
-  "from-fuchsia-600 via-pink-600 to-purple-700",
+const SOLID_AVATAR_COLORS = [
+  "bg-[#1d4ed8]",
+  "bg-[#00a884]",
+  "bg-[#0f172a]",
+  "bg-[#334155]",
+  "bg-[#0369a1]",
 ];
 
 export function NewProjectDialog({
@@ -580,9 +560,8 @@ export function NewProjectDialog({
         url: website.trim().startsWith("http")
           ? website.trim()
           : `https://${website.trim()}`,
-        summary: `Primary website and narrative hub for ${name.trim()}.`,
         isActive: true,
-        updatedAt: "Just now",
+        updatedAt: "Now",
       });
     }
     if (xHandle.trim()) {
@@ -592,40 +571,37 @@ export function NewProjectDialog({
       contexts.push({
         id: `ctx-${Date.now()}-x`,
         type: "x_handle",
-        title: "Official X Handle",
+        title: "Official X",
         value: cleanHandle,
         url: `https://x.com/${cleanHandle.replace(/^@/, "")}`,
-        summary: `Crypto Twitter voice and community channel for ${cleanTicker}.`,
         isActive: true,
-        updatedAt: "Just now",
+        updatedAt: "Now",
       });
     }
     if (linkedin.trim()) {
       contexts.push({
         id: `ctx-${Date.now()}-li`,
         type: "linkedin",
-        title: "Company LinkedIn",
+        title: "LinkedIn",
         value: linkedin.trim(),
         url: linkedin.trim().startsWith("http")
           ? linkedin.trim()
           : `https://${linkedin.trim()}`,
-        summary: `Institutional and B2B presence for ${name.trim()}.`,
         isActive: true,
-        updatedAt: "Just now",
+        updatedAt: "Now",
       });
     }
 
-    contexts.push({
-      id: `ctx-${Date.now()}-note`,
-      type: "message",
-      title: "Initial Campaign Positioning",
-      value:
-        tagline.trim() ||
-        `${name.trim()} (${cleanTicker}) on ${chain} — ${stage} marketing campaign.`,
-      summary: "Default campaign positioning brief.",
-      isActive: true,
-      updatedAt: "Pinned",
-    });
+    if (tagline.trim()) {
+      contexts.push({
+        id: `ctx-${Date.now()}-note`,
+        type: "message",
+        title: "Project Positioning",
+        value: tagline.trim(),
+        isActive: true,
+        updatedAt: "Now",
+      });
+    }
 
     const newProject: CryptoProject = {
       id: `proj-${Date.now()}`,
@@ -635,11 +611,12 @@ export function NewProjectDialog({
       stage,
       businessStatus,
       avatarBg:
-        AVATAR_GRADIENTS[Math.floor(Math.random() * AVATAR_GRADIENTS.length)],
+        SOLID_AVATAR_COLORS[
+          Math.floor(Math.random() * SOLID_AVATAR_COLORS.length)
+        ],
       logoUrl: logoUrl.trim() ? logoUrl.trim() : undefined,
       tagline:
-        tagline.trim() ||
-        `Next-gen ${chain} protocol preparing for ${stage} growth.`,
+        tagline.trim() || `${chain} project (${stage})`,
       campaignBudget: "$25,000 / mo",
       sentimentScore: 90,
       isPinned: true,
@@ -650,8 +627,8 @@ export function NewProjectDialog({
         {
           id: `msg-${Date.now()}`,
           sender: "ai",
-          content: `Workspace initialized for **${name.trim()} (${cleanTicker})** on **${chain}**! I have indexed **${contexts.length} project contexts**. Ask me to craft your X launch thread, LinkedIn announcement, or KOL outreach plan.`,
-          timestamp: "Just now",
+          content: `Chat initialized for **${name.trim()} (${cleanTicker})** with ${contexts.length} context items active.`,
+          timestamp: "Now",
           usedContextIds: contexts.map((c) => c.id),
         },
       ],
@@ -670,39 +647,38 @@ export function NewProjectDialog({
 
   const previewTicker = ticker.trim()
     ? ticker.trim().toUpperCase()
-    : "$TOKEN";
+    : "$TKN";
 
   return (
     <dialog
       ref={dialogRef}
       aria-labelledby={titleId}
       {...({ closedby: "any" } as React.DialogHTMLAttributes<HTMLDialogElement>)}
-      className="m-auto w-full max-w-lg rounded-3xl bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 border border-slate-200 dark:border-slate-800 p-0 shadow-2xl"
+      className="m-auto w-full max-w-lg rounded-2xl bg-white dark:bg-[#202c33] text-[#050505] dark:text-[#e9edef] border border-[#e4e6eb] dark:border-[#2a3942] p-0 shadow-xl"
     >
       <div className="p-5">
-        <div className="flex items-center justify-between pb-3 border-b border-slate-200/70 dark:border-slate-800">
-          <h2 id={titleId} className="text-sm font-bold">
-            Onboard New Crypto Client Project
+        <div className="flex items-center justify-between pb-3 border-b border-[#e4e6eb] dark:border-[#2a3942]">
+          <h2 id={titleId} className="text-base font-bold">
+            New Project
           </h2>
           <button
             type="button"
             onClick={() => dialogRef.current?.close()}
             aria-label="Close dialog"
-            className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
+            className="w-8 h-8 rounded-full text-[#65676b] dark:text-[#8696a0] hover:bg-[#f0f2f5] dark:hover:bg-[#2a3942] flex items-center justify-center transition cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-3 mt-4">
-          {/* Project Logo / Profile Image Upload & Preview Row */}
-          <div className="flex items-center gap-3.5 p-3 rounded-2xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200/80 dark:border-slate-800">
+          <div className="flex items-center gap-3.5 p-3 rounded-xl bg-[#f0f2f5] dark:bg-[#2a3942]">
             <ProjectAvatar
               project={{
                 name: name.trim() || "New Project",
                 ticker: previewTicker,
                 chain,
-                avatarBg: AVATAR_GRADIENTS[0],
+                avatarBg: SOLID_AVATAR_COLORS[0],
                 logoUrl: logoUrl.trim() || undefined,
               }}
               size="lg"
@@ -720,14 +696,14 @@ export function NewProjectDialog({
                 />
                 <label
                   htmlFor={newLogoFileId}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white transition cursor-pointer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#0084ff] hover:bg-[#0073e6] text-white transition cursor-pointer"
                 >
-                  <Upload className="w-3 h-3" />
-                  <span>Upload Logo</span>
+                  <Upload className="w-3.5 h-3.5" />
+                  <span>Upload photo</span>
                 </label>
 
                 <label htmlFor={newLogoUrlId} className="sr-only">
-                  Or paste project logo image URL
+                  Image URL
                 </label>
                 <input
                   id={newLogoUrlId}
@@ -738,23 +714,10 @@ export function NewProjectDialog({
                   spellCheck={false}
                   value={logoUrl.startsWith("data:") ? "" : logoUrl}
                   onChange={(e) => setLogoUrl(e.target.value)}
-                  placeholder="Or paste logo image URL..."
-                  className="flex-1 min-w-36 px-2.5 py-1 text-xs rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 outline-none"
+                  placeholder="Or paste image URL..."
+                  className="flex-1 min-w-36 px-2.5 py-1.5 text-xs rounded-lg bg-white dark:bg-[#202c33] outline-none"
                 />
-
-                {logoUrl && (
-                  <button
-                    type="button"
-                    onClick={() => setLogoUrl("")}
-                    className="text-[11px] font-medium text-rose-500 hover:underline cursor-pointer"
-                  >
-                    Clear
-                  </button>
-                )}
               </div>
-              <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1">
-                Upload a token/profile image or leave blank to use the ticker badge.
-              </p>
             </div>
           </div>
 
@@ -762,7 +725,7 @@ export function NewProjectDialog({
             <div className="col-span-2">
               <label
                 htmlFor={nameId}
-                className="block text-xs font-semibold mb-1 text-slate-700 dark:text-slate-300"
+                className="block text-xs font-semibold mb-1 text-[#65676b] dark:text-[#8696a0]"
               >
                 Project Name
               </label>
@@ -775,16 +738,16 @@ export function NewProjectDialog({
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="e.g., Hyperion ZK"
-                className="w-full px-3 py-2 text-xs rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none"
+                className="w-full px-3 py-2 text-sm rounded-lg bg-[#f0f2f5] dark:bg-[#2a3942] outline-none"
               />
             </div>
 
             <div>
               <label
                 htmlFor={tickerId}
-                className="block text-xs font-semibold mb-1 text-slate-700 dark:text-slate-300"
+                className="block text-xs font-semibold mb-1 text-[#65676b] dark:text-[#8696a0]"
               >
-                Token Ticker
+                Ticker
               </label>
               <input
                 id={tickerId}
@@ -797,7 +760,7 @@ export function NewProjectDialog({
                 value={ticker}
                 onChange={(e) => setTicker(e.target.value)}
                 placeholder="$HYPR"
-                className="w-full px-3 py-2 text-xs font-mono rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none"
+                className="w-full px-3 py-2 text-sm font-mono rounded-lg bg-[#f0f2f5] dark:bg-[#2a3942] outline-none"
               />
             </div>
           </div>
@@ -806,16 +769,16 @@ export function NewProjectDialog({
             <div>
               <label
                 htmlFor={chainId}
-                className="block text-xs font-semibold mb-1 text-slate-700 dark:text-slate-300"
+                className="block text-xs font-semibold mb-1 text-[#65676b] dark:text-[#8696a0]"
               >
-                Primary Chain
+                Chain
               </label>
               <select
                 id={chainId}
                 name="project-chain"
                 value={chain}
                 onChange={(e) => setChain(e.target.value)}
-                className="w-full px-3 py-2 text-xs rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none"
+                className="w-full px-3 py-2 text-xs rounded-lg bg-[#f0f2f5] dark:bg-[#2a3942] outline-none"
               >
                 <option value="Solana">Solana</option>
                 <option value="Ethereum L2">Ethereum L2</option>
@@ -829,16 +792,16 @@ export function NewProjectDialog({
             <div>
               <label
                 htmlFor={stageId}
-                className="block text-xs font-semibold mb-1 text-slate-700 dark:text-slate-300"
+                className="block text-xs font-semibold mb-1 text-[#65676b] dark:text-[#8696a0]"
               >
-                Campaign Stage
+                Stage
               </label>
               <select
                 id={stageId}
                 name="project-stage"
                 value={stage}
                 onChange={(e) => setStage(e.target.value as ProjectStage)}
-                className="w-full px-3 py-2 text-xs rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none"
+                className="w-full px-3 py-2 text-xs rounded-lg bg-[#f0f2f5] dark:bg-[#2a3942] outline-none"
               >
                 <option value="Pre-TGE">Pre-TGE</option>
                 <option value="Mainnet Live">Mainnet Live</option>
@@ -851,9 +814,9 @@ export function NewProjectDialog({
             <div>
               <label
                 htmlFor={statusId}
-                className="block text-xs font-semibold mb-1 text-slate-700 dark:text-slate-300"
+                className="block text-xs font-semibold mb-1 text-[#65676b] dark:text-[#8696a0]"
               >
-                Business State
+                Status
               </label>
               <select
                 id={statusId}
@@ -862,9 +825,9 @@ export function NewProjectDialog({
                 onChange={(e) =>
                   setBusinessStatus(e.target.value as ProjectBusinessStatus)
                 }
-                className="w-full px-3 py-2 text-xs rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none"
+                className="w-full px-3 py-2 text-xs rounded-lg bg-[#f0f2f5] dark:bg-[#2a3942] outline-none"
               >
-                <option value="new">New Lead</option>
+                <option value="new">New</option>
                 <option value="contacted">Contacted</option>
                 <option value="collaborated">Collaborated</option>
                 <option value="completed">Completed</option>
@@ -877,9 +840,9 @@ export function NewProjectDialog({
           <div>
             <label
               htmlFor={taglineId}
-              className="block text-xs font-semibold mb-1 text-slate-700 dark:text-slate-300"
+              className="block text-xs font-semibold mb-1 text-[#65676b] dark:text-[#8696a0]"
             >
-              One-Line Narrative / Value Proposition
+              Description / Notes
             </label>
             <input
               id={taglineId}
@@ -887,67 +850,62 @@ export function NewProjectDialog({
               type="text"
               value={tagline}
               onChange={(e) => setTagline(e.target.value)}
-              placeholder="e.g., Modular liquidity aggregator with zero MEV on Solana"
-              className="w-full px-3 py-2 text-xs rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none"
+              placeholder="Short project summary..."
+              className="w-full px-3 py-2 text-sm rounded-lg bg-[#f0f2f5] dark:bg-[#2a3942] outline-none"
             />
           </div>
 
-          <div className="pt-1 border-t border-slate-200/60 dark:border-slate-800">
-            <p className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 mb-2">
-              Seed Initial Project Contexts (Optional)
-            </p>
-            <div className="grid grid-cols-3 gap-2">
-              <div>
-                <label htmlFor={websiteId} className="sr-only">
-                  Website URL
-                </label>
-                <input
-                  id={websiteId}
-                  name="project-website"
-                  type="text"
-                  autoCorrect="off"
-                  autoCapitalize="off"
-                  spellCheck={false}
-                  value={website}
-                  onChange={(e) => setWebsite(e.target.value)}
-                  placeholder="Website URL"
-                  className="w-full px-2.5 py-1.5 text-xs rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none"
-                />
-              </div>
-              <div>
-                <label htmlFor={xHandleId} className="sr-only">
-                  X Handle
-                </label>
-                <input
-                  id={xHandleId}
-                  name="project-x"
-                  type="text"
-                  autoCorrect="off"
-                  autoCapitalize="off"
-                  spellCheck={false}
-                  value={xHandle}
-                  onChange={(e) => setXHandle(e.target.value)}
-                  placeholder="@XHandle"
-                  className="w-full px-2.5 py-1.5 text-xs rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none"
-                />
-              </div>
-              <div>
-                <label htmlFor={linkedinId} className="sr-only">
-                  LinkedIn URL
-                </label>
-                <input
-                  id={linkedinId}
-                  name="project-linkedin"
-                  type="text"
-                  autoCorrect="off"
-                  autoCapitalize="off"
-                  spellCheck={false}
-                  value={linkedin}
-                  onChange={(e) => setLinkedin(e.target.value)}
-                  placeholder="LinkedIn URL"
-                  className="w-full px-2.5 py-1.5 text-xs rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none"
-                />
-              </div>
+          <div className="grid grid-cols-3 gap-2 pt-1">
+            <div>
+              <label htmlFor={websiteId} className="sr-only">
+                Website URL
+              </label>
+              <input
+                id={websiteId}
+                name="project-website"
+                type="text"
+                autoCorrect="off"
+                autoCapitalize="off"
+                spellCheck={false}
+                value={website}
+                onChange={(e) => setWebsite(e.target.value)}
+                placeholder="Website URL"
+                className="w-full px-2.5 py-2 text-xs rounded-lg bg-[#f0f2f5] dark:bg-[#2a3942] outline-none"
+              />
+            </div>
+            <div>
+              <label htmlFor={xHandleId} className="sr-only">
+                X Handle
+              </label>
+              <input
+                id={xHandleId}
+                name="project-x"
+                type="text"
+                autoCorrect="off"
+                autoCapitalize="off"
+                spellCheck={false}
+                value={xHandle}
+                onChange={(e) => setXHandle(e.target.value)}
+                placeholder="@XHandle"
+                className="w-full px-2.5 py-2 text-xs rounded-lg bg-[#f0f2f5] dark:bg-[#2a3942] outline-none"
+              />
+            </div>
+            <div>
+              <label htmlFor={linkedinId} className="sr-only">
+                LinkedIn URL
+              </label>
+              <input
+                id={linkedinId}
+                name="project-linkedin"
+                type="text"
+                autoCorrect="off"
+                autoCapitalize="off"
+                spellCheck={false}
+                value={linkedin}
+                onChange={(e) => setLinkedin(e.target.value)}
+                placeholder="LinkedIn URL"
+                className="w-full px-2.5 py-2 text-xs rounded-lg bg-[#f0f2f5] dark:bg-[#2a3942] outline-none"
+              />
             </div>
           </div>
 
@@ -955,15 +913,15 @@ export function NewProjectDialog({
             <button
               type="button"
               onClick={() => dialogRef.current?.close()}
-              className="px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
+              className="px-4 py-2 rounded-lg text-xs font-semibold text-[#65676b] dark:text-[#8696a0] hover:bg-[#f0f2f5] dark:hover:bg-[#2a3942] transition cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-4 py-2 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white shadow-sm transition cursor-pointer"
+              className="px-4 py-2 rounded-lg text-xs font-semibold bg-[#0084ff] hover:bg-[#0073e6] text-white transition cursor-pointer"
             >
-              Create Project Workspace
+              Create
             </button>
           </div>
         </form>

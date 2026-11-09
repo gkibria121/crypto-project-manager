@@ -17,12 +17,7 @@ import {
   ExternalLink,
   Trash2,
   CornerDownLeft,
-  CheckCircle2,
-  Circle,
   SendHorizontal,
-  Sparkles,
-  Layers,
-  Camera,
 } from "lucide-react";
 
 interface ContextInspectorProps {
@@ -36,43 +31,18 @@ interface ContextInspectorProps {
   onOpenEditLogoModal: () => void;
 }
 
-function getContextTypeMeta(type: ProjectContextItem["type"]) {
+function getContextTypeIcon(type: ProjectContextItem["type"]) {
   switch (type) {
     case "website":
-      return {
-        label: "Website",
-        icon: <Globe className="w-3.5 h-3.5 text-sky-500" />,
-        badgeClass:
-          "bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/20",
-      };
+      return <Globe className="w-4 h-4 text-[#0084ff]" />;
     case "x_handle":
-      return {
-        label: "X / Twitter",
-        icon: <AtSign className="w-3.5 h-3.5 text-slate-900 dark:text-white" />,
-        badgeClass:
-          "bg-slate-500/10 text-slate-700 dark:text-slate-200 border-slate-500/20",
-      };
+      return <AtSign className="w-4 h-4 text-[#050505] dark:text-[#e9edef]" />;
     case "linkedin":
-      return {
-        label: "LinkedIn",
-        icon: <Briefcase className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />,
-        badgeClass:
-          "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20",
-      };
+      return <Briefcase className="w-4 h-4 text-[#0a66c2]" />;
     case "telegram":
-      return {
-        label: "Telegram",
-        icon: <SendHorizontal className="w-3.5 h-3.5 text-cyan-500" />,
-        badgeClass:
-          "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/20",
-      };
+      return <SendHorizontal className="w-4 h-4 text-[#229ed9]" />;
     case "message":
-      return {
-        label: "Context Note",
-        icon: <MessageSquareText className="w-3.5 h-3.5 text-amber-500" />,
-        badgeClass:
-          "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20",
-      };
+      return <MessageSquareText className="w-4 h-4 text-[#00a884]" />;
   }
 }
 
@@ -102,43 +72,40 @@ export function ContextInspector({
 
   return (
     <aside
-      aria-label="Project Contexts & Links"
-      className="w-84 lg:w-92 shrink-0 h-full border-l border-slate-200/80 dark:border-slate-800/80 bg-white/95 dark:bg-slate-950/95 backdrop-blur-xl flex flex-col"
+      aria-label="Project info and contexts"
+      className="w-80 lg:w-88 shrink-0 h-full border-l border-[#e4e6eb] dark:border-[#222d34] bg-white dark:bg-[#111b21] flex flex-col overflow-y-auto scroller"
     >
-      {/* Messenger-style Right Profile Card */}
-      <div className="p-4 border-b border-slate-200/70 dark:border-slate-800/70 flex flex-col items-center text-center">
-        <div className="mb-2">
-          <ProjectAvatar
-            project={project}
-            size="xl"
-            onEditClick={onOpenEditLogoModal}
-            decorative={false}
-          />
-        </div>
+      {/* Messenger / WhatsApp Contact Info Profile Header */}
+      <div className="px-4 pt-5 pb-4 border-b border-[#e4e6eb] dark:border-[#222d34] flex flex-col items-center text-center">
+        <ProjectAvatar
+          project={project}
+          size="xl"
+          onEditClick={onOpenEditLogoModal}
+          decorative={false}
+        />
 
         <button
           type="button"
           onClick={onOpenEditLogoModal}
-          className="inline-flex items-center gap-1 px-2 py-0.5 mb-1.5 rounded-full text-[10px] font-semibold bg-slate-100 hover:bg-indigo-50 dark:bg-slate-900 dark:hover:bg-indigo-950/70 text-slate-600 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-300 border border-slate-200/70 dark:border-slate-800 transition cursor-pointer"
+          className="mt-2 text-xs font-medium text-[#0084ff] hover:underline cursor-pointer"
         >
-          <Camera className="w-3 h-3" />
-          <span>{project.logoUrl ? "Change Project Logo" : "Add Project Logo"}</span>
+          {project.logoUrl ? "Change photo" : "Add photo"}
         </button>
 
-        <h2 className="font-bold text-sm text-slate-900 dark:text-white">
+        <h2 className="mt-1.5 font-bold text-base text-[#050505] dark:text-[#e9edef]">
           {project.name}
         </h2>
-        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-2">
-          {project.tagline}
+        <p className="text-xs text-[#65676b] dark:text-[#8696a0]">
+          {project.ticker} · {project.chain} · {project.stage}
         </p>
 
-        {/* Business State CRM Pipeline Pills */}
-        <div className="w-full mt-3 pt-2.5 border-t border-slate-200/60 dark:border-slate-800/60 text-left">
+        {/* Business State Selector Grid */}
+        <div className="w-full mt-3.5 pt-3 border-t border-[#e4e6eb] dark:border-[#222d34] text-left">
           <div className="flex items-center justify-between mb-1.5">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-              Business State
+            <span className="text-xs font-semibold text-[#65676b] dark:text-[#8696a0]">
+              Status
             </span>
-            <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400">
+            <span className="text-xs font-medium text-[#050505] dark:text-[#e9edef]">
               {BUSINESS_STATUS_META[project.businessStatus].label}
             </span>
           </div>
@@ -161,10 +128,10 @@ export function ContextInspector({
                   type="button"
                   onClick={() => onUpdateBusinessStatus(statusKey)}
                   title={meta.description}
-                  className={`flex items-center justify-center gap-1 py-1 px-1.5 rounded-lg text-[10px] font-semibold border transition cursor-pointer ${
+                  className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-[11px] font-medium transition cursor-pointer ${
                     isSelected
-                      ? meta.badgeClass
-                      : "bg-slate-100/70 dark:bg-slate-900/60 text-slate-500 dark:text-slate-400 border-transparent hover:bg-slate-200/60 dark:hover:bg-slate-800"
+                      ? "bg-[#e7f3ff] text-[#0084ff] dark:bg-[#0084ff]/20 dark:text-[#4599ff] font-semibold"
+                      : "bg-[#f0f2f5] dark:bg-[#202c33] text-[#65676b] dark:text-[#8696a0] hover:bg-[#e4e6eb] dark:hover:bg-[#2a3942]"
                   }`}
                 >
                   <span
@@ -176,87 +143,51 @@ export function ContextInspector({
             })}
           </div>
         </div>
-
-        {/* Quick Social & Web Link Pills */}
-        <div className="flex items-center justify-center gap-1.5 mt-3 flex-wrap">
-          {project.contexts
-            .filter((c) => c.url)
-            .map((linkCtx) => {
-              const meta = getContextTypeMeta(linkCtx.type);
-              return (
-                <a
-                  key={linkCtx.id}
-                  href={linkCtx.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  title={`${linkCtx.title}: ${linkCtx.value}`}
-                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-medium bg-slate-100 hover:bg-slate-200/80 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 transition"
-                >
-                  {meta.icon}
-                  <span>{meta.label}</span>
-                  <ExternalLink className="w-2.5 h-2.5 opacity-60" />
-                </a>
-              );
-            })}
-        </div>
       </div>
 
-      {/* Context Memory Header & Filter Controls */}
-      <div className="px-4 pt-3.5 pb-2.5 border-b border-slate-200/60 dark:border-slate-800/60">
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-1.5">
-            <Layers className="w-4 h-4 text-indigo-500" />
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
-              Project Contexts
-            </h3>
-            <span className="px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400">
-              {activeCount}/{project.contexts.length} Active
-            </span>
-          </div>
+      {/* Project Contexts Section */}
+      <div className="px-4 py-3 border-b border-[#e4e6eb] dark:border-[#222d34]">
+        <div className="flex items-center justify-between mb-2.5">
+          <h3 className="text-[13px] font-semibold text-[#050505] dark:text-[#e9edef]">
+            Context ({activeCount}/{project.contexts.length})
+          </h3>
 
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-2.5">
             <button
               type="button"
               onClick={() => onToggleAllContexts(!allEnabled)}
-              className="text-[11px] font-medium text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 transition cursor-pointer"
+              className="text-xs font-medium text-[#65676b] dark:text-[#8696a0] hover:text-[#050505] dark:hover:text-white transition cursor-pointer"
             >
-              {allEnabled ? "Mute All" : "Enable All"}
+              {allEnabled ? "Mute all" : "Enable all"}
             </button>
-            <span className="text-slate-300 dark:text-slate-700">•</span>
             <button
               type="button"
               onClick={onOpenAddContextModal}
-              className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
+              className="inline-flex items-center gap-1 text-xs font-semibold text-[#0084ff] hover:underline cursor-pointer"
             >
-              <Plus className="w-3 h-3" />
-              Add
+              <Plus className="w-3.5 h-3.5" />
+              <span>Add</span>
             </button>
           </div>
         </div>
 
-        {/* Filter Tabs: All / Links / Notes */}
-        <div className="grid grid-cols-3 gap-1 p-1 rounded-xl bg-slate-100 dark:bg-slate-900">
+        {/* Filter Chips: All / Links / Notes */}
+        <div className="flex items-center gap-1.5">
           {(
             [
-              { id: "all", label: `All (${project.contexts.length})` },
-              {
-                id: "links",
-                label: `Links (${project.contexts.filter((c) => c.type !== "message").length})`,
-              },
-              {
-                id: "messages",
-                label: `Notes (${project.contexts.filter((c) => c.type === "message").length})`,
-              },
+              { id: "all", label: "All" },
+              { id: "links", label: "Links" },
+              { id: "messages", label: "Notes" },
             ] as const
           ).map((tab) => (
             <button
               key={tab.id}
               type="button"
               onClick={() => setFilterTab(tab.id)}
-              className={`py-1 rounded-lg text-[11px] font-semibold transition cursor-pointer ${
+              className={`px-3 py-1 rounded-full text-xs font-semibold transition cursor-pointer ${
                 filterTab === tab.id
-                  ? "bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-2xs"
-                  : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
+                  ? "bg-[#e7f3ff] text-[#0084ff] dark:bg-[#0084ff]/20 dark:text-[#4599ff]"
+                  : "bg-[#f0f2f5] dark:bg-[#202c33] text-[#65676b] dark:text-[#8696a0] hover:bg-[#e4e6eb]"
               }`}
             >
               {tab.label}
@@ -265,141 +196,107 @@ export function ContextInspector({
         </div>
       </div>
 
-      {/* Scrollable Context Cards */}
-      <div className="flex-1 overflow-y-auto scroller p-3 space-y-2.5">
+      {/* Context Items List */}
+      <div className="flex-1 divide-y divide-[#e4e6eb] dark:divide-[#222d34]">
         {filteredContexts.length === 0 ? (
-          <div className="text-center py-10 px-4 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800">
-            <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
-              No contexts in this category yet.
+          <div className="text-center py-10 px-4">
+            <p className="text-xs text-[#65676b] dark:text-[#8696a0]">
+              No items in this view.
             </p>
             <button
               type="button"
               onClick={onOpenAddContextModal}
-              className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
+              className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-[#0084ff] hover:underline cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5" />
-              Add Website, X, LinkedIn, or Note
+              Add link or note
             </button>
           </div>
         ) : (
-          filteredContexts.map((ctx) => {
-            const meta = getContextTypeMeta(ctx.type);
-            return (
-              <div
-                key={ctx.id}
-                className={`rounded-2xl p-3 border transition ${
-                  ctx.isActive
-                    ? "bg-white dark:bg-slate-900/90 border-indigo-500/30 shadow-2xs"
-                    : "bg-slate-50/70 dark:bg-slate-900/30 border-slate-200/60 dark:border-slate-800/60 opacity-70"
-                }`}
-              >
-                {/* Top Row: Type Badge + Active Toggle */}
-                <div className="flex items-center justify-between gap-2 mb-1.5">
-                  <span
-                    className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-semibold border ${meta.badgeClass}`}
-                  >
-                    {meta.icon}
-                    <span>{meta.label}</span>
-                  </span>
+          filteredContexts.map((ctx) => (
+            <div
+              key={ctx.id}
+              className={`px-4 py-3 transition ${
+                ctx.isActive ? "" : "opacity-55"
+              }`}
+            >
+              <div className="flex items-start gap-3">
+                {/* Circular Icon */}
+                <div className="w-9 h-9 rounded-full bg-[#f0f2f5] dark:bg-[#202c33] flex items-center justify-center shrink-0 mt-0.5">
+                  {getContextTypeIcon(ctx.type)}
+                </div>
 
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[10px] text-slate-400">
-                      {ctx.updatedAt}
-                    </span>
+                {/* Content */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-2">
+                    <h4 className="text-[13px] font-semibold text-[#050505] dark:text-[#e9edef] truncate">
+                      {ctx.title}
+                    </h4>
+
+                    <label className="inline-flex items-center gap-1.5 text-[11px] text-[#65676b] dark:text-[#8696a0] cursor-pointer shrink-0">
+                      <input
+                        type="checkbox"
+                        checked={ctx.isActive}
+                        onChange={() => onToggleContext(ctx.id)}
+                        className="rounded cursor-pointer"
+                      />
+                      <span>{ctx.isActive ? "Active" : "Off"}</span>
+                    </label>
+                  </div>
+
+                  {ctx.url ? (
+                    <a
+                      href={ctx.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-0.5 inline-flex items-center gap-1 text-xs text-[#0084ff] hover:underline break-all"
+                    >
+                      <span>{ctx.value}</span>
+                      <ExternalLink className="w-3 h-3 shrink-0" />
+                    </a>
+                  ) : (
+                    <p className="mt-1 text-xs text-[#050505] dark:text-[#d1d7db] bg-[#f0f2f5] dark:bg-[#202c33] rounded-lg px-2.5 py-1.5 leading-relaxed">
+                      {ctx.value}
+                    </p>
+                  )}
+
+                  {/* Collapsible secondary summary details per content-first-noise-reduction */}
+                  {ctx.summary && (
+                    <details className="mt-1 text-[11px] text-[#65676b] dark:text-[#8696a0]">
+                      <summary className="cursor-pointer select-none hover:text-[#050505] dark:hover:text-[#e9edef]">
+                        Context note
+                      </summary>
+                      <p className="mt-1 pl-2 border-l border-[#e4e6eb] dark:border-[#2a3942]">
+                        {ctx.summary}
+                      </p>
+                    </details>
+                  )}
+
+                  <div className="flex items-center justify-between mt-2">
                     <button
                       type="button"
-                      onClick={() => onToggleContext(ctx.id)}
-                      title={
-                        ctx.isActive
-                          ? "Active in AI Prompt (Click to mute)"
-                          : "Muted (Click to include in AI Prompt)"
-                      }
-                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold transition cursor-pointer ${
-                        ctx.isActive
-                          ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30"
-                          : "bg-slate-200 dark:bg-slate-800 text-slate-500"
-                      }`}
+                      onClick={() => onReferenceInPrompt(ctx)}
+                      className="inline-flex items-center gap-1 text-[11px] font-medium text-[#0084ff] hover:underline cursor-pointer"
                     >
-                      {ctx.isActive ? (
-                        <>
-                          <CheckCircle2 className="w-3 h-3 text-emerald-500" />
-                          <span>In AI</span>
-                        </>
-                      ) : (
-                        <>
-                          <Circle className="w-3 h-3" />
-                          <span>Muted</span>
-                        </>
-                      )}
+                      <CornerDownLeft className="w-3 h-3" />
+                      <span>Use in chat</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => onDeleteContext(ctx.id)}
+                      title="Delete context"
+                      aria-label={`Delete ${ctx.title}`}
+                      className="p-1 rounded text-[#65676b] hover:text-rose-600 dark:text-[#8696a0] dark:hover:text-rose-400 transition cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 </div>
-
-                {/* Context Title */}
-                <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100">
-                  {ctx.title}
-                </h4>
-
-                {/* Context Link or Message Value */}
-                {ctx.url ? (
-                  <a
-                    href={ctx.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="mt-1 inline-flex items-center gap-1 text-xs font-mono text-indigo-600 dark:text-indigo-400 hover:underline break-all"
-                  >
-                    <span>{ctx.value}</span>
-                    <ExternalLink className="w-3 h-3 shrink-0" />
-                  </a>
-                ) : (
-                  <p className="mt-1 text-xs text-slate-700 dark:text-slate-200 bg-amber-500/5 border border-amber-500/15 rounded-xl p-2 leading-relaxed">
-                    “{ctx.value}”
-                  </p>
-                )}
-
-                {/* AI Digest / Summary */}
-                {ctx.summary && (
-                  <p className="mt-1.5 text-[11px] text-slate-500 dark:text-slate-400 leading-snug">
-                    {ctx.summary}
-                  </p>
-                )}
-
-                {/* Card Footer Actions */}
-                <div className="flex items-center justify-between gap-2 mt-2.5 pt-2 border-t border-slate-100 dark:border-slate-800/80">
-                  <button
-                    type="button"
-                    onClick={() => onReferenceInPrompt(ctx)}
-                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 transition cursor-pointer"
-                  >
-                    <CornerDownLeft className="w-3 h-3" />
-                    <span>Ask AI with this context</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => onDeleteContext(ctx.id)}
-                    title="Remove Context"
-                    className="p-1 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 transition cursor-pointer"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
               </div>
-            );
-          })
+            </div>
+          ))
         )}
-      </div>
-
-      {/* Bottom Add Context CTA */}
-      <div className="p-3 border-t border-slate-200/70 dark:border-slate-800/70 bg-slate-50/60 dark:bg-slate-900/40">
-        <button
-          type="button"
-          onClick={onOpenAddContextModal}
-          className="w-full py-2 px-3 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white shadow-sm flex items-center justify-center gap-1.5 transition cursor-pointer"
-        >
-          <Sparkles className="w-3.5 h-3.5" />
-          <span>Add Link or Campaign Context</span>
-        </button>
       </div>
     </aside>
   );

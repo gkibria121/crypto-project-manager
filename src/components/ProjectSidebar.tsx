@@ -7,17 +7,7 @@ import {
   ProjectBusinessStatus,
 } from "@/types/project";
 import { ProjectAvatar } from "@/components/ProjectAvatar";
-import {
-  Search,
-  Plus,
-  Pin,
-  Sparkles,
-  Layers,
-  TrendingUp,
-  CheckCircle2,
-  Archive,
-  ArchiveRestore,
-} from "lucide-react";
+import { Search, Plus, Archive, ArchiveRestore } from "lucide-react";
 
 interface ProjectSidebarProps {
   projects: CryptoProject[];
@@ -68,7 +58,6 @@ export function ProjectSidebar({
 
       if (!matchesQuery) return false;
 
-      // Initial state in the chat list is "active" (all non-archived projects)
       if (activeFilter === "active") {
         return searchQuery.trim()
           ? true
@@ -94,49 +83,33 @@ export function ProjectSidebar({
 
   return (
     <aside
-      aria-label="Crypto Projects"
-      className="w-80 lg:w-92 shrink-0 h-full border-r border-slate-200/80 dark:border-slate-800/80 bg-white/90 dark:bg-slate-950/90 backdrop-blur-xl flex flex-col"
+      aria-label="Projects"
+      className="w-80 lg:w-90 shrink-0 h-full border-r border-[#e4e6eb] dark:border-[#222d34] bg-white dark:bg-[#111b21] flex flex-col"
     >
-      {/* Messenger-style Top Agency Header */}
-      <div className="px-4 pt-4 pb-3 border-b border-slate-200/60 dark:border-slate-800/60">
+      {/* WhatsApp / Messenger Top Header */}
+      <div className="px-4 pt-3.5 pb-2.5">
         <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 via-violet-600 to-cyan-500 flex items-center justify-center text-white shadow-md shadow-indigo-500/20">
-              <Sparkles className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="flex items-center gap-1.5">
-                <h1 className="font-bold text-base tracking-tight text-slate-900 dark:text-white">
-                  PulseOS
-                </h1>
-                <span className="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
-                  Agency CRM
-                </span>
-              </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                {countByStatus("active")} Active •{" "}
-                {countByStatus("collaborated")} Collaborated
-              </p>
-            </div>
-          </div>
+          <h1 className="text-xl font-bold tracking-tight text-[#050505] dark:text-[#e9edef]">
+            Projects
+          </h1>
 
           <button
             type="button"
             onClick={onOpenNewProjectModal}
-            title="Add New Crypto Project"
-            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white shadow-sm transition cursor-pointer"
+            aria-label="New project"
+            title="New project"
+            className="w-9 h-9 rounded-full bg-[#f0f2f5] hover:bg-[#e4e6eb] dark:bg-[#202c33] dark:hover:bg-[#2a3942] text-[#050505] dark:text-[#e9edef] flex items-center justify-center transition cursor-pointer"
           >
-            <Plus className="w-3.5 h-3.5" />
-            <span>New</span>
+            <Plus className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Search Input with Accessible Label */}
+        {/* Clean Rounded Search Input */}
         <div className="relative">
           <label htmlFor={searchInputId} className="sr-only">
-            Search crypto projects by name, ticker, or chain
+            Search projects
           </label>
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <Search className="w-4 h-4 text-[#65676b] dark:text-[#8696a0] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
           <input
             id={searchInputId}
             type="search"
@@ -147,69 +120,53 @@ export function ProjectSidebar({
             spellCheck={false}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search projects, $TICKER, or chain..."
-            className="w-full pl-9 pr-3 py-2 text-xs rounded-xl bg-slate-100 dark:bg-slate-900/90 border border-transparent focus:border-indigo-500/60 focus:bg-white dark:focus:bg-slate-900 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 outline-none transition"
+            placeholder="Search projects"
+            className="w-full pl-9 pr-3.5 py-2 text-[14px] rounded-full bg-[#f0f2f5] dark:bg-[#202c33] text-[#050505] dark:text-[#e9edef] placeholder:text-[#65676b] dark:placeholder:text-[#8696a0] outline-none"
           />
         </div>
 
-        {/* Business State Filter Pills */}
+        {/* Messenger / WhatsApp Filter Chips */}
         <div className="flex items-center gap-1.5 mt-2.5 overflow-x-auto scroller pb-1">
           {filterTabs.map((tab) => {
             const isActive = activeFilter === tab.id;
             const count = countByStatus(tab.id);
-            const dotClass =
-              tab.id !== "active" ? BUSINESS_STATUS_META[tab.id].dotClass : "";
 
             return (
               <button
                 key={tab.id}
                 type="button"
                 onClick={() => setActiveFilter(tab.id)}
-                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium transition cursor-pointer whitespace-nowrap shrink-0 ${
+                className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold transition cursor-pointer whitespace-nowrap shrink-0 ${
                   isActive
-                    ? "bg-slate-900 text-white dark:bg-white dark:text-slate-950 shadow-xs"
-                    : "bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-200/70 dark:hover:bg-slate-800"
+                    ? "bg-[#e7f3ff] text-[#0084ff] dark:bg-[#0084ff]/20 dark:text-[#4599ff]"
+                    : "bg-[#f0f2f5] text-[#65676b] hover:bg-[#e4e6eb] dark:bg-[#202c33] dark:text-[#8696a0] dark:hover:bg-[#2a3942]"
                 }`}
               >
-                {dotClass && (
-                  <span className={`w-1.5 h-1.5 rounded-full ${dotClass}`} />
-                )}
                 <span>{tab.label}</span>
-                <span
-                  className={`text-[10px] px-1 rounded-full ${
-                    isActive
-                      ? "bg-white/20 text-white dark:bg-slate-900/15 dark:text-slate-950"
-                      : "bg-slate-200/80 dark:bg-slate-800 text-slate-500 dark:text-slate-400"
-                  }`}
-                >
-                  {count}
-                </span>
+                {count > 0 && (
+                  <span className="text-[11px] opacity-80">{count}</span>
+                )}
               </button>
             );
           })}
         </div>
       </div>
 
-      {/* Messenger-style Project Thread List */}
-      <div className="flex-1 overflow-y-auto scroller p-2 space-y-1">
+      {/* Chat List */}
+      <div className="flex-1 overflow-y-auto scroller px-2 py-1">
         {filteredProjects.length === 0 ? (
           <div className="text-center py-12 px-4">
-            <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
-              No projects in the{" "}
-              <strong>
-                {activeFilter === "active"
-                  ? "Active"
-                  : BUSINESS_STATUS_META[activeFilter].label}
-              </strong>{" "}
-              category.
+            <p className="text-sm text-[#65676b] dark:text-[#8696a0]">
+              No projects in{" "}
+              {activeFilter === "active"
+                ? "Active"
+                : BUSINESS_STATUS_META[activeFilter].label}
+              .
             </p>
           </div>
         ) : (
           filteredProjects.map((project) => {
             const isSelected = project.id === selectedProjectId;
-            const activeContextsCount = project.contexts.filter(
-              (c) => c.isActive
-            ).length;
             const lastMsg = project.messages[project.messages.length - 1];
             const statusMeta = BUSINESS_STATUS_META[project.businessStatus];
             const isArchived = project.businessStatus === "archived";
@@ -217,18 +174,17 @@ export function ProjectSidebar({
             return (
               <div
                 key={project.id}
-                className={`w-full rounded-2xl transition flex items-start gap-3 p-2.5 group relative ${
+                className={`w-full rounded-xl transition flex items-center gap-3 px-2.5 py-2.5 group relative ${
                   isSelected
-                    ? "bg-indigo-50/90 dark:bg-indigo-950/50 border border-indigo-500/30 shadow-xs"
-                    : "hover:bg-slate-100/80 dark:hover:bg-slate-900/60 border border-transparent"
-                } ${isArchived ? "opacity-75" : ""}`}
+                    ? "bg-[#e7f3ff]/70 dark:bg-[#2a3942]"
+                    : "hover:bg-[#f0f2f5] dark:hover:bg-[#202c33]"
+                } ${isArchived ? "opacity-65" : ""}`}
               >
                 <button
                   type="button"
                   onClick={() => onSelectProject(project.id)}
-                  className="flex items-start gap-3 flex-1 min-w-0 text-left cursor-pointer"
+                  className="flex items-center gap-3 flex-1 min-w-0 text-left cursor-pointer"
                 >
-                  {/* Project Avatar with Business Status Dot */}
                   <ProjectAvatar
                     project={project}
                     size="lg"
@@ -236,56 +192,39 @@ export function ProjectSidebar({
                     decorative
                   />
 
-                  {/* Project Info & Last Message Preview */}
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-1">
+                    {/* Top Row: Name + Status Pill + Time */}
+                    <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-1.5 min-w-0">
-                        <span
-                          className={`text-sm font-semibold truncate ${
-                            isSelected
-                              ? "text-indigo-950 dark:text-white"
-                              : "text-slate-900 dark:text-slate-100"
-                          }`}
-                        >
+                        <span className="text-[15px] font-semibold text-[#050505] dark:text-[#e9edef] truncate">
                           {project.name}
                         </span>
-                        {project.isPinned && !isArchived && (
-                          <Pin className="w-3 h-3 text-indigo-500 shrink-0 rotate-45" />
-                        )}
+                        <span
+                          className={`px-1.5 py-0.5 rounded text-[10px] font-medium shrink-0 ${statusMeta.badgeClass}`}
+                        >
+                          {statusMeta.shortLabel}
+                        </span>
                       </div>
-                      <span className="text-[11px] text-slate-400 dark:text-slate-500 shrink-0 group-hover:hidden">
+                      <span className="text-xs text-[#65676b] dark:text-[#8696a0] shrink-0 group-hover:hidden">
                         {project.lastActivityTime}
                       </span>
                     </div>
 
-                    {/* Business State Badge & Ticker Row */}
-                    <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                      <span
-                        className={`inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-md border font-semibold ${statusMeta.badgeClass}`}
+                    {/* Bottom Row: Single-line message preview + Unread Dot */}
+                    <div className="flex items-center justify-between gap-2 mt-0.5">
+                      <p
+                        className={`text-[13px] truncate ${
+                          project.unreadInsights
+                            ? "font-semibold text-[#050505] dark:text-[#e9edef]"
+                            : "text-[#65676b] dark:text-[#8696a0]"
+                        }`}
                       >
-                        <span
-                          className={`w-1.5 h-1.5 rounded-full ${statusMeta.dotClass}`}
-                        />
-                        {statusMeta.shortLabel}
-                      </span>
-                      <span className="text-[10px] font-mono font-semibold text-indigo-600 dark:text-indigo-400">
-                        {project.ticker}
-                      </span>
-                      <span className="inline-flex items-center gap-0.5 text-[10px] text-emerald-600 dark:text-emerald-400 font-medium ml-auto">
-                        <Layers className="w-2.5 h-2.5" />
-                        {activeContextsCount}/{project.contexts.length} ctx
-                      </span>
-                    </div>
-
-                    {/* Last Message / Tagline Snippet */}
-                    <div className="flex items-center justify-between gap-2 mt-1">
-                      <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
                         {lastMsg
-                          ? `${lastMsg.sender === "admin" ? "You: " : "AI: "}${lastMsg.content.replace(/[#*>`]/g, "")}`
+                          ? `${lastMsg.sender === "admin" ? "You: " : ""}${lastMsg.content.replace(/[#*>`]/g, "")}`
                           : project.tagline}
                       </p>
                       {project.unreadInsights ? (
-                        <span className="shrink-0 w-4 h-4 rounded-full bg-indigo-600 text-white text-[10px] font-bold flex items-center justify-center">
+                        <span className="shrink-0 w-5 h-5 rounded-full bg-[#0084ff] text-white text-[11px] font-semibold flex items-center justify-center">
                           {project.unreadInsights}
                         </span>
                       ) : null}
@@ -304,47 +243,22 @@ export function ProjectSidebar({
                   }
                   aria-label={
                     isArchived
-                      ? `Restore ${project.name} from archive`
+                      ? `Restore ${project.name}`
                       : `Archive ${project.name}`
                   }
-                  title={
-                    isArchived
-                      ? "Restore project to New"
-                      : "Archive project"
-                  }
-                  className="hidden group-hover:inline-flex focus-visible:inline-flex p-1.5 rounded-lg bg-white/90 dark:bg-slate-800 text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 shadow-xs border border-slate-200/70 dark:border-slate-700 absolute top-2 right-2 cursor-pointer"
+                  title={isArchived ? "Unarchive" : "Archive"}
+                  className="hidden group-hover:inline-flex focus-visible:inline-flex p-1.5 rounded-full bg-white dark:bg-[#111b21] text-[#65676b] dark:text-[#8696a0] hover:text-[#050505] dark:hover:text-white shadow-xs border border-[#e4e6eb] dark:border-[#222d34] absolute right-2.5 top-1/2 -translate-y-1/2 cursor-pointer"
                 >
                   {isArchived ? (
-                    <ArchiveRestore className="w-3.5 h-3.5" />
+                    <ArchiveRestore className="w-4 h-4" />
                   ) : (
-                    <Archive className="w-3.5 h-3.5" />
+                    <Archive className="w-4 h-4" />
                   )}
                 </button>
               </div>
             );
           })
         )}
-      </div>
-
-      {/* Agency Admin Footer */}
-      <div className="p-3 border-t border-slate-200/70 dark:border-slate-800/70 bg-slate-50/60 dark:bg-slate-900/40 flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-slate-800 to-slate-600 dark:from-slate-700 dark:to-slate-500 text-white flex items-center justify-center text-xs font-bold">
-            CM
-          </div>
-          <div>
-            <div className="flex items-center gap-1">
-              <p className="text-xs font-semibold text-slate-800 dark:text-slate-200">
-                Crypto Marketing Lead
-              </p>
-              <CheckCircle2 className="w-3.5 h-3.5 text-indigo-500" />
-            </div>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1">
-              <TrendingUp className="w-3 h-3 text-emerald-500" />
-              Context-RAG Engine Online
-            </p>
-          </div>
-        </div>
       </div>
     </aside>
   );

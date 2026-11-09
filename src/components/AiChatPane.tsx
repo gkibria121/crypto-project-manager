@@ -9,7 +9,6 @@ import {
 } from "@/types/project";
 import { ProjectAvatar } from "@/components/ProjectAvatar";
 import {
-  Sparkles,
   Send,
   Globe,
   AtSign,
@@ -17,9 +16,8 @@ import {
   MessageSquareText,
   Copy,
   Check,
-  SlidersHorizontal,
-  PlusCircle,
-  PanelRightOpen,
+  Plus,
+  Info,
   RotateCcw,
   SendHorizontal,
 } from "lucide-react";
@@ -38,41 +36,24 @@ interface AiChatPaneProps {
   isAiTyping: boolean;
 }
 
-const QUICK_PROMPTS = [
-  {
-    label: "🧵 X Viral Thread",
-    prompt:
-      "Draft a high-conviction 5-part X (Twitter) thread leveraging our active website positioning, X handle tone, and campaign brief.",
-  },
-  {
-    label: "💼 LinkedIn Partner Post",
-    prompt:
-      "Write an institutional LinkedIn post tailored for Web3 VCs, market makers, and enterprise partners using our LinkedIn and website context.",
-  },
-  {
-    label: "🤝 Tier-1 KOL Outreach DM",
-    prompt:
-      "Create 3 personalized X/Telegram DM outreach templates to pitch Tier-1 crypto KOLs on our upcoming catalyst.",
-  },
-  {
-    label: "📣 Community Raid & Shill Kit",
-    prompt:
-      "Generate a community announcement + 4 talking-point bullets our ambassadors can use on X and Telegram without sounding robotic.",
-  },
-];
-
 function getContextIcon(type: ProjectContextItem["type"]) {
   switch (type) {
     case "website":
-      return <Globe className="w-3 h-3 text-sky-500" />;
+      return <Globe className="w-3 h-3 text-[#65676b] dark:text-[#8696a0]" />;
     case "x_handle":
-      return <AtSign className="w-3 h-3 text-slate-900 dark:text-white" />;
+      return <AtSign className="w-3 h-3 text-[#65676b] dark:text-[#8696a0]" />;
     case "linkedin":
-      return <Briefcase className="w-3 h-3 text-blue-600 dark:text-blue-400" />;
+      return (
+        <Briefcase className="w-3 h-3 text-[#65676b] dark:text-[#8696a0]" />
+      );
     case "telegram":
-      return <SendHorizontal className="w-3 h-3 text-cyan-500" />;
+      return (
+        <SendHorizontal className="w-3 h-3 text-[#65676b] dark:text-[#8696a0]" />
+      );
     case "message":
-      return <MessageSquareText className="w-3 h-3 text-amber-500" />;
+      return (
+        <MessageSquareText className="w-3 h-3 text-[#65676b] dark:text-[#8696a0]" />
+      );
   }
 }
 
@@ -93,7 +74,7 @@ function FormattedMessageContent({ content }: { content: string }) {
         return (
           <code
             key={idx}
-            className="px-1.5 py-0.5 rounded bg-slate-200/80 dark:bg-slate-800 font-mono text-[11px] text-indigo-600 dark:text-indigo-300"
+            className="px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/10 font-mono text-[12px]"
           >
             {part.slice(1, -1)}
           </code>
@@ -104,7 +85,7 @@ function FormattedMessageContent({ content }: { content: string }) {
   };
 
   return (
-    <div className="space-y-2 text-sm leading-relaxed">
+    <div className="space-y-1.5 text-[14px] leading-relaxed">
       {lines.map((line, idx) => {
         const trimmed = line.trim();
         if (!trimmed) return <div key={idx} className="h-1" />;
@@ -113,7 +94,7 @@ function FormattedMessageContent({ content }: { content: string }) {
           return (
             <h3
               key={idx}
-              className="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 pt-2"
+              className="text-[13px] font-semibold text-[#050505] dark:text-[#e9edef] pt-1"
             >
               {trimmed.replace("### ", "")}
             </h3>
@@ -123,7 +104,7 @@ function FormattedMessageContent({ content }: { content: string }) {
         if (trimmed.startsWith("- ")) {
           return (
             <div key={idx} className="flex items-start gap-2 pl-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-2 shrink-0" />
+              <span className="w-1 h-1 rounded-full bg-current mt-2 shrink-0 opacity-60" />
               <p className="flex-1">{formatInline(trimmed.slice(2))}</p>
             </div>
           );
@@ -133,7 +114,7 @@ function FormattedMessageContent({ content }: { content: string }) {
           return (
             <blockquote
               key={idx}
-              className="border-l-2 border-indigo-500 pl-3 py-1 my-1 italic text-slate-600 dark:text-slate-300 bg-indigo-500/5 rounded-r-lg"
+              className="border-l-2 border-[#0084ff] pl-3 py-0.5 my-1 text-[#65676b] dark:text-[#d1d7db]"
             >
               {formatInline(trimmed.slice(2))}
             </blockquote>
@@ -190,7 +171,6 @@ export function AiChatPane({
     setDraftPrompt("");
   };
 
-  // IME-safe Enter-to-submit following modern-web-guidance (ime-safe-enter-submit)
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -211,10 +191,10 @@ export function AiChatPane({
   };
 
   return (
-    <main className="flex-1 h-full flex flex-col min-w-0 bg-slate-50/50 dark:bg-slate-950">
-      {/* Messenger-style Conversation Header */}
-      <header className="px-5 py-3 border-b border-slate-200/80 dark:border-slate-800/80 bg-white/90 dark:bg-slate-950/90 backdrop-blur-xl flex items-center justify-between gap-4 shrink-0">
-        <div className="flex items-center gap-3.5 min-w-0">
+    <main className="flex-1 h-full flex flex-col min-w-0 bg-[#f0f2f5] dark:bg-[#0b141a]">
+      {/* Single Compact Messenger / WhatsApp Header (< 12% viewport height) */}
+      <header className="h-15 px-4 border-b border-[#e4e6eb] dark:border-[#222d34] bg-white dark:bg-[#202c33] flex items-center justify-between gap-4 shrink-0">
+        <div className="flex items-center gap-3 min-w-0">
           <ProjectAvatar
             project={project}
             size="md"
@@ -223,103 +203,90 @@ export function AiChatPane({
           />
 
           <div className="min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <h2 className="font-bold text-base text-slate-900 dark:text-white truncate">
+            <div className="flex items-center gap-2">
+              <h2 className="font-semibold text-[15px] text-[#050505] dark:text-[#e9edef] truncate">
                 {project.name}
               </h2>
-              <span className="px-2 py-0.5 text-[11px] font-mono font-semibold rounded-md bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
-                {project.ticker}
+              <span className="text-xs text-[#65676b] dark:text-[#8696a0] font-medium">
+                {project.ticker} · {project.chain}
               </span>
-              <span className="px-2 py-0.5 text-[11px] font-medium rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
-                {project.chain} • {project.stage}
-              </span>
-
-              {/* Business Status Selector Badge */}
-              <div
-                className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg border text-[11px] font-semibold ${
-                  BUSINESS_STATUS_META[project.businessStatus].badgeClass
-                }`}
-              >
-                <span
-                  className={`w-2 h-2 rounded-full ${
-                    BUSINESS_STATUS_META[project.businessStatus].dotClass
-                  }`}
-                />
-                <label htmlFor={statusSelectId} className="sr-only">
-                  Project business status
-                </label>
-                <select
-                  id={statusSelectId}
-                  name="project-business-status"
-                  value={project.businessStatus}
-                  onChange={(e) =>
-                    onUpdateBusinessStatus(
-                      e.target.value as ProjectBusinessStatus
-                    )
-                  }
-                  className="status-auto-select bg-transparent font-semibold outline-none cursor-pointer"
-                >
-                  <option
-                    value="new"
-                    className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100"
-                  >
-                    New Lead
-                  </option>
-                  <option
-                    value="contacted"
-                    className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100"
-                  >
-                    Contacted
-                  </option>
-                  <option
-                    value="collaborated"
-                    className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100"
-                  >
-                    Collaborated
-                  </option>
-                  <option
-                    value="completed"
-                    className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100"
-                  >
-                    Completed
-                  </option>
-                  <option
-                    value="unresponsive"
-                    className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100"
-                  >
-                    Unresponsive
-                  </option>
-                  <option
-                    value="archived"
-                    className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100"
-                  >
-                    Archived
-                  </option>
-                </select>
-              </div>
             </div>
-            <p className="text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5">
-              {project.tagline}
-            </p>
+
+            {/* Subtitle Row: Inline Business Status Selector + Active Contexts Count */}
+            <div className="flex items-center gap-1.5 text-xs text-[#65676b] dark:text-[#8696a0]">
+              <span
+                className={`w-2 h-2 rounded-full ${
+                  BUSINESS_STATUS_META[project.businessStatus].dotClass
+                }`}
+              />
+              <label htmlFor={statusSelectId} className="sr-only">
+                Project business status
+              </label>
+              <select
+                id={statusSelectId}
+                name="project-business-status"
+                value={project.businessStatus}
+                onChange={(e) =>
+                  onUpdateBusinessStatus(
+                    e.target.value as ProjectBusinessStatus
+                  )
+                }
+                className="status-auto-select bg-transparent font-medium text-[#050505] dark:text-[#e9edef] outline-none cursor-pointer"
+              >
+                <option
+                  value="new"
+                  className="bg-white dark:bg-[#202c33] text-[#050505] dark:text-[#e9edef]"
+                >
+                  New
+                </option>
+                <option
+                  value="contacted"
+                  className="bg-white dark:bg-[#202c33] text-[#050505] dark:text-[#e9edef]"
+                >
+                  Contacted
+                </option>
+                <option
+                  value="collaborated"
+                  className="bg-white dark:bg-[#202c33] text-[#050505] dark:text-[#e9edef]"
+                >
+                  Collaborated
+                </option>
+                <option
+                  value="completed"
+                  className="bg-white dark:bg-[#202c33] text-[#050505] dark:text-[#e9edef]"
+                >
+                  Completed
+                </option>
+                <option
+                  value="unresponsive"
+                  className="bg-white dark:bg-[#202c33] text-[#050505] dark:text-[#e9edef]"
+                >
+                  Unresponsive
+                </option>
+                <option
+                  value="archived"
+                  className="bg-white dark:bg-[#202c33] text-[#050505] dark:text-[#e9edef]"
+                >
+                  Archived
+                </option>
+              </select>
+              <span>·</span>
+              <span>
+                {activeContexts.length} of {project.contexts.length} contexts
+                active
+              </span>
+            </div>
           </div>
         </div>
 
-        {/* Right Header Actions & Context Drawer Toggle */}
-        <div className="flex items-center gap-2 shrink-0">
-          <button
-            type="button"
-            onClick={onOpenAddContextModal}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-indigo-50 dark:bg-indigo-950/70 text-indigo-600 dark:text-indigo-300 border border-indigo-500/25 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition cursor-pointer"
-          >
-            <PlusCircle className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Add Context</span>
-          </button>
-
+        {/* Right Header Icon Controls */}
+        <div className="flex items-center gap-1 shrink-0">
           <button
             type="button"
             onClick={onResetConversation}
-            title="Reset AI Chat Thread"
-            className="p-2 rounded-xl text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-900 transition cursor-pointer"
+            title="Clear chat"
+            aria-label="Clear chat"
+            className="w-9 h-9 rounded-full text-[#65676b] dark:text-[#8696a0] hover:bg-[#f0f2f5] dark:hover:bg-[#2a3942] flex items-center justify-center transition cursor-pointer"
           >
             <RotateCcw className="w-4 h-4" />
           </button>
@@ -327,52 +294,21 @@ export function AiChatPane({
           <button
             type="button"
             onClick={onToggleContextPanel}
-            title={
+            title={isContextPanelOpen ? "Hide project info" : "Show project info"}
+            aria-label="Toggle project context panel"
+            className={`w-9 h-9 rounded-full flex items-center justify-center transition cursor-pointer ${
               isContextPanelOpen
-                ? "Hide Project Context Sidebar"
-                : "Show Project Context Sidebar"
-            }
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition cursor-pointer ${
-              isContextPanelOpen
-                ? "bg-slate-900 text-white dark:bg-white dark:text-slate-950 border-transparent"
-                : "bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-800"
+                ? "bg-[#e7f3ff] text-[#0084ff] dark:bg-[#0084ff]/20 dark:text-[#4599ff]"
+                : "text-[#65676b] dark:text-[#8696a0] hover:bg-[#f0f2f5] dark:hover:bg-[#2a3942]"
             }`}
           >
-            <PanelRightOpen className="w-3.5 h-3.5" />
-            <span>Contexts ({activeContexts.length})</span>
+            <Info className="w-5 h-5" />
           </button>
         </div>
       </header>
 
-      {/* Active Context Banner (Shows Admin what contexts AI is grounded on right now) */}
-      <div className="px-5 py-2 bg-indigo-500/5 border-b border-indigo-500/15 flex items-center justify-between gap-2 overflow-x-auto no-scrollbar shrink-0">
-        <div className="flex items-center gap-1.5 min-w-0">
-          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 shrink-0">
-            <SlidersHorizontal className="w-3 h-3" />
-            AI Grounded In:
-          </span>
-          {activeContexts.length === 0 ? (
-            <span className="text-[11px] text-amber-600 dark:text-amber-400 font-medium">
-              No active contexts enabled — toggle contexts on the right panel for tailored crypto responses.
-            </span>
-          ) : (
-            <div className="flex items-center gap-1.5">
-              {activeContexts.map((ctx) => (
-                <span
-                  key={ctx.id}
-                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 text-slate-700 dark:text-slate-300 whitespace-nowrap shadow-2xs"
-                >
-                  {getContextIcon(ctx.type)}
-                  <span>{ctx.title}</span>
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Messenger Chat Thread Area */}
-      <div className="flex-1 overflow-y-auto scroller px-4 sm:px-6 py-5 space-y-5">
+      {/* Messenger / WhatsApp Message Stream */}
+      <div className="flex-1 overflow-y-auto scroller px-4 sm:px-6 py-4 space-y-3">
         {project.messages.map((msg, index) => {
           const isAdmin = msg.sender === "admin";
           const isInitialTarget = index === project.messages.length - 1;
@@ -388,95 +324,92 @@ export function AiChatPane({
                   ? ({ scrollInitialTarget: "nearest" } as React.CSSProperties)
                   : undefined
               }
-              className={`flex items-end gap-3 ${
+              className={`flex items-end gap-2 ${
                 isAdmin ? "justify-end" : "justify-start"
               }`}
             >
-              {/* AI Agent Avatar on Left */}
               {!isAdmin && (
-                <div className="w-8 h-8 rounded-2xl bg-gradient-to-tr from-indigo-600 via-violet-600 to-cyan-500 flex items-center justify-center text-white shadow-sm shrink-0 mb-1">
-                  <Sparkles className="w-4 h-4" />
-                </div>
+                <ProjectAvatar project={project} size="sm" decorative />
               )}
 
               <div
-                className={`max-w-2xl flex flex-col ${
+                className={`max-w-xl flex flex-col ${
                   isAdmin ? "items-end" : "items-start"
                 }`}
               >
-                {/* Sender & Context Citation Pills */}
-                <div className="flex items-center gap-2 mb-1 px-1 flex-wrap">
-                  <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
-                    {isAdmin
-                      ? "Admin (You)"
-                      : `${project.ticker} Marketing AI Agent`}
-                  </span>
-                  <span className="text-[10px] text-slate-400 dark:text-slate-500">
-                    {msg.timestamp}
-                  </span>
-                  {!isAdmin && referencedContexts.length > 0 && (
-                    <div className="flex items-center gap-1 flex-wrap">
-                      {referencedContexts.map((ctx) => (
-                        <span
-                          key={ctx.id}
-                          title={`Grounded on: ${ctx.title} (${ctx.value})`}
-                          className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium bg-indigo-500/10 text-indigo-600 dark:text-indigo-300 border border-indigo-500/20"
-                        >
-                          {getContextIcon(ctx.type)}
-                          <span className="max-w-28 truncate">{ctx.title}</span>
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
                 {/* Message Bubble */}
                 <div
-                  className={`rounded-2xl px-4 py-3 shadow-xs relative group ${
+                  className={`rounded-2xl px-3.5 py-2.5 shadow-2xs ${
                     isAdmin
-                      ? "bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-br-xs"
-                      : "bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/90 text-slate-800 dark:text-slate-100 rounded-bl-xs"
+                      ? "bg-[#0084ff] text-white rounded-br-xs"
+                      : "bg-white dark:bg-[#202c33] text-[#050505] dark:text-[#e9edef] rounded-bl-xs border border-[#e4e6eb]/60 dark:border-transparent"
                   }`}
                 >
                   <FormattedMessageContent content={msg.content} />
 
-                  {/* Copy Button for AI Messages */}
-                  {!isAdmin && (
-                    <div className="flex items-center justify-end gap-2 mt-3 pt-2 border-t border-slate-100 dark:border-slate-800/80">
-                      <button
-                        type="button"
-                        onClick={() => handleCopy(msg.id, msg.content)}
-                        className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 transition cursor-pointer"
-                      >
-                        {copiedMsgId === msg.id ? (
-                          <>
-                            <Check className="w-3.5 h-3.5 text-emerald-500" />
-                            <span className="text-emerald-500">Copied copy</span>
-                          </>
-                        ) : (
-                          <>
-                            <Copy className="w-3.5 h-3.5" />
-                            <span>Copy campaign copy</span>
-                          </>
-                        )}
-                      </button>
+                  {/* Subtle Inline Footer: Context Pills + Copy + Timestamp */}
+                  <div
+                    className={`flex items-center justify-between gap-3 mt-1.5 pt-1 text-[11px] ${
+                      isAdmin
+                        ? "text-white/80 justify-end"
+                        : "text-[#65676b] dark:text-[#8696a0] border-t border-[#f0f2f5] dark:border-[#2a3942]"
+                    }`}
+                  >
+                    {!isAdmin && referencedContexts.length > 0 && (
+                      <div className="flex items-center gap-1 flex-wrap">
+                        {referencedContexts.map((ctx) => (
+                          <span
+                            key={ctx.id}
+                            title={`${ctx.title}: ${ctx.value}`}
+                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#f0f2f5] dark:bg-[#2a3942] text-[10px] text-[#65676b] dark:text-[#d1d7db]"
+                          >
+                            {getContextIcon(ctx.type)}
+                            <span className="max-w-24 truncate">
+                              {ctx.title}
+                            </span>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    <div className="flex items-center gap-2 ml-auto shrink-0">
+                      {!isAdmin && (
+                        <button
+                          type="button"
+                          onClick={() => handleCopy(msg.id, msg.content)}
+                          className="inline-flex items-center gap-1 hover:text-[#050505] dark:hover:text-white transition cursor-pointer"
+                        >
+                          {copiedMsgId === msg.id ? (
+                            <>
+                              <Check className="w-3 h-3 text-[#00a884]" />
+                              <span>Copied</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="w-3 h-3" />
+                              <span>Copy</span>
+                            </>
+                          )}
+                        </button>
+                      )}
+                      <span>{msg.timestamp}</span>
                     </div>
-                  )}
+                  </div>
                 </div>
 
-                {/* Suggested Follow-up Actions from AI */}
+                {/* Clean Text-Only Quick Replies */}
                 {!isAdmin &&
                   msg.suggestedActions &&
                   msg.suggestedActions.length > 0 && (
-                    <div className="flex items-center gap-1.5 flex-wrap mt-2">
+                    <div className="flex items-center gap-1.5 flex-wrap mt-1.5">
                       {msg.suggestedActions.map((suggestion) => (
                         <button
                           key={suggestion}
                           type="button"
                           onClick={() => onSendMessage(suggestion)}
-                          className="px-2.5 py-1 rounded-full text-xs font-medium bg-indigo-50/90 hover:bg-indigo-100 dark:bg-indigo-950/60 dark:hover:bg-indigo-900/70 text-indigo-700 dark:text-indigo-300 border border-indigo-500/25 transition cursor-pointer"
+                          className="px-3 py-1 rounded-full text-xs font-medium bg-white hover:bg-[#e4e6eb]/60 dark:bg-[#202c33] dark:hover:bg-[#2a3942] text-[#0084ff] dark:text-[#4599ff] border border-[#e4e6eb] dark:border-[#2a3942] transition cursor-pointer"
                         >
-                          ✨ {suggestion}
+                          {suggestion}
                         </button>
                       ))}
                     </div>
@@ -487,15 +420,10 @@ export function AiChatPane({
         })}
 
         {isAiTyping && (
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-2xl bg-gradient-to-tr from-indigo-600 via-violet-600 to-cyan-500 flex items-center justify-center text-white shadow-sm">
-              <Sparkles className="w-4 h-4 animate-spin" />
-            </div>
-            <div className="px-4 py-2.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400 flex items-center gap-2">
-              <span>
-                Synthesizing {activeContexts.length} active{" "}
-                <strong>{project.ticker}</strong> contexts...
-              </span>
+          <div className="flex items-center gap-2">
+            <ProjectAvatar project={project} size="sm" decorative />
+            <div className="px-3.5 py-2 rounded-2xl bg-white dark:bg-[#202c33] text-xs text-[#65676b] dark:text-[#8696a0]">
+              Typing...
             </div>
           </div>
         )}
@@ -503,63 +431,48 @@ export function AiChatPane({
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Messenger Composer Footer */}
-      <div className="p-3 sm:p-4 bg-white/90 dark:bg-slate-950/90 backdrop-blur-xl border-t border-slate-200/80 dark:border-slate-800/80 shrink-0">
-        {/* Quick Campaign Prompt Chips */}
-        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-2.5">
-          {QUICK_PROMPTS.map((item) => (
-            <button
-              key={item.label}
-              type="button"
-              onClick={() => setDraftPrompt(item.prompt)}
-              className="px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-100 hover:bg-indigo-50 dark:bg-slate-900 dark:hover:bg-indigo-950/70 text-slate-700 hover:text-indigo-600 dark:text-slate-300 dark:hover:text-indigo-300 border border-slate-200/70 dark:border-slate-800 transition whitespace-nowrap cursor-pointer"
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
-
+      {/* Single-Row Messenger / WhatsApp Composer Footer */}
+      <div className="px-3 py-2.5 bg-white dark:bg-[#202c33] border-t border-[#e4e6eb] dark:border-[#222d34] shrink-0">
         <form
           ref={formRef}
           onSubmit={handleSubmit}
-          className="relative rounded-2xl bg-slate-100/90 dark:bg-slate-900/90 border border-slate-200/90 dark:border-slate-800 focus-within:border-indigo-500/70 focus-within:bg-white dark:focus-within:bg-slate-900 transition p-2.5 shadow-2xs"
+          className="flex items-end gap-2"
         >
-          <label htmlFor={chatInputId} className="sr-only">
-            Message {project.name} AI Marketing Agent
-          </label>
-          <textarea
-            id={chatInputId}
-            value={draftPrompt}
-            onChange={(e) => setDraftPrompt(e.target.value)}
-            onCompositionEnd={(e) => {
-              lastCompositionEndAtRef.current = e.timeStamp;
-            }}
-            onKeyDown={handleKeyDown}
-            placeholder={`Talk to AI with ${project.name} (${project.ticker}) contexts... (Press Enter to send, Shift+Enter for new line)`}
-            className="chat-auto-textarea bg-transparent text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 outline-none resize-none px-1.5"
-          />
+          <button
+            type="button"
+            onClick={onOpenAddContextModal}
+            title="Add project context or link"
+            aria-label="Add project context or link"
+            className="w-9 h-9 rounded-full text-[#0084ff] hover:bg-[#f0f2f5] dark:hover:bg-[#2a3942] flex items-center justify-center shrink-0 transition cursor-pointer"
+          >
+            <Plus className="w-5 h-5" />
+          </button>
 
-          <div className="flex items-center justify-between gap-2 pt-2 mt-1 border-t border-slate-200/60 dark:border-slate-800/60">
-            <div className="flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400">
-              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                {activeContexts.length} of {project.contexts.length} project
-                contexts active
-              </span>
-              <span className="hidden sm:inline text-slate-400">
-                • Toggle or add links/notes in the right sidebar
-              </span>
-            </div>
-
-            <button
-              type="submit"
-              disabled={!draftPrompt.trim()}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:pointer-events-none text-white shadow-sm transition cursor-pointer"
-            >
-              <span>Send to AI</span>
-              <Send className="w-3.5 h-3.5" />
-            </button>
+          <div className="flex-1 rounded-3xl bg-[#f0f2f5] dark:bg-[#2a3942] px-4 py-2 flex items-center">
+            <label htmlFor={chatInputId} className="sr-only">
+              Type a message
+            </label>
+            <textarea
+              id={chatInputId}
+              value={draftPrompt}
+              onChange={(e) => setDraftPrompt(e.target.value)}
+              onCompositionEnd={(e) => {
+                lastCompositionEndAtRef.current = e.timeStamp;
+              }}
+              onKeyDown={handleKeyDown}
+              placeholder={`Message ${project.name} (${activeContexts.length} contexts active)...`}
+              className="chat-auto-textarea bg-transparent text-[14px] text-[#050505] dark:text-[#e9edef] placeholder:text-[#65676b] dark:placeholder:text-[#8696a0] outline-none resize-none"
+            />
           </div>
+
+          <button
+            type="submit"
+            disabled={!draftPrompt.trim()}
+            aria-label="Send message"
+            className="w-9 h-9 rounded-full bg-[#0084ff] hover:bg-[#0073e6] disabled:opacity-40 disabled:pointer-events-none text-white flex items-center justify-center shrink-0 transition cursor-pointer"
+          >
+            <Send className="w-4 h-4" />
+          </button>
         </form>
       </div>
     </main>

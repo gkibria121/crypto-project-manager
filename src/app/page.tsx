@@ -298,7 +298,7 @@ export default function CryptoMessengerDashboard() {
   };
 
   return (
-    <div className="h-dvh w-full overflow-hidden flex bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
+    <div className="h-dvh w-full overflow-hidden flex bg-white dark:bg-[#111b21] text-[#050505] dark:text-[#e9edef]">
       {/* Left Sidebar: Crypto Projects List (Messenger Contacts Style) */}
       <ProjectSidebar
         projects={projects}

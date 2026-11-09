@@ -51,51 +51,51 @@ export const BUSINESS_STATUS_META: Record<
   }
 > = {
   new: {
-    label: "New Lead",
+    label: "New",
     shortLabel: "New",
-    description: "Fresh crypto project lead ready for initial discovery & outreach",
+    description: "New project lead",
     badgeClass:
-      "bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/25",
-    dotClass: "bg-sky-500",
+      "bg-[#e7f3ff] text-[#0084ff] dark:bg-[#0084ff]/15 dark:text-[#4599ff]",
+    dotClass: "bg-[#0084ff]",
   },
   contacted: {
     label: "Contacted",
     shortLabel: "Contacted",
-    description: "Initial pitch or DM sent; in negotiation or awaiting reply",
+    description: "Outreach sent, awaiting reply",
     badgeClass:
-      "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/25",
+      "bg-amber-500/10 text-amber-700 dark:text-amber-400",
     dotClass: "bg-amber-500",
   },
   collaborated: {
     label: "Collaborated",
     shortLabel: "Collaborated",
-    description: "Active partnership & live marketing campaign execution",
+    description: "Active partnership",
     badgeClass:
-      "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/25",
-    dotClass: "bg-emerald-500",
+      "bg-emerald-500/12 text-emerald-700 dark:text-emerald-400",
+    dotClass: "bg-[#00a884]",
   },
   completed: {
     label: "Completed",
     shortLabel: "Completed",
-    description: "Campaign deliverables & milestone scope completed",
+    description: "Campaign completed",
     badgeClass:
-      "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/25",
-    dotClass: "bg-indigo-500",
+      "bg-slate-200/80 text-slate-700 dark:bg-[#2a3942] dark:text-[#d1d7db]",
+    dotClass: "bg-slate-500",
   },
   unresponsive: {
     label: "Unresponsive",
     shortLabel: "Unresponsive",
-    description: "No response after outreach follow-ups",
+    description: "No response after follow-up",
     badgeClass:
-      "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/25",
+      "bg-rose-500/10 text-rose-700 dark:text-rose-400",
     dotClass: "bg-rose-500",
   },
   archived: {
     label: "Archived",
     shortLabel: "Archived",
-    description: "Archived workspace kept for historical reference",
+    description: "Archived chat",
     badgeClass:
-      "bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/25",
+      "bg-slate-200/60 text-slate-500 dark:bg-[#202c33] dark:text-[#8696a0]",
     dotClass: "bg-slate-400",
   },
 };

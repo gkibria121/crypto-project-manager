@@ -6,27 +6,27 @@ import { Camera } from "lucide-react";
 
 export const PRESET_PROJECT_LOGOS: { label: string; url: string }[] = [
   {
-    label: "Aether Hex",
+    label: "Aether",
     url: `data:image/svg+xml;utf8,${encodeURIComponent(
-      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120"><defs><linearGradient id="g1" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#6366f1"/><stop offset="50%" stop-color="#8b5cf6"/><stop offset="100%" stop-color="#06b6d4"/></linearGradient></defs><rect width="120" height="120" rx="28" fill="url(#g1)"/><polygon points="60,20 95,40 95,80 60,100 25,80 25,40" fill="none" stroke="#ffffff" stroke-width="6"/><circle cx="60" cy="60" r="14" fill="#ffffff"/></svg>`
+      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120"><rect width="120" height="120" rx="60" fill="#1d4ed8"/><polygon points="60,24 92,42 92,78 60,96 28,78 28,42" fill="none" stroke="#ffffff" stroke-width="7"/><circle cx="60" cy="60" r="12" fill="#ffffff"/></svg>`
     )}`,
   },
   {
-    label: "ZK Shield",
+    label: "zkFlow",
     url: `data:image/svg+xml;utf8,${encodeURIComponent(
-      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120"><defs><linearGradient id="g2" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#10b981"/><stop offset="100%" stop-color="#0284c7"/></linearGradient></defs><rect width="120" height="120" rx="28" fill="url(#g2)"/><path d="M60 22 L92 36 V62 C92 82 78 96 60 102 C42 96 28 82 28 62 V36 Z" fill="none" stroke="#ffffff" stroke-width="6"/><path d="M46 60 L56 70 L76 50" fill="none" stroke="#ffffff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/></svg>`
+      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120"><rect width="120" height="120" rx="60" fill="#00a884"/><path d="M60 24 L90 38 V62 C90 80 77 93 60 99 C43 93 30 80 30 62 V38 Z" fill="none" stroke="#ffffff" stroke-width="7"/><path d="M47 60 L56 69 L75 50" fill="none" stroke="#ffffff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/></svg>`
     )}`,
   },
   {
-    label: "Solaris RWA",
+    label: "Solvex",
     url: `data:image/svg+xml;utf8,${encodeURIComponent(
-      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120"><defs><linearGradient id="g3" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#f59e0b"/><stop offset="100%" stop-color="#e11d48"/></linearGradient></defs><rect width="120" height="120" rx="28" fill="url(#g3)"/><circle cx="60" cy="60" r="30" fill="none" stroke="#ffffff" stroke-width="6"/><path d="M30 60 H90 M60 30 V90" stroke="#ffffff" stroke-width="5" stroke-linecap="round"/></svg>`
+      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120"><rect width="120" height="120" rx="60" fill="#0f172a"/><circle cx="60" cy="60" r="28" fill="none" stroke="#ffffff" stroke-width="7"/><path d="M32 60 H88 M60 32 V88" stroke="#ffffff" stroke-width="6" stroke-linecap="round"/></svg>`
     )}`,
   },
   {
-    label: "Nebula Orbit",
+    label: "Nebula",
     url: `data:image/svg+xml;utf8,${encodeURIComponent(
-      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120"><defs><linearGradient id="g4" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#d946ef"/><stop offset="100%" stop-color="#7c3aed"/></linearGradient></defs><rect width="120" height="120" rx="28" fill="url(#g4)"/><ellipse cx="60" cy="60" rx="38" ry="18" transform="rotate(-30 60 60)" fill="none" stroke="#ffffff" stroke-width="6"/><circle cx="60" cy="60" r="12" fill="#ffffff"/></svg>`
+      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120"><rect width="120" height="120" rx="60" fill="#334155"/><ellipse cx="60" cy="60" rx="36" ry="17" transform="rotate(-28 60 60)" fill="none" stroke="#ffffff" stroke-width="7"/><circle cx="60" cy="60" r="11" fill="#ffffff"/></svg>`
     )}`,
   },
 ];
@@ -52,40 +52,33 @@ export function ProjectAvatar({
   decorative = true,
 }: ProjectAvatarProps) {
   const sizeClasses = {
-    sm: "w-10 h-10 rounded-xl text-xs",
-    md: "w-11 h-11 rounded-2xl text-xs",
-    lg: "w-12 h-12 rounded-2xl text-xs",
-    xl: "w-16 h-16 rounded-2xl text-sm",
+    sm: "w-9 h-9 text-xs",
+    md: "w-10 h-10 text-xs",
+    lg: "w-12 h-12 text-sm",
+    xl: "w-20 h-20 text-base",
   }[size];
 
   const badgeContent = project.logoUrl ? (
     <img
       src={project.logoUrl}
-      alt={decorative ? "" : `${project.name} profile logo`}
-      className={`${sizeClasses} object-cover bg-slate-900 shadow-sm border border-slate-200/60 dark:border-slate-800/80`}
+      alt={decorative ? "" : `${project.name} profile photo`}
+      className={`${sizeClasses} rounded-full object-cover bg-[#e4e6eb] dark:bg-[#202c33]`}
     />
   ) : (
     <div
-      className={`${sizeClasses} bg-gradient-to-br ${project.avatarBg} flex flex-col items-center justify-center text-white font-bold shadow-sm`}
+      className={`${sizeClasses} rounded-full ${project.avatarBg} flex items-center justify-center text-white font-semibold select-none`}
     >
       <span className="tracking-tight leading-none">
-        {project.ticker.replace("$", "")}
+        {project.ticker.replace("$", "").slice(0, 4)}
       </span>
-      {size !== "sm" && (
-        <span className="text-[9px] font-medium opacity-80 mt-0.5">
-          {project.chain.split(" ")[0]}
-        </span>
-      )}
     </div>
   );
 
   const statusMeta = project.businessStatus
     ? BUSINESS_STATUS_META[project.businessStatus]
     : null;
-  const dotColorClass = statusMeta ? statusMeta.dotClass : "bg-emerald-500";
-  const dotTitle = statusMeta
-    ? `Business Status: ${statusMeta.label}`
-    : "AI Agent Context Ready";
+  const dotColorClass = statusMeta ? statusMeta.dotClass : "bg-[#00a884]";
+  const dotTitle = statusMeta ? statusMeta.label : "Active";
 
   if (onEditClick) {
     return (
@@ -94,19 +87,16 @@ export function ProjectAvatar({
         <button
           type="button"
           onClick={onEditClick}
-          aria-label={`Change ${project.name} logo or profile image`}
-          title={`Change ${project.name} logo`}
-          className="absolute inset-0 rounded-2xl bg-slate-950/60 opacity-0 group-hover/avatar:opacity-100 focus-visible:opacity-100 transition flex flex-col items-center justify-center text-white cursor-pointer"
+          aria-label={`Change ${project.name} profile image`}
+          title="Change profile photo"
+          className="absolute inset-0 rounded-full bg-black/50 opacity-0 group-hover/avatar:opacity-100 focus-visible:opacity-100 transition flex items-center justify-center text-white cursor-pointer"
         >
           <Camera className="w-4 h-4" />
-          {size === "xl" && (
-            <span className="text-[9px] font-semibold mt-0.5">Logo</span>
-          )}
         </button>
         {showOnlineDot && (
           <span
             title={dotTitle}
-            className={`w-3.5 h-3.5 rounded-full ${dotColorClass} border-2 border-white dark:border-slate-950 absolute -bottom-0.5 -right-0.5 pointer-events-none`}
+            className={`w-3 h-3 rounded-full ${dotColorClass} ring-2 ring-white dark:ring-[#111b21] absolute bottom-0 right-0 pointer-events-none`}
           />
         )}
       </div>
@@ -119,7 +109,7 @@ export function ProjectAvatar({
       {showOnlineDot && (
         <span
           title={dotTitle}
-          className={`w-3.5 h-3.5 rounded-full ${dotColorClass} border-2 border-white dark:border-slate-950 absolute -bottom-0.5 -right-0.5`}
+          className={`w-3 h-3 rounded-full ${dotColorClass} ring-2 ring-white dark:ring-[#111b21] absolute bottom-0 right-0`}
         />
       )}
     </div>
