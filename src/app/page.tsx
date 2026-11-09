@@ -1,89 +1,163 @@
 "use client";
 
 import React, { useRef, useState } from "react";
-import { INITIAL_PROJECTS } from "@/data/mockProjects";
+import {
+  INITIAL_CHECKLIST_ITEMS,
+  INITIAL_PROJECTS,
+  INITIAL_PROMPT_TEMPLATES,
+} from "@/data/mockProjects";
 import {
   BUSINESS_STATUS_META,
+  ChecklistItemConfig,
   CryptoProject,
   ProjectBusinessStatus,
+  ProjectChecklistItemState,
   ProjectContextItem,
+  PromptTemplate,
 } from "@/types/project";
 import { ProjectSidebar } from "@/components/ProjectSidebar";
 import { AiChatPane } from "@/components/AiChatPane";
 import { ContextInspector } from "@/components/ContextInspector";
 import {
   AddContextDialog,
+  GlobalSettingsDialog,
   NewProjectDialog,
+  ProjectChecklistDialog,
   UpdateProjectLogoDialog,
 } from "@/components/Modals";
+
+function evaluateChecklistItemAgainstProject(
+  project: CryptoProject,
+  item: ChecklistItemConfig
+): ProjectChecklistItemState {
+  const corpus = [
+    project.name,
+    project.tagline,
+    ...project.contexts.map(
+      (c) => `${c.type} ${c.title} ${c.value} ${c.summary || ""}`
+    ),
+  ]
+    .join(" ")
+    .toLowerCase();
+
+  const q = `${item.label} ${item.scanPrompt}`.toLowerCase();
+
+  let detected = false;
+  let note = "";
+
+  if (q.includes("telegram") || q.includes("bot")) {
+    const tgCtx = project.contexts.find((c) => c.type === "telegram");
+    detected = Boolean(tgCtx) || corpus.includes("t.me") || corpus.includes("bot");
+    note = detected
+      ? `Found Telegram presence (${tgCtx?.value || "t.me link"}) in project contexts.`
+      : "No Telegram bot or t.me link found in project contexts — opportunity to pitch a Telegram community/trading bot.";
+  } else if (q.includes("mcp")) {
+    detected =
+      corpus.includes("mcp") ||
+      corpus.includes("agent") ||
+      corpus.includes("inference") ||
+      corpus.includes("sdk");
+    note = detected
+      ? "Agentic / SDK infrastructure detected in project positioning; compatible with MCP server deployment."
+      : "No MCP server mentioned in contexts — high-value opportunity to build an MCP server for AI agent access.";
+  } else if (q.includes("chatgpt") || q.includes("ai platform")) {
+    detected =
+      corpus.includes("ai") ||
+      corpus.includes("chatgpt") ||
+      corpus.includes("deepmind") ||
+      corpus.includes("agent");
+    note = detected
+      ? "AI positioning found in contexts; ready for ChatGPT / AI platform plugin listing."
+      : "Not currently indexed for ChatGPT / AI platform integrations.";
+  } else if (q.includes("sdk") || q.includes("api") || q.includes("doc")) {
+    detected =
+      corpus.includes("sdk") ||
+      corpus.includes("docs") ||
+      corpus.includes("litepaper") ||
+      corpus.includes("app");
+    note = detected
+      ? "Developer documentation / portal reference found in website contexts."
+      : "No public SDK or API documentation link found in active contexts.";
+  } else if (
+    q.includes("analytics") ||
+    q.includes("dune") ||
+    q.includes("tvl") ||
+    q.includes("node")
+  ) {
+    detected =
+      corpus.includes("tvl") ||
+      corpus.includes("node") ||
+      corpus.includes("vault") ||
+      corpus.includes("140m") ||
+      corpus.includes("25m");
+    note = detected
+      ? "On-chain metrics / TVL / node telemetry referenced in project contexts."
+      : "No public Dune or on-chain analytics dashboard linked yet.";
+  } else {
+    const keywords = item.label
+      .toLowerCase()
+      .split(/\s+/)
+      .filter((w) => w.length > 2);
+    detected = keywords.some((kw) => corpus.includes(kw));
+    note = detected
+      ? `Matched "${item.label}" in project contexts.`
+      : `No reference to "${item.label}" found in current project contexts.`;
+  }
+
+  return {
+    checked: detected,
+    scanResultNote: note,
+    scannedAt: "Just now",
+  };
+}
 
 function buildContextualAiResponse(
   project: CryptoProject,
   userPrompt: string,
-  activeContexts: ProjectContextItem[]
-): { content: string; suggestions: string[] } {
+  activeContexts: ProjectContextItem[],
+  template?: PromptTemplate
+): string {
   const websiteCtx = activeContexts.find((c) => c.type === "website");
   const xCtx = activeContexts.find((c) => c.type === "x_handle");
   const linkedinCtx = activeContexts.find((c) => c.type === "linkedin");
   const noteCtx = activeContexts.find((c) => c.type === "message");
   const statusMeta = BUSINESS_STATUS_META[project.businessStatus];
 
-  const lower = userPrompt.toLowerCase();
+  const lower = `${userPrompt} ${template?.label || ""} ${template?.systemPrompt || ""}`.toLowerCase();
 
-  if (lower.includes("linkedin") || lower.includes("institutional")) {
-    return {
-      content: `### LinkedIn Institutional Campaign — ${project.name} (${project.ticker})
-Grounded on ${linkedinCtx ? `\`${linkedinCtx.value}\`` : "your B2B positioning"}${websiteCtx ? ` and \`${websiteCtx.value}\`` : ""}:
+  const systemInstructionHeader = template
+    ? `> **Applied System Prompt (${template.label}):** ${template.systemPrompt}\n\n`
+    : "";
 
-> **Why Institutional Capital Is Moving to ${project.name} on ${project.chain}**
-> ${project.tagline}.
-> ${noteCtx ? `Key Focus: ${noteCtx.value}` : ""}
-
-- **Executive Hook:** Highlight verifiable on-chain performance and enterprise-grade architecture.
-- **Credibility Anchor:** Reference ${linkedinCtx ? linkedinCtx.summary : "core engineering pedigree"} and invite liquidity partners to review docs at \`${websiteCtx?.value || "our portal"}\`.
-- **CTA:** "DM our BD desk or visit \`${websiteCtx?.value || project.ticker}\` for institutional onboarding."`,
-      suggestions: [
-        "Adapt this LinkedIn post into a 4-tweet X thread",
-        "Write a cold DM for institutional market makers",
-        "Generate executive founder quote",
-      ],
-    };
+  if (lower.includes("4-tweet") || lower.includes("thread")) {
+    return `${systemInstructionHeader}### 4-Tweet X Thread — ${project.name} (${project.ticker})
+- **1/4:** ${project.name} (${project.ticker}) is scaling on ${project.chain}: ${project.tagline}.
+- **2/4:** Grounded in our latest positioning${linkedinCtx ? ` (\`${linkedinCtx.value}\`)` : ""}: ${noteCtx ? noteCtx.value : "built for institutional-grade execution and verifiable throughput."}
+- **3/4:** Follow ${xCtx ? `\`${xCtx.value}\`` : project.ticker} as we progress through our **${project.stage}** phase.
+- **4/4:** Explore the docs and live metrics at \`${websiteCtx?.value || "our official portal"}\`.`;
   }
 
-  if (lower.includes("kol") || lower.includes("dm") || lower.includes("outreach")) {
-    return {
-      content: `### Tier-1 KOL Outreach Kit — ${project.name} (${project.ticker})
-Tailored for ${xCtx ? `\`${xCtx.value}\`` : project.ticker} (${project.stage} on ${project.chain}):
+  if (lower.includes("market maker") || lower.includes("cold dm")) {
+    return `${systemInstructionHeader}### Institutional Market Maker Cold DM — ${project.name} (${project.ticker})
+"Hi [Name] — reaching out from the **${project.name} (${project.ticker})** team on ${project.chain}.
 
-- **DM Option 1 (High-Signal Alpha Analyst):**
-  "Hey [Name] — been following your ${project.chain} coverage. We're scaling **${project.name} (${project.ticker})**: ${project.tagline.toLowerCase()}. ${noteCtx ? noteCtx.value : ""} Would love to share early access + data room at \`${websiteCtx?.value || "our site"}\`."
-- **DM Option 2 (Ecosystem Threader):**
-  "GM! We're preparing our next catalyst on \`${xCtx?.value || project.ticker}\` and setting aside partner allocations for high-conviction creators. Open to a 10-min brief?"`,
-      suggestions: [
-        "Create a KOL talking-points brief",
-        "Draft follow-up bump message after 48h",
-        "Write an X thread to pin before KOL wave",
-      ],
-    };
+${project.tagline}. ${noteCtx ? noteCtx.value : ""}
+
+We are currently in **${project.stage}** (${statusMeta.label}) and onboarding institutional liquidity partners. Full documentation is live at \`${websiteCtx?.value || "our portal"}\`${linkedinCtx ? ` and \`${linkedinCtx.value}\`` : ""}. Open to sharing our liquidity brief this week?"`;
   }
 
-  return {
-    content: `### Coordinated Campaign Strategy — ${project.name} (${project.ticker})
-Synthesized from **${activeContexts.length} active project contexts** • Business State: **${statusMeta.label}** (${activeContexts.map((c) => c.title).join(", ") || "General Project Profile"}):
+  if (lower.includes("founder quote") || lower.includes("executive")) {
+    return `${systemInstructionHeader}### Executive Founder Quote — ${project.name} (${project.ticker})
+> "${project.name} was engineered on ${project.chain} to solve a fundamental gap: ${project.tagline.toLowerCase()}. ${noteCtx ? noteCtx.value : "Our focus is delivering verifiable utility and deep ecosystem composability."}"
+> — **Founder, ${project.name} (${project.ticker})**`;
+  }
 
-### 1. X / Crypto Twitter Angle ${xCtx ? `(\`${xCtx.value}\`)` : ""}
-- **Hook:** "${project.name} (${project.ticker}) is redefining ${project.chain}: ${project.tagline}."
-- **Narrative Alignment:** ${noteCtx ? noteCtx.value : "Focus on verifiable traction, community ownership, and ecosystem composability."}
-- **Destination CTA:** Drive traffic directly to \`${websiteCtx?.value || "official portal"}\`.
+  return `${systemInstructionHeader}### ${project.name} (${project.ticker}) — Campaign Output
+Synthesized from **${activeContexts.length} active contexts** (${activeContexts.map((c) => c.title).join(", ") || "Project Profile"}):
 
-### 2. LinkedIn & Partner Angle ${linkedinCtx ? `(\`${linkedinCtx.value}\`)` : ""}
-> Position **${project.name}** as institutional-grade ${project.chain} infrastructure during the **${project.stage}** phase, backed by transparent metrics and ecosystem integrations.`,
-    suggestions: [
-      "Expand section 1 into a 5-part X thread",
-      "Draft Telegram announcement for community",
-      "Create LinkedIn founder thought-leadership post",
-    ],
-  };
+- **X / Social (${xCtx?.value || project.ticker}):** "${project.name} (${project.ticker}) on ${project.chain} — ${project.tagline}."
+- **Key Context Directive:** ${noteCtx ? noteCtx.value : "Emphasize core product traction and verifiable metrics."}
+- **Primary Link:** \`${websiteCtx?.value || linkedinCtx?.value || "N/A"}\``;
 }
 
 export default function CryptoMessengerDashboard() {
@@ -91,6 +165,13 @@ export default function CryptoMessengerDashboard() {
   const [selectedProjectId, setSelectedProjectId] = useState<string>(
     INITIAL_PROJECTS[0].id
   );
+  const [promptTemplates, setPromptTemplates] = useState<PromptTemplate[]>(
+    INITIAL_PROMPT_TEMPLATES
+  );
+  const [checklistItems, setChecklistItems] = useState<ChecklistItemConfig[]>(
+    INITIAL_CHECKLIST_ITEMS
+  );
+
   const [draftPrompt, setDraftPrompt] = useState("");
   const [isContextPanelOpen, setIsContextPanelOpen] = useState(true);
   const [isAiTyping, setIsAiTyping] = useState(false);
@@ -98,6 +179,8 @@ export default function CryptoMessengerDashboard() {
   const addContextDialogRef = useRef<HTMLDialogElement | null>(null);
   const newProjectDialogRef = useRef<HTMLDialogElement | null>(null);
   const editLogoDialogRef = useRef<HTMLDialogElement | null>(null);
+  const checklistDialogRef = useRef<HTMLDialogElement | null>(null);
+  const globalSettingsDialogRef = useRef<HTMLDialogElement | null>(null);
 
   const activeProject =
     projects.find((p) => p.id === selectedProjectId) ?? projects[0];
@@ -109,7 +192,7 @@ export default function CryptoMessengerDashboard() {
     );
   };
 
-  const handleSendMessage = (content: string) => {
+  const handleSendMessage = (content: string, template?: PromptTemplate) => {
     const adminMsgId = `msg-admin-${Date.now()}`;
     const currentProject = activeProject;
     const enabledContexts = currentProject.contexts.filter((c) => c.isActive);
@@ -139,10 +222,11 @@ export default function CryptoMessengerDashboard() {
 
     setIsAiTyping(true);
     setTimeout(() => {
-      const aiReply = buildContextualAiResponse(
+      const aiContent = buildContextualAiResponse(
         currentProject,
         content,
-        enabledContexts
+        enabledContexts,
+        template
       );
 
       setProjects((prev) =>
@@ -155,13 +239,12 @@ export default function CryptoMessengerDashboard() {
                   {
                     id: `msg-ai-${Date.now()}`,
                     sender: "ai",
-                    content: aiReply.content,
+                    content: aiContent,
                     timestamp: new Date().toLocaleTimeString([], {
                       hour: "2-digit",
                       minute: "2-digit",
                     }),
                     usedContextIds: enabledContexts.map((c) => c.id),
-                    suggestedActions: aiReply.suggestions,
                   },
                 ],
               }
@@ -169,7 +252,141 @@ export default function CryptoMessengerDashboard() {
         )
       );
       setIsAiTyping(false);
-    }, 550);
+    }, 450);
+  };
+
+  const handleToggleChecklistItem = (itemId: string) => {
+    setProjects((prev) =>
+      prev.map((proj) => {
+        if (proj.id !== activeProject.id) return proj;
+        const prevMap = proj.checklistState ?? {};
+        const prevItem = prevMap[itemId];
+        return {
+          ...proj,
+          checklistState: {
+            ...prevMap,
+            [itemId]: {
+              ...prevItem,
+              checked: !prevItem?.checked,
+            },
+          },
+        };
+      })
+    );
+  };
+
+  const handleScanAllChecklistItems = () => {
+    const currentProject = activeProject;
+    const enabledContexts = currentProject.contexts.filter((c) => c.isActive);
+    const nextState: Record<string, ProjectChecklistItemState> = {};
+
+    const reportLines: string[] = [
+      `### Checklist Scan Report — ${currentProject.name} (${currentProject.ticker})`,
+    ];
+
+    checklistItems.forEach((item) => {
+      const res = evaluateChecklistItemAgainstProject(currentProject, item);
+      nextState[item.id] = res;
+      reportLines.push(
+        `- **${item.label}** (${res.checked ? "Yes / Detected" : "Missing"}): *${item.scanPrompt}* — ${res.scanResultNote}`
+      );
+    });
+
+    setProjects((prev) =>
+      prev.map((proj) =>
+        proj.id === currentProject.id
+          ? {
+              ...proj,
+              lastActivityTime: "Just now",
+              checklistState: nextState,
+              messages: [
+                ...proj.messages,
+                {
+                  id: `msg-scan-${Date.now()}`,
+                  sender: "ai",
+                  content: reportLines.join("\n"),
+                  timestamp: new Date().toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  }),
+                  usedContextIds: enabledContexts.map((c) => c.id),
+                },
+              ],
+            }
+          : proj
+      )
+    );
+  };
+
+  const handleScanSingleItemInChat = (item: ChecklistItemConfig) => {
+    const currentProject = activeProject;
+    const enabledContexts = currentProject.contexts.filter((c) => c.isActive);
+    const res = evaluateChecklistItemAgainstProject(currentProject, item);
+
+    setProjects((prev) =>
+      prev.map((proj) =>
+        proj.id === currentProject.id
+          ? {
+              ...proj,
+              lastActivityTime: "Just now",
+              checklistState: {
+                ...(proj.checklistState ?? {}),
+                [item.id]: res,
+              },
+              messages: [
+                ...proj.messages,
+                {
+                  id: `msg-chk-q-${Date.now()}`,
+                  sender: "admin",
+                  content: `Checklist check — ${item.label}: ${item.scanPrompt}`,
+                  timestamp: new Date().toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  }),
+                },
+                {
+                  id: `msg-chk-a-${Date.now() + 1}`,
+                  sender: "ai",
+                  content: `### Checklist Result: ${item.label} — ${res.checked ? "Detected" : "Not Found"}\n- **Scanned Prompt:** "${item.scanPrompt}"\n- **Finding:** ${res.scanResultNote}`,
+                  timestamp: new Date().toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  }),
+                  usedContextIds: enabledContexts.map((c) => c.id),
+                },
+              ],
+            }
+          : proj
+      )
+    );
+  };
+
+  const handleSavePromptTemplate = (updated: PromptTemplate) => {
+    setPromptTemplates((prev) => {
+      const exists = prev.some((t) => t.id === updated.id);
+      if (exists) {
+        return prev.map((t) => (t.id === updated.id ? updated : t));
+      }
+      return [...prev, updated];
+    });
+  };
+
+  const handleDeletePromptTemplate = (id: string) => {
+    setPromptTemplates((prev) => prev.filter((t) => t.id !== id));
+  };
+
+  const handleSaveChecklistItem = (updated: ChecklistItemConfig) => {
+    setChecklistItems((prev) => {
+      const exists = prev.some((i) => i.id === updated.id);
+      if (exists) {
+        return prev.map((i) => (i.id === updated.id ? updated : i));
+      }
+      return [...prev, updated];
+    });
+  };
+
+  const handleDeleteChecklistItem = (id: string) => {
+    setChecklistItems((prev) => prev.filter((i) => i.id !== id));
   };
 
   const handleResetConversation = () => {
@@ -183,8 +400,8 @@ export default function CryptoMessengerDashboard() {
                 {
                   id: `msg-reset-${Date.now()}`,
                   sender: "ai",
-                  content: `Thread cleared. I have **${enabledContexts.length} active context sources** loaded for **${proj.name} (${proj.ticker})**. What campaign asset should we build next?`,
-                  timestamp: "Just now",
+                  content: `Chat cleared for **${proj.name} (${proj.ticker})** (${enabledContexts.length} contexts active).`,
+                  timestamp: "Now",
                   usedContextIds: enabledContexts.map((c) => c.id),
                 },
               ],
@@ -241,7 +458,7 @@ export default function CryptoMessengerDashboard() {
     const newCtx: ProjectContextItem = {
       ...item,
       id: `ctx-${Date.now()}`,
-      updatedAt: "Just now",
+      updatedAt: "Now",
     };
 
     setProjects((prev) =>
@@ -262,8 +479,8 @@ export default function CryptoMessengerDashboard() {
     }
     setDraftPrompt((prev) =>
       prev
-        ? `${prev} (Using context "${ctx.title}": ${ctx.value})`
-        : `Using our "${ctx.title}" context (${ctx.value}), draft a campaign post that highlights `
+        ? `${prev} (${ctx.title}: ${ctx.value})`
+        : `Using ${ctx.title} (${ctx.value}), `
     );
   };
 
@@ -290,7 +507,7 @@ export default function CryptoMessengerDashboard() {
           ? {
               ...proj,
               businessStatus: status,
-              lastActivityTime: "Just now",
+              lastActivityTime: "Now",
             }
           : proj
       )
@@ -299,18 +516,23 @@ export default function CryptoMessengerDashboard() {
 
   return (
     <div className="h-dvh w-full overflow-hidden flex bg-white dark:bg-[#111b21] text-[#050505] dark:text-[#e9edef]">
-      {/* Left Sidebar: Crypto Projects List (Messenger Contacts Style) */}
+      {/* Left Sidebar: Crypto Projects List */}
       <ProjectSidebar
         projects={projects}
         selectedProjectId={activeProject.id}
         onSelectProject={handleSelectProject}
         onUpdateBusinessStatus={handleUpdateBusinessStatus}
         onOpenNewProjectModal={() => newProjectDialogRef.current?.showModal()}
+        onOpenGlobalSettings={() =>
+          globalSettingsDialogRef.current?.showModal()
+        }
       />
 
-      {/* Center Section: AI Marketing Agent Chat Box */}
+      {/* Center Section: AI Chat */}
       <AiChatPane
         project={activeProject}
+        promptTemplates={promptTemplates}
+        checklistItems={checklistItems}
         draftPrompt={draftPrompt}
         setDraftPrompt={setDraftPrompt}
         onSendMessage={handleSendMessage}
@@ -320,12 +542,16 @@ export default function CryptoMessengerDashboard() {
         }
         onOpenAddContextModal={() => addContextDialogRef.current?.showModal()}
         onOpenEditLogoModal={() => editLogoDialogRef.current?.showModal()}
+        onOpenChecklistModal={() => checklistDialogRef.current?.showModal()}
+        onOpenGlobalSettings={() =>
+          globalSettingsDialogRef.current?.showModal()
+        }
         isContextPanelOpen={isContextPanelOpen}
         onToggleContextPanel={() => setIsContextPanelOpen((v) => !v)}
         isAiTyping={isAiTyping}
       />
 
-      {/* Right Sidebar: Project Contexts (Websites, LinkedIn, X Handles, Pinned Messages) */}
+      {/* Right Sidebar: Project Contexts */}
       {isContextPanelOpen && (
         <ContextInspector
           project={activeProject}
@@ -341,7 +567,7 @@ export default function CryptoMessengerDashboard() {
         />
       )}
 
-      {/* Native Accessible Modals */}
+      {/* Modals */}
       <AddContextDialog
         dialogRef={addContextDialogRef}
         projectName={activeProject.name}
@@ -357,6 +583,28 @@ export default function CryptoMessengerDashboard() {
         dialogRef={editLogoDialogRef}
         project={activeProject}
         onUpdateLogo={handleUpdateProjectLogo}
+      />
+
+      <ProjectChecklistDialog
+        dialogRef={checklistDialogRef}
+        project={activeProject}
+        checklistItems={checklistItems}
+        onToggleChecklistItem={handleToggleChecklistItem}
+        onScanAllChecklistItems={handleScanAllChecklistItems}
+        onScanSingleItemInChat={handleScanSingleItemInChat}
+        onOpenGlobalSettings={() =>
+          globalSettingsDialogRef.current?.showModal()
+        }
+      />
+
+      <GlobalSettingsDialog
+        dialogRef={globalSettingsDialogRef}
+        promptTemplates={promptTemplates}
+        onSavePromptTemplate={handleSavePromptTemplate}
+        onDeletePromptTemplate={handleDeletePromptTemplate}
+        checklistItems={checklistItems}
+        onSaveChecklistItem={handleSaveChecklistItem}
+        onDeleteChecklistItem={handleDeleteChecklistItem}
       />
     </div>
   );

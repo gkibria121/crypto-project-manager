@@ -120,6 +120,19 @@ body {
   max-inline-size: 24ch;
 }
 
+.checkbox-native {
+  accent-color: var(--accent-color);
+  inline-size: 1.15em;
+  aspect-ratio: 1;
+  margin: 0;
+  cursor: pointer;
+}
+
+.checkbox-native:focus-visible {
+  outline: 2px solid var(--accent-color);
+  outline-offset: 2px;
+}
+
 .visually-hidden:where(:not(:focus-within, :active)) {
   position: absolute !important;
   clip-path: inset(50%) !important;

@@ -1,5 +1,68 @@
-import { CryptoProject } from "@/types/project";
+import {
+  ChecklistItemConfig,
+  CryptoProject,
+  PromptTemplate,
+} from "@/types/project";
 import { PRESET_PROJECT_LOGOS } from "@/components/ProjectAvatar";
+
+export const INITIAL_PROMPT_TEMPLATES: PromptTemplate[] = [
+  {
+    id: "tpl-linkedin-to-x",
+    label: "Adapt this LinkedIn post into a 4-tweet X thread",
+    systemPrompt:
+      "You are a senior crypto growth strategist. Convert the project's institutional LinkedIn positioning and active contexts into a high-conviction 4-tweet X (Twitter) thread. Tweet 1: Sharp metric or narrative hook. Tweet 2: Core technical/product proof. Tweet 3: Token or ecosystem value accrual. Tweet 4: Direct CTA link without generic hashtags.",
+  },
+  {
+    id: "tpl-mm-cold-dm",
+    label: "Write a cold DM for institutional market makers",
+    systemPrompt:
+      "You are an institutional Web3 BD lead. Write a concise, high-signal cold DM for institutional market makers, liquid token funds, and OTC desks using the project's active contexts. Emphasize liquidity depth, chain architecture, and partnership terms.",
+  },
+  {
+    id: "tpl-founder-quote",
+    label: "Generate executive founder quote",
+    systemPrompt:
+      "You are an executive communications director for a Web3 protocol. Draft a punchy, authoritative founder quote suitable for press releases, LinkedIn announcements, and co-marketing posts grounded in the project's active contexts.",
+  },
+  {
+    id: "tpl-kol-outreach",
+    label: "Create Tier-1 KOL outreach DM",
+    systemPrompt:
+      "Draft a personalized, non-spammy X/Telegram DM to pitch Tier-1 crypto researchers and KOLs on covering our upcoming milestone.",
+  },
+];
+
+export const INITIAL_CHECKLIST_ITEMS: ChecklistItemConfig[] = [
+  {
+    id: "chk-tg-bot",
+    label: "Telegram Bot",
+    scanPrompt: "Does this project have a Telegram bot or Telegram mini-app?",
+  },
+  {
+    id: "chk-mcp-server",
+    label: "MCP Server",
+    scanPrompt:
+      "Does this project have an MCP (Model Context Protocol) server for AI agents?",
+  },
+  {
+    id: "chk-chatgpt-ai",
+    label: "Add in ChatGPT / AI Platform",
+    scanPrompt:
+      "Can this project be added or integrated in ChatGPT, Claude, or other AI platforms?",
+  },
+  {
+    id: "chk-sdk-api",
+    label: "Developer SDK / Public API",
+    scanPrompt:
+      "Does this project provide a public developer SDK or API documentation?",
+  },
+  {
+    id: "chk-analytics",
+    label: "On-Chain Analytics (Dune / DefiLlama)",
+    scanPrompt:
+      "Does this project have verifiable on-chain analytics, a live node map, or TVL tracking?",
+  },
+];
 
 export const INITIAL_PROJECTS: CryptoProject[] = [
   {

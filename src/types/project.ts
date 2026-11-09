@@ -23,6 +23,25 @@ export interface ChatMessage {
   timestamp: string;
   usedContextIds?: string[];
   suggestedActions?: string[];
+  appliedSystemPromptTitle?: string;
+}
+
+export interface PromptTemplate {
+  id: string;
+  label: string;
+  systemPrompt: string;
+}
+
+export interface ChecklistItemConfig {
+  id: string;
+  label: string;
+  scanPrompt: string;
+}
+
+export interface ProjectChecklistItemState {
+  checked: boolean;
+  scanResultNote?: string;
+  scannedAt?: string;
 }
 
 export type ProjectStage =
@@ -62,16 +81,14 @@ export const BUSINESS_STATUS_META: Record<
     label: "Contacted",
     shortLabel: "Contacted",
     description: "Outreach sent, awaiting reply",
-    badgeClass:
-      "bg-amber-500/10 text-amber-700 dark:text-amber-400",
+    badgeClass: "bg-amber-500/10 text-amber-700 dark:text-amber-400",
     dotClass: "bg-amber-500",
   },
   collaborated: {
     label: "Collaborated",
     shortLabel: "Collaborated",
     description: "Active partnership",
-    badgeClass:
-      "bg-emerald-500/12 text-emerald-700 dark:text-emerald-400",
+    badgeClass: "bg-emerald-500/12 text-emerald-700 dark:text-emerald-400",
     dotClass: "bg-[#00a884]",
   },
   completed: {
@@ -86,8 +103,7 @@ export const BUSINESS_STATUS_META: Record<
     label: "Unresponsive",
     shortLabel: "Unresponsive",
     description: "No response after follow-up",
-    badgeClass:
-      "bg-rose-500/10 text-rose-700 dark:text-rose-400",
+    badgeClass: "bg-rose-500/10 text-rose-700 dark:text-rose-400",
     dotClass: "bg-rose-500",
   },
   archived: {
@@ -117,4 +133,5 @@ export interface CryptoProject {
   lastActivityTime: string;
   contexts: ProjectContextItem[];
   messages: ChatMessage[];
+  checklistState?: Record<string, ProjectChecklistItemState>;
 }

@@ -3,9 +3,11 @@
 import React, { useEffect, useId, useRef, useState } from "react";
 import {
   BUSINESS_STATUS_META,
+  ChecklistItemConfig,
   CryptoProject,
   ProjectBusinessStatus,
   ProjectContextItem,
+  PromptTemplate,
 } from "@/types/project";
 import { ProjectAvatar } from "@/components/ProjectAvatar";
 import {
@@ -20,17 +22,23 @@ import {
   Info,
   RotateCcw,
   SendHorizontal,
+  ListChecks,
+  Settings,
 } from "lucide-react";
 
 interface AiChatPaneProps {
   project: CryptoProject;
+  promptTemplates: PromptTemplate[];
+  checklistItems: ChecklistItemConfig[];
   draftPrompt: string;
   setDraftPrompt: React.Dispatch<React.SetStateAction<string>>;
-  onSendMessage: (content: string) => void;
+  onSendMessage: (content: string, template?: PromptTemplate) => void;
   onResetConversation: () => void;
   onUpdateBusinessStatus: (status: ProjectBusinessStatus) => void;
   onOpenAddContextModal: () => void;
   onOpenEditLogoModal: () => void;
+  onOpenChecklistModal: () => void;
+  onOpenGlobalSettings: () => void;
   isContextPanelOpen: boolean;
   onToggleContextPanel: () => void;
   isAiTyping: boolean;
@@ -129,6 +137,8 @@ function FormattedMessageContent({ content }: { content: string }) {
 
 export function AiChatPane({
   project,
+  promptTemplates,
+  checklistItems,
   draftPrompt,
   setDraftPrompt,
   onSendMessage,
@@ -136,6 +146,8 @@ export function AiChatPane({
   onUpdateBusinessStatus,
   onOpenAddContextModal,
   onOpenEditLogoModal,
+  onOpenChecklistModal,
+  onOpenGlobalSettings,
   isContextPanelOpen,
   onToggleContextPanel,
   isAiTyping,
@@ -148,6 +160,9 @@ export function AiChatPane({
   const [copiedMsgId, setCopiedMsgId] = useState<string | null>(null);
 
   const activeContexts = project.contexts.filter((c) => c.isActive);
+  const checkedCount = checklistItems.filter(
+    (item) => project.checklistState?.[item.id]?.checked
+  ).length;
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -280,7 +295,29 @@ export function AiChatPane({
         </div>
 
         {/* Right Header Icon Controls */}
-        <div className="flex items-center gap-1 shrink-0">
+        <div className="flex items-center gap-1.5 shrink-0">
+          <button
+            type="button"
+            onClick={onOpenChecklistModal}
+            title="Check project feature checklist"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-[#f0f2f5] hover:bg-[#e4e6eb] dark:bg-[#2a3942] dark:hover:bg-[#374045] text-[#050505] dark:text-[#e9edef] transition cursor-pointer"
+          >
+            <ListChecks className="w-4 h-4 text-[#0084ff]" />
+            <span>
+              Checklist ({checkedCount}/{checklistItems.length})
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={onOpenGlobalSettings}
+            title="Edit system prompts & global checklist"
+            aria-label="Edit system prompts and global checklist"
+            className="w-9 h-9 rounded-full text-[#65676b] dark:text-[#8696a0] hover:bg-[#f0f2f5] dark:hover:bg-[#2a3942] flex items-center justify-center transition cursor-pointer"
+          >
+            <Settings className="w-4 h-4" />
+          </button>
+
           <button
             type="button"
             onClick={onResetConversation}
@@ -397,23 +434,30 @@ export function AiChatPane({
                   </div>
                 </div>
 
-                {/* Clean Text-Only Quick Replies */}
-                {!isAdmin &&
-                  msg.suggestedActions &&
-                  msg.suggestedActions.length > 0 && (
-                    <div className="flex items-center gap-1.5 flex-wrap mt-1.5">
-                      {msg.suggestedActions.map((suggestion) => (
-                        <button
-                          key={suggestion}
-                          type="button"
-                          onClick={() => onSendMessage(suggestion)}
-                          className="px-3 py-1 rounded-full text-xs font-medium bg-white hover:bg-[#e4e6eb]/60 dark:bg-[#202c33] dark:hover:bg-[#2a3942] text-[#0084ff] dark:text-[#4599ff] border border-[#e4e6eb] dark:border-[#2a3942] transition cursor-pointer"
-                        >
-                          {suggestion}
-                        </button>
-                      ))}
-                    </div>
-                  )}
+                {/* Global Editable System Prompt Chips (Shown on the latest AI message) */}
+                {!isAdmin && index === project.messages.length - 1 && (
+                  <div className="flex items-center gap-1.5 flex-wrap mt-2">
+                    {promptTemplates.map((tpl) => (
+                      <button
+                        key={tpl.id}
+                        type="button"
+                        onClick={() => onSendMessage(tpl.label, tpl)}
+                        title={`System Prompt: ${tpl.systemPrompt}`}
+                        className="px-3 py-1 rounded-full text-xs font-medium bg-white hover:bg-[#e4e6eb]/60 dark:bg-[#202c33] dark:hover:bg-[#2a3942] text-[#0084ff] dark:text-[#4599ff] border border-[#e4e6eb] dark:border-[#2a3942] transition cursor-pointer"
+                      >
+                        {tpl.label}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={onOpenGlobalSettings}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium text-[#65676b] hover:text-[#050505] dark:text-[#8696a0] dark:hover:text-[#e9edef] transition cursor-pointer"
+                    >
+                      <Settings className="w-3 h-3" />
+                      <span>Edit prompts</span>
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           );

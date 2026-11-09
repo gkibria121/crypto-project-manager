@@ -7,7 +7,7 @@ import {
   ProjectBusinessStatus,
 } from "@/types/project";
 import { ProjectAvatar } from "@/components/ProjectAvatar";
-import { Search, Plus, Archive, ArchiveRestore } from "lucide-react";
+import { Search, Plus, Archive, ArchiveRestore, Settings } from "lucide-react";
 
 interface ProjectSidebarProps {
   projects: CryptoProject[];
@@ -18,6 +18,7 @@ interface ProjectSidebarProps {
     status: ProjectBusinessStatus
   ) => void;
   onOpenNewProjectModal: () => void;
+  onOpenGlobalSettings: () => void;
 }
 
 type SidebarFilter = "active" | ProjectBusinessStatus;
@@ -28,6 +29,7 @@ export function ProjectSidebar({
   onSelectProject,
   onUpdateBusinessStatus,
   onOpenNewProjectModal,
+  onOpenGlobalSettings,
 }: ProjectSidebarProps) {
   const searchInputId = useId();
   const [searchQuery, setSearchQuery] = useState("");
@@ -93,15 +95,27 @@ export function ProjectSidebar({
             Projects
           </h1>
 
-          <button
-            type="button"
-            onClick={onOpenNewProjectModal}
-            aria-label="New project"
-            title="New project"
-            className="w-9 h-9 rounded-full bg-[#f0f2f5] hover:bg-[#e4e6eb] dark:bg-[#202c33] dark:hover:bg-[#2a3942] text-[#050505] dark:text-[#e9edef] flex items-center justify-center transition cursor-pointer"
-          >
-            <Plus className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={onOpenGlobalSettings}
+              aria-label="Global settings for system prompts and checklist"
+              title="Global Settings (Prompts & Checklist)"
+              className="w-9 h-9 rounded-full bg-[#f0f2f5] hover:bg-[#e4e6eb] dark:bg-[#202c33] dark:hover:bg-[#2a3942] text-[#050505] dark:text-[#e9edef] flex items-center justify-center transition cursor-pointer"
+            >
+              <Settings className="w-4 h-4" />
+            </button>
+
+            <button
+              type="button"
+              onClick={onOpenNewProjectModal}
+              aria-label="New project"
+              title="New project"
+              className="w-9 h-9 rounded-full bg-[#f0f2f5] hover:bg-[#e4e6eb] dark:bg-[#202c33] dark:hover:bg-[#2a3942] text-[#050505] dark:text-[#e9edef] flex items-center justify-center transition cursor-pointer"
+            >
+              <Plus className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Clean Rounded Search Input */}
