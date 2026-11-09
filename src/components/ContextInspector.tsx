@@ -2,10 +2,12 @@
 
 import React, { useState } from "react";
 import {
+  ArrowLeft,
   CornerDownLeft,
   ExternalLink,
   Plus,
   Trash2,
+  X,
 } from "lucide-react";
 import {
   BUSINESS_STATUS_META,
@@ -26,6 +28,9 @@ interface ContextInspectorProps {
   onReferenceInPrompt: (ctx: ProjectContextItem) => void;
   onOpenAddContextModal: () => void;
   onOpenEditLogoModal: () => void;
+  isDesktopOpen?: boolean;
+  isMobileOpen?: boolean;
+  onCloseMobile?: () => void;
 }
 
 export function ContextInspector({
@@ -37,6 +42,9 @@ export function ContextInspector({
   onReferenceInPrompt,
   onOpenAddContextModal,
   onOpenEditLogoModal,
+  isDesktopOpen = true,
+  isMobileOpen = false,
+  onCloseMobile,
 }: ContextInspectorProps) {
   const [filterTab, setFilterTab] = useState<"all" | "links" | "messages">(
     "all"
@@ -52,11 +60,33 @@ export function ContextInspector({
     return true;
   });
 
-  return (
-    <aside
-      aria-label="Project info and contexts"
-      className="w-80 lg:w-88 shrink-0 h-full border-l border-[#e4e6eb] dark:border-[#222d34] bg-white dark:bg-[#111b21] flex flex-col overflow-y-auto scroller"
-    >
+  const inspectorContent = (
+    <>
+      {/* Mobile / Tablet Sticky Drawer Top Bar (< xl) */}
+      <div className="xl:hidden sticky top-0 z-10 px-4 py-3 bg-white/95 dark:bg-[#111b21]/95 backdrop-blur-xs border-b border-[#e4e6eb] dark:border-[#222d34] flex items-center justify-between gap-2 shrink-0">
+        <button
+          type="button"
+          onClick={onCloseMobile}
+          className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#0084ff] cursor-pointer"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          <span>Back to chat</span>
+        </button>
+
+        <span className="text-xs font-semibold text-[#65676b] dark:text-[#8696a0]">
+          Project Info & Contexts
+        </span>
+
+        <button
+          type="button"
+          onClick={onCloseMobile}
+          aria-label="Close project info panel"
+          className="w-8 h-8 rounded-full text-[#65676b] dark:text-[#8696a0] hover:bg-[#f0f2f5] dark:hover:bg-[#202c33] flex items-center justify-center transition cursor-pointer"
+        >
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+
       {/* Messenger / WhatsApp Contact Info Profile Header */}
       <div className="px-4 pt-5 pb-4 border-b border-[#e4e6eb] dark:border-[#222d34] flex flex-col items-center text-center">
         <ProjectAvatar
@@ -91,7 +121,7 @@ export function ContextInspector({
               {BUSINESS_STATUS_META[project.businessStatus].label}
             </span>
           </div>
-          <div className="grid grid-cols-3 gap-1">
+          <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-3 gap-1.5 sm:gap-1">
             {BUSINESS_STATUS_ORDER.map((statusKey) => {
               const meta = BUSINESS_STATUS_META[statusKey];
               const isSelected = project.businessStatus === statusKey;
@@ -101,7 +131,7 @@ export function ContextInspector({
                   type="button"
                   onClick={() => onUpdateBusinessStatus(statusKey)}
                   title={meta.description}
-                  className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-[11px] font-medium transition cursor-pointer ${
+                  className={`flex items-center justify-center gap-1.5 py-2 sm:py-1.5 px-2 rounded-lg text-[11px] font-medium transition cursor-pointer ${
                     isSelected
                       ? "bg-[#e7f3ff] text-[#0084ff] dark:bg-[#0084ff]/20 dark:text-[#4599ff] font-semibold"
                       : "bg-[#f0f2f5] dark:bg-[#202c33] text-[#65676b] dark:text-[#8696a0] hover:bg-[#e4e6eb] dark:hover:bg-[#2a3942]"
@@ -166,7 +196,7 @@ export function ContextInspector({
       </div>
 
       {/* Context Items List */}
-      <div className="flex-1 divide-y divide-[#e4e6eb] dark:divide-[#222d34]">
+      <div className="flex-1 divide-y divide-[#e4e6eb] dark:divide-[#222d34] pb-[max(1rem,env(safe-area-inset-bottom))]">
         {filteredContexts.length === 0 ? (
           <div className="text-center py-10 px-4">
             <p className="text-xs text-[#65676b] dark:text-[#8696a0]">
@@ -207,7 +237,7 @@ export function ContextInspector({
                         type="checkbox"
                         checked={ctx.isActive}
                         onChange={() => onToggleContext(ctx.id)}
-                        className="rounded cursor-pointer"
+                        className="checkbox-native rounded cursor-pointer"
                       />
                       <span>{ctx.isActive ? "Active" : "Off"}</span>
                     </label>
@@ -224,7 +254,7 @@ export function ContextInspector({
                       <ExternalLink className="w-3 h-3 shrink-0" />
                     </a>
                   ) : (
-                    <p className="mt-1 text-xs text-[#050505] dark:text-[#d1d7db] bg-[#f0f2f5] dark:bg-[#202c33] rounded-lg px-2.5 py-1.5 leading-relaxed">
+                    <p className="mt-1 text-xs text-[#050505] dark:text-[#d1d7db] bg-[#f0f2f5] dark:bg-[#202c33] rounded-lg px-2.5 py-1.5 leading-relaxed break-words">
                       {ctx.value}
                     </p>
                   )}
@@ -244,7 +274,7 @@ export function ContextInspector({
                     <button
                       type="button"
                       onClick={() => onReferenceInPrompt(ctx)}
-                      className="inline-flex items-center gap-1 text-[11px] font-medium text-[#0084ff] hover:underline cursor-pointer"
+                      className="inline-flex items-center gap-1 py-1 text-[11px] font-medium text-[#0084ff] hover:underline cursor-pointer"
                     >
                       <CornerDownLeft className="w-3 h-3" />
                       <span>Use in chat</span>
@@ -255,7 +285,7 @@ export function ContextInspector({
                       onClick={() => onDeleteContext(ctx.id)}
                       title="Delete context"
                       aria-label={`Delete ${ctx.title}`}
-                      className="p-1 rounded text-[#65676b] hover:text-rose-600 dark:text-[#8696a0] dark:hover:text-rose-400 transition cursor-pointer"
+                      className="p-1.5 rounded text-[#65676b] hover:text-rose-600 dark:text-[#8696a0] dark:hover:text-rose-400 transition cursor-pointer"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -266,6 +296,37 @@ export function ContextInspector({
           ))
         )}
       </div>
-    </aside>
+    </>
+  );
+
+  return (
+    <>
+      {/* Desktop Persistent Third Column (xl+) */}
+      {isDesktopOpen && (
+        <aside
+          aria-label="Project info and contexts"
+          className="hidden xl:flex xl:w-88 shrink-0 h-full border-l border-[#e4e6eb] dark:border-[#222d34] bg-white dark:bg-[#111b21] flex-col overflow-y-auto scroller"
+        >
+          {inspectorContent}
+        </aside>
+      )}
+
+      {/* Mobile & Tablet Slide-Over Drawer (< xl) */}
+      {isMobileOpen && (
+        <div className="fixed inset-0 z-40 flex justify-end xl:hidden">
+          <div
+            aria-hidden="true"
+            onClick={onCloseMobile}
+            className="fixed inset-0 bg-black/40 backdrop-blur-[1px]"
+          />
+          <aside
+            aria-label="Project info and contexts"
+            className="relative z-10 w-full sm:w-96 max-w-full h-dvh border-l border-[#e4e6eb] dark:border-[#222d34] bg-white dark:bg-[#111b21] flex flex-col overflow-y-auto scroller shadow-2xl"
+          >
+            {inspectorContent}
+          </aside>
+        </div>
+      )}
+    </>
   );
 }

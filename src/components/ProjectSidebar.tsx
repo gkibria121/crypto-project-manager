@@ -20,6 +20,7 @@ interface ProjectSidebarProps {
   ) => void;
   onOpenNewProjectModal: () => void;
   onOpenGlobalSettings: () => void;
+  isMobileHidden?: boolean;
 }
 
 type SidebarFilter = "active" | ProjectBusinessStatus;
@@ -41,6 +42,7 @@ export function ProjectSidebar({
   onUpdateBusinessStatus,
   onOpenNewProjectModal,
   onOpenGlobalSettings,
+  isMobileHidden = false,
 }: ProjectSidebarProps) {
   const searchInputId = useId();
   const [searchQuery, setSearchQuery] = useState("");
@@ -78,10 +80,12 @@ export function ProjectSidebar({
   return (
     <aside
       aria-label="Projects"
-      className="w-80 lg:w-90 shrink-0 h-full border-r border-[#e4e6eb] dark:border-[#222d34] bg-white dark:bg-[#111b21] flex flex-col"
+      className={`${
+        isMobileHidden ? "hidden md:flex" : "flex"
+      } w-full md:w-76 lg:w-88 shrink-0 h-full border-r border-[#e4e6eb] dark:border-[#222d34] bg-white dark:bg-[#111b21] flex-col min-w-0`}
     >
       {/* WhatsApp / Messenger Top Header */}
-      <div className="px-4 pt-3.5 pb-2.5">
+      <div className="px-3.5 sm:px-4 pt-3.5 pb-2.5">
         <div className="flex items-center justify-between mb-3">
           <h1 className="text-xl font-bold tracking-tight text-[#050505] dark:text-[#e9edef]">
             Projects
@@ -93,7 +97,7 @@ export function ProjectSidebar({
               onClick={onOpenGlobalSettings}
               aria-label="Global settings for system prompts and checklist"
               title="Global Settings (Prompts & Checklist)"
-              className="w-9 h-9 rounded-full bg-[#f0f2f5] hover:bg-[#e4e6eb] dark:bg-[#202c33] dark:hover:bg-[#2a3942] text-[#050505] dark:text-[#e9edef] flex items-center justify-center transition cursor-pointer"
+              className="w-10 h-10 sm:w-9 sm:h-9 rounded-full bg-[#f0f2f5] hover:bg-[#e4e6eb] dark:bg-[#202c33] dark:hover:bg-[#2a3942] text-[#050505] dark:text-[#e9edef] flex items-center justify-center transition cursor-pointer"
             >
               <Settings className="w-4 h-4" />
             </button>
@@ -103,7 +107,7 @@ export function ProjectSidebar({
               onClick={onOpenNewProjectModal}
               aria-label="New project"
               title="New project"
-              className="w-9 h-9 rounded-full bg-[#f0f2f5] hover:bg-[#e4e6eb] dark:bg-[#202c33] dark:hover:bg-[#2a3942] text-[#050505] dark:text-[#e9edef] flex items-center justify-center transition cursor-pointer"
+              className="w-10 h-10 sm:w-9 sm:h-9 rounded-full bg-[#f0f2f5] hover:bg-[#e4e6eb] dark:bg-[#202c33] dark:hover:bg-[#2a3942] text-[#050505] dark:text-[#e9edef] flex items-center justify-center transition cursor-pointer"
             >
               <Plus className="w-5 h-5" />
             </button>
@@ -127,7 +131,7 @@ export function ProjectSidebar({
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search projects"
-            className="w-full pl-9 pr-3.5 py-2 text-[14px] rounded-full bg-[#f0f2f5] dark:bg-[#202c33] text-[#050505] dark:text-[#e9edef] placeholder:text-[#65676b] dark:placeholder:text-[#8696a0] outline-none"
+            className="w-full pl-9 pr-3.5 py-2 text-base sm:text-[14px] rounded-full bg-[#f0f2f5] dark:bg-[#202c33] text-[#050505] dark:text-[#e9edef] placeholder:text-[#65676b] dark:placeholder:text-[#8696a0] outline-none"
           />
         </div>
 
@@ -147,7 +151,7 @@ export function ProjectSidebar({
       </div>
 
       {/* Chat List */}
-      <div className="flex-1 overflow-y-auto scroller px-2 py-1">
+      <div className="flex-1 overflow-y-auto scroller px-2 py-1 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
         {filteredProjects.length === 0 ? (
           <div className="text-center py-12 px-4">
             <p className="text-sm text-[#65676b] dark:text-[#8696a0]">
@@ -168,7 +172,7 @@ export function ProjectSidebar({
             return (
               <div
                 key={project.id}
-                className={`w-full rounded-xl transition flex items-center gap-3 px-2.5 py-2.5 group relative ${
+                className={`w-full rounded-xl transition flex items-center gap-2.5 sm:gap-3 px-2.5 py-2.5 group relative ${
                   isSelected
                     ? "bg-[#e7f3ff]/70 dark:bg-[#2a3942]"
                     : "hover:bg-[#f0f2f5] dark:hover:bg-[#202c33]"
@@ -199,7 +203,7 @@ export function ProjectSidebar({
                           {statusMeta.shortLabel}
                         </span>
                       </div>
-                      <span className="text-xs text-[#65676b] dark:text-[#8696a0] shrink-0 group-hover:hidden">
+                      <span className="text-xs text-[#65676b] dark:text-[#8696a0] shrink-0 md:group-hover:hidden">
                         {project.lastActivityTime}
                       </span>
                     </div>
@@ -226,7 +230,7 @@ export function ProjectSidebar({
                   </div>
                 </button>
 
-                {/* Hover Quick Archive / Restore Button */}
+                {/* Quick Archive / Restore Button */}
                 <button
                   type="button"
                   onClick={() =>
@@ -241,7 +245,7 @@ export function ProjectSidebar({
                       : `Archive ${project.name}`
                   }
                   title={isArchived ? "Unarchive" : "Archive"}
-                  className="hidden group-hover:inline-flex focus-visible:inline-flex p-1.5 rounded-full bg-white dark:bg-[#111b21] text-[#65676b] dark:text-[#8696a0] hover:text-[#050505] dark:hover:text-white shadow-xs border border-[#e4e6eb] dark:border-[#222d34] absolute right-2.5 top-1/2 -translate-y-1/2 cursor-pointer"
+                  className="inline-flex md:hidden md:group-hover:inline-flex focus-visible:inline-flex p-2 md:p-1.5 rounded-full bg-white dark:bg-[#111b21] text-[#65676b] dark:text-[#8696a0] hover:text-[#050505] dark:hover:text-white shadow-xs border border-[#e4e6eb] dark:border-[#222d34] shrink-0 md:absolute md:right-2.5 md:top-1/2 md:-translate-y-1/2 cursor-pointer"
                 >
                   {isArchived ? (
                     <ArchiveRestore className="w-4 h-4" />

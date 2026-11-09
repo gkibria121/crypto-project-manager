@@ -88,7 +88,7 @@ export function NewProjectDialog({
       maxWidthClass="max-w-lg"
     >
       <form onSubmit={handleFormSubmit} noValidate className="space-y-3 mt-4">
-        <div className="flex items-center gap-3.5 p-3 rounded-xl bg-[#f0f2f5] dark:bg-[#2a3942]">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3.5 p-3 rounded-xl bg-[#f0f2f5] dark:bg-[#2a3942]">
           <ProjectAvatar
             project={{
               name: watchedName.trim() || "New Project",
@@ -100,7 +100,7 @@ export function NewProjectDialog({
             size="lg"
             decorative
           />
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0 w-full">
             <div className="flex items-center gap-2 flex-wrap">
               <input
                 id={newLogoFileId}
@@ -112,7 +112,7 @@ export function NewProjectDialog({
               />
               <label
                 htmlFor={newLogoFileId}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#0084ff] hover:bg-[#0073e6] text-white transition cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-3 py-2 sm:py-1.5 rounded-lg text-xs font-semibold bg-[#0084ff] hover:bg-[#0073e6] text-white transition cursor-pointer"
               >
                 <Upload className="w-3.5 h-3.5" />
                 <span>Upload photo</span>
@@ -136,18 +136,18 @@ export function NewProjectDialog({
                   })
                 }
                 placeholder="Or paste image URL..."
-                className="flex-1 min-w-36 px-2.5 py-1.5 text-xs rounded-lg bg-white dark:bg-[#202c33] outline-none"
+                className="flex-1 min-w-36 px-2.5 py-2 sm:py-1.5 text-xs rounded-lg bg-white dark:bg-[#202c33] outline-none"
               />
             </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-2.5">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
           <FormField
             label="Project Name"
             required
             error={errors.name}
-            className="col-span-2"
+            className="sm:col-span-2"
           >
             {(a11yProps) => (
               <input
@@ -179,7 +179,7 @@ export function NewProjectDialog({
           </FormField>
         </div>
 
-        <div className="grid grid-cols-3 gap-2.5">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
           <FormField label="Chain" error={errors.chain}>
             {(a11yProps) => (
               <select
@@ -241,7 +241,7 @@ export function NewProjectDialog({
           )}
         </FormField>
 
-        <div className="grid grid-cols-3 gap-2 pt-1">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
           <FormField
             label="Website URL"
             srOnlyLabel

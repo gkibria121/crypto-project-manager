@@ -88,6 +88,23 @@ body {
 .scroller {
   scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
   scrollbar-width: thin;
+  overscroll-behavior: contain;
+}
+
+.chip-wrap-balance {
+  display: flex;
+  flex-wrap: wrap;
+  flex-wrap: balance;
+}
+
+@media (max-width: 639px) {
+  input[type="text"],
+  input[type="url"],
+  input[type="search"],
+  textarea,
+  select {
+    font-size: 1rem;
+  }
 }
 
 @supports not (scrollbar-color: auto) {

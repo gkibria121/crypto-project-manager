@@ -151,7 +151,7 @@ export function UpdateProjectLogoDialog({
           <span className="block text-xs font-semibold mb-1.5 text-[#65676b] dark:text-[#8696a0]">
             Default Icons
           </span>
-          <div className="grid grid-cols-4 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             {PRESET_PROJECT_LOGOS.map((preset) => {
               const isSelected = previewUrl === preset.url;
               return (
@@ -173,7 +173,7 @@ export function UpdateProjectLogoDialog({
                   <img
                     src={preset.url}
                     alt=""
-                    className="w-9 h-9 rounded-full object-cover"
+                    className="w-9 h-9 block aspect-square rounded-full object-cover"
                   />
                   <span className="truncate w-full text-center">
                     {preset.label}

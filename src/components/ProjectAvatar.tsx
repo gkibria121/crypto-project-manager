@@ -62,11 +62,11 @@ export function ProjectAvatar({
     <img
       src={project.logoUrl}
       alt={decorative ? "" : `${project.name} profile photo`}
-      className={`${sizeClasses} rounded-full object-cover bg-[#e4e6eb] dark:bg-[#202c33]`}
+      className={`${sizeClasses} block aspect-square rounded-full object-cover bg-[#e4e6eb] dark:bg-[#202c33]`}
     />
   ) : (
     <div
-      className={`${sizeClasses} rounded-full ${project.avatarBg} flex items-center justify-center text-white font-semibold select-none`}
+      className={`${sizeClasses} aspect-square rounded-full ${project.avatarBg} flex items-center justify-center text-white font-semibold select-none`}
     >
       <span className="tracking-tight leading-none">
         {project.ticker.replace("$", "").slice(0, 4)}

@@ -86,7 +86,7 @@ export function GlobalSettingsDialog({
       subtitle="Manage system prompts and feature checklist items across all projects"
       maxWidthClass="max-w-2xl"
     >
-      <div className="flex items-center gap-2 mt-3 pb-3 border-b border-[#e4e6eb] dark:border-[#2a3942]">
+      <div className="flex items-center gap-2 mt-3 pb-3 border-b border-[#e4e6eb] dark:border-[#2a3942] overflow-x-auto scroller">
         <FilterChip
           active={activeTab === "prompts"}
           onClick={() => setActiveTab("prompts")}

@@ -53,7 +53,11 @@ export function CryptoMessengerDashboard() {
     INITIAL_PROJECTS[0].id
   );
   const [draftPrompt, setDraftPrompt] = useState("");
-  const [isContextPanelOpen, setIsContextPanelOpen] = useState(true);
+  const [mobileActivePane, setMobileActivePane] = useState<"sidebar" | "chat">(
+    "chat"
+  );
+  const [isDesktopContextOpen, setIsDesktopContextOpen] = useState(true);
+  const [isMobileContextOpen, setIsMobileContextOpen] = useState(false);
 
   const {
     addContextDialogRef,
@@ -89,9 +93,24 @@ export function CryptoMessengerDashboard() {
   const activeProject =
     projects.find((p) => p.id === selectedProjectId) ?? projects[0];
 
+  const totalUnreadCount = projects.reduce(
+    (acc, proj) => acc + (proj.unreadInsights ?? 0),
+    0
+  );
+
   const handleSelectProject = (id: string) => {
     setSelectedProjectId(id);
+    setMobileActivePane("chat");
+    setIsMobileContextOpen(false);
     markProjectReadMutation.mutate(id);
+  };
+
+  const handleToggleContextPanel = () => {
+    if (typeof window !== "undefined" && window.innerWidth < 1280) {
+      setIsMobileContextOpen((v) => !v);
+    } else {
+      setIsDesktopContextOpen((v) => !v);
+    }
   };
 
   const handleSendMessage = (content: string, template?: PromptTemplate) => {
@@ -116,6 +135,7 @@ export function CryptoMessengerDashboard() {
   };
 
   const handleScanSingleItemInChat = (item: ChecklistItemConfig) => {
+    setMobileActivePane("chat");
     scanSingleChecklistItemMutation.mutate({
       projectId: activeProject.id,
       item,
@@ -163,11 +183,14 @@ export function CryptoMessengerDashboard() {
         ? `${prev} (${ctx.title}: ${ctx.value})`
         : `Using ${ctx.title} (${ctx.value}), `
     );
+    setIsMobileContextOpen(false);
+    setMobileActivePane("chat");
   };
 
   const handleCreateProject = async (values: NewProjectFormValues) => {
     const created = await createProjectMutation.mutateAsync(values);
     setSelectedProjectId(created.id);
+    setMobileActivePane("chat");
   };
 
   const handleUpdateProjectLogo = (logoUrl: string | undefined) => {
@@ -185,7 +208,7 @@ export function CryptoMessengerDashboard() {
   };
 
   return (
-    <div className="h-dvh w-full overflow-hidden flex bg-white dark:bg-[#111b21] text-[#050505] dark:text-[#e9edef]">
+    <div className="h-dvh w-full overflow-hidden flex relative bg-white dark:bg-[#111b21] text-[#050505] dark:text-[#e9edef]">
       {/* Left Sidebar: Crypto Projects List */}
       <ProjectSidebar
         projects={projects}
@@ -194,6 +217,7 @@ export function CryptoMessengerDashboard() {
         onUpdateBusinessStatus={handleUpdateBusinessStatus}
         onOpenNewProjectModal={openNewProjectModal}
         onOpenGlobalSettings={openGlobalSettingsModal}
+        isMobileHidden={mobileActivePane !== "sidebar"}
       />
 
       {/* Center Section: AI Chat */}
@@ -212,26 +236,30 @@ export function CryptoMessengerDashboard() {
         onOpenEditLogoModal={openEditLogoModal}
         onOpenChecklistModal={openChecklistModal}
         onOpenGlobalSettings={openGlobalSettingsModal}
-        isContextPanelOpen={isContextPanelOpen}
-        onToggleContextPanel={() => setIsContextPanelOpen((v) => !v)}
+        isContextPanelOpen={isDesktopContextOpen || isMobileContextOpen}
+        onToggleContextPanel={handleToggleContextPanel}
         isAiTyping={sendMessageMutation.isPending}
+        isMobileHidden={mobileActivePane !== "chat"}
+        onBackToProjects={() => setMobileActivePane("sidebar")}
+        totalUnreadCount={totalUnreadCount}
       />
 
-      {/* Right Sidebar: Project Contexts */}
-      {isContextPanelOpen && (
-        <ContextInspector
-          project={activeProject}
-          onUpdateBusinessStatus={(status) =>
-            handleUpdateBusinessStatus(activeProject.id, status)
-          }
-          onToggleContext={handleToggleContext}
-          onToggleAllContexts={handleToggleAllContexts}
-          onDeleteContext={handleDeleteContext}
-          onReferenceInPrompt={handleReferenceInPrompt}
-          onOpenAddContextModal={openAddContextModal}
-          onOpenEditLogoModal={openEditLogoModal}
-        />
-      )}
+      {/* Right Sidebar / Mobile & Tablet Drawer: Project Contexts */}
+      <ContextInspector
+        project={activeProject}
+        onUpdateBusinessStatus={(status) =>
+          handleUpdateBusinessStatus(activeProject.id, status)
+        }
+        onToggleContext={handleToggleContext}
+        onToggleAllContexts={handleToggleAllContexts}
+        onDeleteContext={handleDeleteContext}
+        onReferenceInPrompt={handleReferenceInPrompt}
+        onOpenAddContextModal={openAddContextModal}
+        onOpenEditLogoModal={openEditLogoModal}
+        isDesktopOpen={isDesktopContextOpen}
+        isMobileOpen={isMobileContextOpen}
+        onCloseMobile={() => setIsMobileContextOpen(false)}
+      />
 
       {/* Modals */}
       <AddContextDialog

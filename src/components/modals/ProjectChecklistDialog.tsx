@@ -35,7 +35,7 @@ export function ProjectChecklistDialog({
       subtitle={`${project.name} (${project.ticker}) · Global checklist items`}
       maxWidthClass="max-w-lg"
     >
-      <div className="flex items-center justify-between gap-2 my-3 p-3 rounded-xl bg-[#f0f2f5] dark:bg-[#2a3942]">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 my-3 p-3 rounded-xl bg-[#f0f2f5] dark:bg-[#2a3942]">
         <div className="text-xs text-[#65676b] dark:text-[#d1d7db]">
           Scan each item prompt against <strong>{project.name}</strong>{" "}
           contexts.
@@ -45,7 +45,7 @@ export function ProjectChecklistDialog({
           <button
             type="button"
             onClick={onScanAllChecklistItems}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#0084ff] hover:bg-[#0073e6] text-white transition cursor-pointer"
+            className="w-full sm:w-auto justify-center inline-flex items-center gap-1.5 px-3 py-2 sm:py-1.5 rounded-lg text-xs font-semibold bg-[#0084ff] hover:bg-[#0073e6] text-white transition cursor-pointer"
           >
             <CheckCheck className="w-3.5 h-3.5" />
             <span>Scan All Prompts</span>
@@ -121,23 +121,23 @@ export function ProjectChecklistDialog({
         )}
       </div>
 
-      <div className="flex items-center justify-between pt-3 mt-2 border-t border-[#e4e6eb] dark:border-[#2a3942]">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 mt-2 border-t border-[#e4e6eb] dark:border-[#2a3942]">
         <button
           type="button"
           onClick={() => {
             dialogRef.current?.close();
             onOpenGlobalSettings();
           }}
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#0084ff] hover:underline cursor-pointer"
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#0084ff] hover:underline cursor-pointer text-left"
         >
-          <Settings className="w-3.5 h-3.5" />
+          <Settings className="w-3.5 h-3.5 shrink-0" />
           <span>Edit Checklist & System Prompts (Global Settings)</span>
         </button>
 
         <button
           type="button"
           onClick={() => dialogRef.current?.close()}
-          className="px-4 py-2 rounded-lg text-xs font-semibold bg-[#f0f2f5] dark:bg-[#2a3942] text-[#050505] dark:text-[#e9edef] transition cursor-pointer"
+          className="w-full sm:w-auto px-4 py-2 rounded-lg text-xs font-semibold bg-[#f0f2f5] dark:bg-[#2a3942] text-[#050505] dark:text-[#e9edef] transition cursor-pointer"
         >
           Done
         </button>
