@@ -1,0 +1,18 @@
+# Dependencies & build caches
+**/node_modules
+**/.next
+**/dist
+**/.turbo
+**/.venv
+**/__pycache__
+**/.pytest_cache
+**/.ruff_cache
+**/*.tsbuildinfo
+
+# Git & local artifacts
+.git
+.gitignore
+.env
+.env.local
+coverage
+npm-debug.log*

@@ -1,0 +1,183 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ContextType {
+  website
+  x_handle
+  linkedin
+  telegram
+  message
+}
+
+enum ProjectStage {
+  PRE_TGE
+  MAINNET_LIVE
+  IDO_LAUNCHPAD
+  ECOSYSTEM_GROWTH
+  STEALTH
+}
+
+enum ProjectBusinessStatus {
+  new
+  contacted
+  collaborated
+  completed
+  unresponsive
+  archived
+}
+
+enum MessageSender {
+  admin
+  ai
+}
+
+enum ScrapeStatus {
+  pending
+  running
+  completed
+  unreachable
+  failed
+}
+
+model Project {
+  id               String                @id
+  name             String
+  ticker           String
+  chain            String
+  stage            ProjectStage
+  businessStatus   ProjectBusinessStatus @default(new) @map("business_status")
+  avatarBg         String                @map("avatar_bg")
+  logoUrl          String?               @map("logo_url")
+  tagline          String                @default("")
+  campaignBudget   String                @default("$25,000 / mo") @map("campaign_budget")
+  sentimentScore   Int                   @default(90) @map("sentiment_score")
+  isPinned         Boolean               @default(false) @map("is_pinned")
+  unreadInsights   Int                   @default(0) @map("unread_insights")
+  lastActivityTime String                @default("Now") @map("last_activity_time")
+  createdAt        DateTime              @default(now()) @map("created_at")
+  updatedAt        DateTime              @updatedAt @map("updated_at")
+
+  contexts        ProjectContext[]
+  messages        ChatMessage[]
+  checklistStates ProjectChecklistState[]
+  scrapeJobs      ScrapeJob[]
+
+  @@index([businessStatus])
+  @@index([updatedAt(sort: Desc)])
+  @@map("projects")
+}
+
+model ProjectContext {
+  id              String        @id
+  projectId       String        @map("project_id")
+  type            ContextType
+  title           String
+  value           String        @db.Text
+  url             String?
+  summary         String?       @db.Text
+  isActive        Boolean       @default(true) @map("is_active")
+  updatedAtLabel  String        @default("Now") @map("updated_at_label")
+  scrapeStatus    ScrapeStatus? @map("scrape_status")
+  lastScrapedAt   DateTime?     @map("last_scraped_at")
+  scrapedMetadata Json?         @map("scraped_metadata")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  project    Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  scrapeJobs ScrapeJob[]
+
+  @@index([projectId, createdAt])
+  @@map("project_contexts")
+}
+
+model ChatMessage {
+  id                       String        @id
+  projectId                String        @map("project_id")
+  sender                   MessageSender
+  content                  String        @db.Text
+  timestampLabel           String        @map("timestamp_label")
+  usedContextIds           String[]      @default([]) @map("used_context_ids")
+  suggestedActions         String[]      @default([]) @map("suggested_actions")
+  appliedSystemPromptTitle String?       @map("applied_system_prompt_title")
+  createdAt                DateTime      @default(now()) @map("created_at")
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, createdAt])
+  @@map("chat_messages")
+}
+
+model PromptTemplate {
+  id           String   @id
+  label        String
+  systemPrompt String   @map("system_prompt") @db.Text
+  sortOrder    Int      @default(0) @map("sort_order")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@index([sortOrder])
+  @@map("prompt_templates")
+}
+
+model ChecklistItem {
+  id         String   @id
+  label      String
+  scanPrompt String   @map("scan_prompt") @db.Text
+  sortOrder  Int      @default(0) @map("sort_order")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  projectStates ProjectChecklistState[]
+
+  @@index([sortOrder])
+  @@map("checklist_items")
+}
+
+model ProjectChecklistState {
+  id              String   @id @default(cuid())
+  projectId       String   @map("project_id")
+  checklistItemId String   @map("checklist_item_id")
+  checked         Boolean  @default(false)
+  scanResultNote  String?  @map("scan_result_note") @db.Text
+  scannedAtLabel  String?  @map("scanned_at_label")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  project       Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  checklistItem ChecklistItem @relation(fields: [checklistItemId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, checklistItemId])
+  @@map("project_checklist_states")
+}
+
+model ScrapeJob {
+  id                   String       @id @default(cuid())
+  projectId            String       @map("project_id")
+  contextId            String?      @map("context_id")
+  targetType           ContextType  @map("target_type")
+  targetValue          String       @map("target_value") @db.Text
+  normalizedUrl        String?      @map("normalized_url")
+  status               ScrapeStatus @default(pending)
+  extractedTitle       String?      @map("extracted_title")
+  extractedDescription String?      @map("extracted_description") @db.Text
+  detectedSocials      Json?        @map("detected_socials")
+  detectedSignals      String[]     @default([]) @map("detected_signals")
+  rawPreview           String?      @map("raw_preview") @db.Text
+  errorMessage         String?      @map("error_message") @db.Text
+  durationMs           Int?         @map("duration_ms")
+  createdAt            DateTime     @default(now()) @map("created_at")
+  completedAt          DateTime?    @map("completed_at")
+
+  project Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  context ProjectContext? @relation(fields: [contextId], references: [id], onDelete: SetNull)
+
+  @@index([projectId, createdAt(sort: Desc)])
+  @@index([contextId])
+  @@map("scrape_jobs")
+}

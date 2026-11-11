@@ -1,0 +1,53 @@
+{
+  "$schema": "https://turborepo.dev/schema.json",
+  "ui": "tui",
+  "globalEnv": [
+    "NODE_ENV",
+    "DATABASE_URL",
+    "API_INTERNAL_URL",
+    "SCRAPER_SERVICE_URL",
+    "SCRAPER_API_KEY",
+    "CORS_ORIGINS",
+    "OPENAI_API_KEY",
+    "OPENAI_MODEL"
+  ],
+  "tasks": {
+    "db:generate": {
+      "cache": false
+    },
+    "db:migrate": {
+      "cache": false
+    },
+    "db:migrate:deploy": {
+      "cache": false
+    },
+    "db:push": {
+      "cache": false
+    },
+    "db:seed": {
+      "cache": false
+    },
+    "build": {
+      "dependsOn": ["^build", "^db:generate"],
+      "inputs": ["$TURBO_DEFAULT$", ".env*"],
+      "outputs": [".next/**", "!.next/cache/**", "dist/**"]
+    },
+    "dev": {
+      "dependsOn": ["^db:generate"],
+      "cache": false,
+      "persistent": true
+    },
+    "lint": {
+      "dependsOn": ["^build", "^db:generate"]
+    },
+    "typecheck": {
+      "dependsOn": ["^build", "^db:generate"]
+    },
+    "test": {
+      "dependsOn": ["^build", "^db:generate"]
+    },
+    "clean": {
+      "cache": false
+    }
+  }
+}

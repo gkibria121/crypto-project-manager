@@ -1,0 +1,49 @@
+FROM oven/bun:1-slim AS bun_bin
+
+FROM node:22-slim AS base
+COPY --from=bun_bin /usr/local/bin/bun /usr/local/bin/bun
+COPY --from=bun_bin /usr/local/bin/bunx /usr/local/bin/bunx
+RUN apt-get update -y \
+    && apt-get install -y --no-install-recommends openssl ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
+
+FROM base AS builder
+COPY package.json bun.lock* turbo.json ./
+COPY apps/api/package.json ./apps/api/package.json
+COPY apps/web/package.json ./apps/web/package.json
+COPY apps/scraper/package.json ./apps/scraper/package.json
+COPY packages/database/package.json ./packages/database/package.json
+COPY packages/shared/package.json ./packages/shared/package.json
+COPY packages/typescript-config/package.json ./packages/typescript-config/package.json
+
+RUN bun install
+
+COPY packages ./packages
+COPY apps/api ./apps/api
+
+RUN bun --filter @repo/shared build \
+    && bun --filter @repo/database build \
+    && bun --filter @repo/api build
+
+FROM base AS runner
+ENV NODE_ENV=production \
+    PORT=4000
+
+RUN groupadd --system --gid 1001 appgroup \
+    && useradd --system --uid 1001 --gid appgroup appuser
+
+COPY --from=builder /app/package.json ./package.json
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/packages/shared ./packages/shared
+COPY --from=builder /app/packages/database ./packages/database
+COPY --from=builder /app/apps/api ./apps/api
+
+USER appuser
+
+EXPOSE 4000
+
+HEALTHCHECK --interval=15s --timeout=5s --start-period=15s --retries=3 \
+  CMD node -e "fetch('http://127.0.0.1:4000/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
+
+CMD ["node", "apps/api/dist/main.js"]

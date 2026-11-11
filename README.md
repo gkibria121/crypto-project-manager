@@ -1,36 +1,78 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# PulseOS — Crypto Project Manager Microservices Monorepo
 
-## Getting Started
+A Turborepo microservice platform for Web3 marketing & BD teams to manage crypto projects, enrich project contexts via web/social scraping, run feature checklists, and synthesize contextual AI campaigns.
 
-First, run the development server:
+## Architecture
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+```text
+crypto-project-manager/
+├── apps/
+│   ├── web/              # Next.js 16 frontend + BFF proxy (/api/v1/*)
+│   ├── api/              # NestJS Core Backend microservice (REST, Swagger, Prisma)
+│   └── scraper/          # Python FastAPI web & social metadata scraper microservice
+├── packages/
+│   ├── database/         # Prisma schema, migrations, seed script, PostgreSQL client
+│   ├── shared/           # Shared Zod schemas, TypeScript domain types, constants, helpers
+│   └── typescript-config/# Shared strict tsconfig bases
+├── docker-compose.yml    # Full production stack (PostgreSQL + migrations/seed + Scraper + API + Web)
+├── docker-compose.dev.yml# Local PostgreSQL container for host development
+└── turbo.json            # Turborepo task graph
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Microservice Communication
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- **Frontend (`apps/web`, port `3000`)** serves the Messenger-style React 19 UI and exposes `/api/v1/[...path]` as a same-origin BFF proxy to the NestJS Core Backend (`API_INTERNAL_URL`).
+- **Core Backend (`apps/api`, port `4000`)** owns domain business logic, PostgreSQL persistence via Prisma (`@repo/database`), Swagger OpenAPI docs (`/docs`), and orchestrates scraping jobs against the Python Scraper service (`SCRAPER_SERVICE_URL`).
+- **Python Scraper (`apps/scraper`, port `8001` on host / `8000` in Docker)** extracts `<title>`, OpenGraph/meta descriptions, headings, social links, and Web3/AI technical signals (`mcp_server`, `telegram_bot`, `developer_sdk`, `onchain_analytics`, `audit`, etc.) with SSRF protection and internal service key authentication (`X-Internal-Service-Key`).
+- **PostgreSQL (`postgres:16-alpine`, port `5432`)** stores `projects`, `project_contexts`, `chat_messages`, `prompt_templates`, `checklist_items`, `project_checklist_states`, and `scrape_jobs`.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Quick Start with Docker Compose
 
-## Learn More
+1. Optionally copy `.env.example` to `.env`:
+   ```bash
+   cp .env.example .env
+   ```
+2. Build and start all services (PostgreSQL, Prisma migration + seed, Python Scraper, NestJS Core API, Next.js Frontend):
+   ```bash
+   docker compose up --build -d
+   ```
+3. Access the platform:
+   - **Frontend UI:** http://localhost:3000
+   - **Core API Swagger Docs:** http://localhost:4000/docs
+   - **Core API Health:** http://localhost:4000/health
+   - **Python Scraper Docs:** http://localhost:8001/docs
 
-To learn more about Next.js, take a look at the following resources:
+## Local Development (Turborepo + Bun)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+1. Install workspace dependencies and build shared packages:
+   ```bash
+   bun install
+   bun run build
+   ```
+2. Setup the Python scraper virtual environment:
+   ```bash
+   bun run setup:scraper
+   ```
+3. Start PostgreSQL for development:
+   ```bash
+   docker compose -f docker-compose.dev.yml up -d
+   ```
+4. Apply Prisma migrations and seed initial crypto projects:
+   ```bash
+   cp .env.example .env
+   bun run db:migrate:deploy
+   bun run db:seed
+   ```
+5. Start all microservices (`web`, `api`, `scraper`) in parallel via Turborepo:
+   ```bash
+   bun run dev
+   ```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Testing & Verification
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+bun run typecheck
+bun run lint
+bun run test
+bun run build
+```

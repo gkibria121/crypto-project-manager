@@ -1,0 +1,14 @@
+{
+  "name": "@repo/scraper",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "setup": "python3 -m venv .venv && .venv/bin/pip install -e '.[dev]'",
+    "dev": "sh -c 'PY=${VIRTUAL_ENV:+$VIRTUAL_ENV/bin/python}; PY=${PY:-$(command -v .venv/bin/python || command -v python3)}; exec $PY -m uvicorn scraper.main:app --app-dir src --reload --host 0.0.0.0 --port ${SCRAPER_PORT:-8001}'",
+    "start": "sh -c 'PY=${VIRTUAL_ENV:+$VIRTUAL_ENV/bin/python}; PY=${PY:-$(command -v .venv/bin/python || command -v python3)}; exec $PY -m uvicorn scraper.main:app --app-dir src --host 0.0.0.0 --port ${SCRAPER_PORT:-8001}'",
+    "test": "sh -c 'if [ -x .venv/bin/pytest ]; then .venv/bin/pytest; else pytest; fi'",
+    "lint": "sh -c 'if [ -x .venv/bin/ruff ]; then .venv/bin/ruff check src tests; elif command -v ruff >/dev/null 2>&1; then ruff check src tests; else python3 -m py_compile src/scraper/main.py; fi'",
+    "build": "sh -c 'if [ -x .venv/bin/python ]; then .venv/bin/python -m compileall -q src; else python3 -m compileall -q src; fi'",
+    "clean": "rm -rf .pytest_cache .ruff_cache src/*.egg-info"
+  }
+}

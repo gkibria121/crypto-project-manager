@@ -1,31 +1,32 @@
 {
-  "name": "crypto-project-manager",
-  "version": "0.1.0",
+  "name": "crypto-project-manager-monorepo",
+  "devDependencies": {
+    "@types/bun": "^1.4.4",
+    "turbo": "^2.11.10",
+    "typescript": "^5.8.2"
+  },
+  "packageManager": "bun@1.4.2",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint"
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "clean": "turbo run clean && rm -rf node_modules",
+    "db:generate": "bun --filter @repo/database db:generate",
+    "db:migrate": "bun --filter @repo/database db:migrate",
+    "db:migrate:deploy": "bun --filter @repo/database db:migrate:deploy",
+    "db:push": "bun --filter @repo/database db:push",
+    "db:seed": "bun --filter @repo/database db:seed",
+    "db:studio": "bun --filter @repo/database db:studio",
+    "setup:scraper": "bun --filter @repo/scraper setup",
+    "docker:up": "docker compose up --build -d",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f"
   },
-  "dependencies": {
-    "@hookform/resolvers": "^7.0.5",
-    "@tanstack/react-query": "^5.107.1",
-    "lucide-react": "^1.70.0",
-    "next": "16.4.5",
-    "react": "19.3.0",
-    "react-dom": "19.3.0",
-    "react-hook-form": "^7.91.0",
-    "zod": "^4.6.7"
-  },
-  "devDependencies": {
-    "@tailwindcss/turbopack": "^4",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "eslint": "^9",
-    "eslint-config-next": "16.4.5",
-    "tailwindcss": "^4",
-    "typescript": "^5"
-  }
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ]
 }

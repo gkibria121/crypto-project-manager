@@ -1,0 +1,152 @@
+name: pulseos-microservices
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: pulseos-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-pulseos}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-pulseos_secret}
+      POSTGRES_DB: ${POSTGRES_DB:-pulseos}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - pulseos-net
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-pulseos} -d ${POSTGRES_DB:-pulseos}",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+
+  db-init:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: pulseos-db-init
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-pulseos}:${POSTGRES_PASSWORD:-pulseos_secret}@postgres:5432/${POSTGRES_DB:-pulseos}?schema=public
+    command:
+      [
+        "sh",
+        "-c",
+        "bun --filter @repo/database db:migrate:deploy && node packages/database/dist/prisma/seed.js",
+      ]
+    networks:
+      - pulseos-net
+    restart: "no"
+
+  scraper:
+    build:
+      context: .
+      dockerfile: apps/scraper/Dockerfile
+    container_name: pulseos-scraper
+    restart: unless-stopped
+    environment:
+      SCRAPER_PORT: 8000
+      SCRAPER_API_KEY: ${SCRAPER_API_KEY:-pulseos-internal-scraper-key}
+      SCRAPER_TIMEOUT_SECONDS: ${SCRAPER_TIMEOUT_SECONDS:-12}
+      SCRAPER_MAX_CONTENT_BYTES: ${SCRAPER_MAX_CONTENT_BYTES:-2097152}
+      ALLOW_PRIVATE_NETWORKS: ${ALLOW_PRIVATE_NETWORKS:-false}
+    ports:
+      - "${SCRAPER_PORT:-8001}:8000"
+    networks:
+      - pulseos-net
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: pulseos-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
+      scraper:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-pulseos}:${POSTGRES_PASSWORD:-pulseos_secret}@postgres:5432/${POSTGRES_DB:-pulseos}?schema=public
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
+      SCRAPER_SERVICE_URL: http://scraper:8000
+      SCRAPER_API_KEY: ${SCRAPER_API_KEY:-pulseos-internal-scraper-key}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+    ports:
+      - "${API_PORT:-4000}:4000"
+    networks:
+      - pulseos-net
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:4000/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    container_name: pulseos-web
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      API_INTERNAL_URL: http://api:4000
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+    networks:
+      - pulseos-net
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/api/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+volumes:
+  postgres_data:
+
+networks:
+  pulseos-net:
+    driver: bridge
