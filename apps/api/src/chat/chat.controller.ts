@@ -1,8 +1,8 @@
 import { Body, Controller, Param, Post } from "@nestjs/common";
 import { ApiOperation, ApiTags } from "@nestjs/swagger";
 import { sendMessageDtoSchema, type SendMessageDto } from "@repo/shared";
-import { ZodValidationPipe } from "../common/pipes/zod-validation.pipe";
-import { ChatService } from "./chat.service";
+import { ZodValidationPipe } from "../common/pipes/zod-validation.pipe.js";
+import { ChatService } from "./chat.service.js";
 
 @ApiTags("chat")
 @Controller("projects/:projectId/chat")

@@ -21,7 +21,10 @@
     "db:migrate:deploy": {
       "cache": false
     },
-    "db:push": {
+    "db:update": {
+      "cache": false
+    },
+    "db:verify": {
       "cache": false
     },
     "db:seed": {
@@ -30,7 +33,13 @@
     "build": {
       "dependsOn": ["^build", "^db:generate"],
       "inputs": ["$TURBO_DEFAULT$", ".env*"],
-      "outputs": [".next/**", "!.next/cache/**", "dist/**"]
+      "outputs": [
+        ".next/**",
+        "!.next/cache/**",
+        "dist/**",
+        "src/prisma/contract.json",
+        "src/prisma/contract.d.ts"
+      ]
     },
     "dev": {
       "dependsOn": ["^db:generate"],

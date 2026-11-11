@@ -5,7 +5,6 @@ import {
   ServiceUnavailableException,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { Prisma, ScrapeStatus as PrismaScrapeStatus } from "@repo/database";
 import {
   scraperServiceResponseSchema,
   type CryptoProject,
@@ -13,12 +12,13 @@ import {
   type ScraperServiceResponse,
 } from "@repo/shared";
 import { z } from "zod";
-import type { AppEnv } from "../config/env";
-import { PrismaService } from "../prisma/prisma.service";
+import type { AppEnv } from "../config/env.js";
+import { PrismaService } from "../prisma/prisma.service.js";
 import {
   findFullProjectOrThrow,
   mapPrismaScrapeJobToDomain,
-} from "../projects/project.mapper";
+  type PrismaScrapeJobRow,
+} from "../projects/project.mapper.js";
 
 const batchScraperResponseSchema = z.object({
   results: z.array(scraperServiceResponseSchema),
@@ -47,11 +47,10 @@ export class ScraperService {
 
   async listJobsForProject(projectId: string): Promise<ScrapeJob[]> {
     await findFullProjectOrThrow(this.prisma, projectId);
-    const jobs = await this.prisma.scrapeJob.findMany({
-      where: { projectId },
-      orderBy: { createdAt: "desc" },
-      take: 25,
-    });
+    const jobs = await this.prisma.db.orm.public.ScrapeJob.where({ projectId })
+      .orderBy((j) => j.createdAt.desc())
+      .limit(25)
+      .all();
     return jobs.map(mapPrismaScrapeJobToDomain);
   }
 
@@ -59,9 +58,10 @@ export class ScraperService {
     projectId: string,
     contextId: string
   ): Promise<{ project: CryptoProject; job: ScrapeJob }> {
-    const ctx = await this.prisma.projectContext.findFirst({
-      where: { id: contextId, projectId },
-    });
+    const ctx = await this.prisma.db.orm.public.ProjectContext.where({
+      id: contextId,
+      projectId,
+    }).first();
 
     if (!ctx) {
       throw new NotFoundException(
@@ -69,21 +69,19 @@ export class ScraperService {
       );
     }
 
-    const pendingJob = await this.prisma.scrapeJob.create({
-      data: {
-        projectId,
-        contextId: ctx.id,
-        targetType: ctx.type,
-        targetValue: ctx.value,
-        normalizedUrl: ctx.url,
-        status: PrismaScrapeStatus.running,
-      },
+    const pendingJob = await this.prisma.db.orm.public.ScrapeJob.create({
+      projectId,
+      contextId: ctx.id,
+      targetType: ctx.type,
+      targetValue: ctx.value,
+      normalizedUrl: ctx.url,
+      status: "running",
+      attemptCount: 1,
     });
 
-    await this.prisma.projectContext.update({
-      where: { id: ctx.id },
-      data: { scrapeStatus: PrismaScrapeStatus.running },
-    });
+    await this.prisma.db.orm.public.ProjectContext.where({
+      id: ctx.id,
+    }).update({ scrapeStatus: "running" });
 
     try {
       const result = await this.callPythonScraper("/api/v1/scrape", {
@@ -95,6 +93,7 @@ export class ScraperService {
       const completedJob = await this.persistScrapeOutcome(
         pendingJob.id,
         ctx.id,
+        projectId,
         ctx.summary,
         parsed
       );
@@ -103,18 +102,16 @@ export class ScraperService {
     } catch (error) {
       const errMsg =
         error instanceof Error ? error.message : "Scraper service error";
-      await this.prisma.scrapeJob.update({
-        where: { id: pendingJob.id },
-        data: {
-          status: PrismaScrapeStatus.failed,
-          errorMessage: errMsg,
-          completedAt: new Date(),
-        },
+      await this.prisma.db.orm.public.ScrapeJob.where({
+        id: pendingJob.id,
+      }).update({
+        status: "failed",
+        errorMessage: errMsg,
+        completedAt: new Date(),
       });
-      await this.prisma.projectContext.update({
-        where: { id: ctx.id },
-        data: { scrapeStatus: PrismaScrapeStatus.failed },
-      });
+      await this.prisma.db.orm.public.ProjectContext.where({
+        id: ctx.id,
+      }).update({ scrapeStatus: "failed" });
       throw error;
     }
   }
@@ -122,10 +119,11 @@ export class ScraperService {
   async scrapeAllProjectContexts(
     projectId: string
   ): Promise<{ project: CryptoProject; jobs: ScrapeJob[] }> {
-    const projectRecord = await this.prisma.project.findUnique({
-      where: { id: projectId },
-      include: { contexts: true },
-    });
+    const projectRecord = await this.prisma.db.orm.public.Project.include(
+      "contexts"
+    )
+      .where({ id: projectId })
+      .first();
 
     if (!projectRecord) {
       throw new NotFoundException(`Project "${projectId}" not found.`);
@@ -137,20 +135,19 @@ export class ScraperService {
     }
 
     const targets = projectRecord.contexts.slice(0, 10);
-    const pendingJobs = await Promise.all(
-      targets.map((ctx) =>
-        this.prisma.scrapeJob.create({
-          data: {
-            projectId,
-            contextId: ctx.id,
-            targetType: ctx.type,
-            targetValue: ctx.value,
-            normalizedUrl: ctx.url,
-            status: PrismaScrapeStatus.running,
-          },
-        })
-      )
-    );
+    const pendingJobs: PrismaScrapeJobRow[] = [];
+    for (const ctx of targets) {
+      const job = await this.prisma.db.orm.public.ScrapeJob.create({
+        projectId,
+        contextId: ctx.id,
+        targetType: ctx.type,
+        targetValue: ctx.value,
+        normalizedUrl: ctx.url,
+        status: "running",
+        attemptCount: 1,
+      });
+      pendingJobs.push(job);
+    }
 
     try {
       const raw = await this.callPythonScraper("/api/v1/scrape/batch", {
@@ -172,6 +169,7 @@ export class ScraperService {
         const saved = await this.persistScrapeOutcome(
           job.id,
           ctx.id,
+          projectId,
           ctx.summary,
           outcome
         );
@@ -183,18 +181,13 @@ export class ScraperService {
     } catch (error) {
       const errMsg =
         error instanceof Error ? error.message : "Batch scraper error";
-      await Promise.all(
-        pendingJobs.map((job) =>
-          this.prisma.scrapeJob.update({
-            where: { id: job.id },
-            data: {
-              status: PrismaScrapeStatus.failed,
-              errorMessage: errMsg,
-              completedAt: new Date(),
-            },
-          })
-        )
-      );
+      for (const job of pendingJobs) {
+        await this.prisma.db.orm.public.ScrapeJob.where({ id: job.id }).update({
+          status: "failed",
+          errorMessage: errMsg,
+          completedAt: new Date(),
+        });
+      }
       throw error;
     }
   }
@@ -202,21 +195,26 @@ export class ScraperService {
   private async persistScrapeOutcome(
     jobId: string,
     contextId: string,
+    projectId: string,
     existingSummary: string | null,
     outcome: ScraperServiceResponse
   ): Promise<ScrapeJob> {
-    const metadataJson: Prisma.InputJsonValue = {
-      normalizedUrl: outcome.normalizedUrl ?? undefined,
-      title: outcome.title ?? undefined,
-      description: outcome.description ?? undefined,
+    const metadataJson = {
+      ...(outcome.normalizedUrl
+        ? { normalizedUrl: outcome.normalizedUrl }
+        : {}),
+      ...(outcome.title ? { title: outcome.title } : {}),
+      ...(outcome.description ? { description: outcome.description } : {}),
       reachable: outcome.reachable,
-      httpStatus: outcome.httpStatus ?? undefined,
+      ...(outcome.httpStatus !== undefined && outcome.httpStatus !== null
+        ? { httpStatus: outcome.httpStatus }
+        : {}),
       headings: outcome.headings,
       socialLinks: outcome.socialLinks,
       signals: outcome.signals,
-      rawPreview: outcome.rawPreview ?? undefined,
-      summary: outcome.summary ?? undefined,
-      errorReason: outcome.errorReason ?? undefined,
+      ...(outcome.rawPreview ? { rawPreview: outcome.rawPreview } : {}),
+      ...(outcome.summary ? { summary: outcome.summary } : {}),
+      ...(outcome.errorReason ? { errorReason: outcome.errorReason } : {}),
     };
 
     const nextSummary =
@@ -225,32 +223,40 @@ export class ScraperService {
         : existingSummary ?? outcome.summary ?? null;
 
     const now = new Date();
-    const updatedJob = await this.prisma.scrapeJob.update({
-      where: { id: jobId },
-      data: {
-        normalizedUrl: outcome.normalizedUrl ?? undefined,
+    const updatedJob = await this.prisma.db.transaction(async (tx) => {
+      const job = await tx.orm.public.ScrapeJob.where({ id: jobId }).update({
+        normalizedUrl: outcome.normalizedUrl ?? null,
         status: outcome.status,
-        extractedTitle: outcome.title ?? undefined,
-        extractedDescription: outcome.description ?? undefined,
-        detectedSocials: outcome.socialLinks as Prisma.InputJsonValue,
+        httpStatus: outcome.httpStatus ?? null,
+        extractedTitle: outcome.title ?? null,
+        extractedDescription: outcome.description ?? null,
+        detectedSocials: outcome.socialLinks,
         detectedSignals: outcome.signals,
-        rawPreview: outcome.rawPreview ?? undefined,
-        errorMessage: outcome.errorReason ?? undefined,
-        durationMs: outcome.durationMs,
+        rawPreview: outcome.rawPreview ?? null,
+        errorMessage: outcome.errorReason ?? null,
+        durationMs: outcome.durationMs ?? null,
         completedAt: now,
-      },
-    });
+      });
 
-    await this.prisma.projectContext.update({
-      where: { id: contextId },
-      data: {
+      await tx.orm.public.ProjectContext.where({ id: contextId }).update({
         scrapeStatus: outcome.status,
         lastScrapedAt: now,
         scrapedMetadata: metadataJson,
         summary: nextSummary,
         updatedAtLabel: "Just scraped",
-      },
+      });
+
+      await tx.orm.public.Project.where({ id: projectId }).update({
+        lastScrapedAt: now,
+        lastActivityTime: "Just now",
+      });
+
+      return job;
     });
+
+    if (!updatedJob) {
+      throw new NotFoundException(`Scrape job "${jobId}" not found.`);
+    }
 
     return mapPrismaScrapeJobToDomain(updatedJob);
   }

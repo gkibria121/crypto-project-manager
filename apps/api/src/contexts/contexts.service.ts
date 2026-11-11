@@ -5,8 +5,8 @@ import {
   type CryptoProject,
 } from "@repo/shared";
 import { randomUUID } from "crypto";
-import { PrismaService } from "../prisma/prisma.service";
-import { findFullProjectOrThrow } from "../projects/project.mapper";
+import { PrismaService } from "../prisma/prisma.service.js";
+import { findFullProjectOrThrow } from "../projects/project.mapper.js";
 
 @Injectable()
 export class ContextsService {
@@ -19,18 +19,16 @@ export class ContextsService {
     await findFullProjectOrThrow(this.prisma, projectId);
 
     const id = `ctx-${Date.now()}-${randomUUID().slice(0, 6)}`;
-    await this.prisma.projectContext.create({
-      data: {
-        id,
-        projectId,
-        type: values.type,
-        title: values.title,
-        value: values.value,
-        url: normalizeContextUrl(values.type, values.value) ?? null,
-        summary: values.summary || null,
-        isActive: true,
-        updatedAtLabel: "Now",
-      },
+    await this.prisma.db.orm.public.ProjectContext.create({
+      id,
+      projectId,
+      type: values.type,
+      title: values.title,
+      value: values.value,
+      url: normalizeContextUrl(values.type, values.value) ?? null,
+      summary: values.summary || null,
+      isActive: true,
+      updatedAtLabel: "Now",
     });
 
     return findFullProjectOrThrow(this.prisma, projectId);
@@ -40,9 +38,10 @@ export class ContextsService {
     projectId: string,
     contextId: string
   ): Promise<CryptoProject> {
-    const ctx = await this.prisma.projectContext.findFirst({
-      where: { id: contextId, projectId },
-    });
+    const ctx = await this.prisma.db.orm.public.ProjectContext.where({
+      id: contextId,
+      projectId,
+    }).first();
 
     if (!ctx) {
       throw new NotFoundException(
@@ -50,10 +49,9 @@ export class ContextsService {
       );
     }
 
-    await this.prisma.projectContext.update({
-      where: { id: contextId },
-      data: { isActive: !ctx.isActive },
-    });
+    await this.prisma.db.orm.public.ProjectContext.where({
+      id: contextId,
+    }).update({ isActive: !ctx.isActive });
 
     return findFullProjectOrThrow(this.prisma, projectId);
   }
@@ -64,10 +62,9 @@ export class ContextsService {
   ): Promise<CryptoProject> {
     await findFullProjectOrThrow(this.prisma, projectId);
 
-    await this.prisma.projectContext.updateMany({
-      where: { projectId },
-      data: { isActive: enable },
-    });
+    await this.prisma.db.orm.public.ProjectContext.where({
+      projectId,
+    }).updateAll({ isActive: enable });
 
     return findFullProjectOrThrow(this.prisma, projectId);
   }
@@ -76,20 +73,16 @@ export class ContextsService {
     projectId: string,
     contextId: string
   ): Promise<CryptoProject> {
-    const existing = await this.prisma.projectContext.findFirst({
-      where: { id: contextId, projectId },
-      select: { id: true },
-    });
+    const deleted = await this.prisma.db.orm.public.ProjectContext.where({
+      id: contextId,
+      projectId,
+    }).delete();
 
-    if (!existing) {
+    if (!deleted) {
       throw new NotFoundException(
         `Context "${contextId}" not found for project "${projectId}".`
       );
     }
-
-    await this.prisma.projectContext.delete({
-      where: { id: contextId },
-    });
 
     return findFullProjectOrThrow(this.prisma, projectId);
   }

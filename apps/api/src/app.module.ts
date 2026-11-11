@@ -1,14 +1,14 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
-import { ChatModule } from "./chat/chat.module";
-import { ChecklistModule } from "./checklist/checklist.module";
-import { validateEnv } from "./config/env";
-import { ContextsModule } from "./contexts/contexts.module";
-import { HealthModule } from "./health/health.module";
-import { PrismaModule } from "./prisma/prisma.module";
-import { ProjectsModule } from "./projects/projects.module";
-import { ScraperModule } from "./scraper/scraper.module";
-import { SettingsModule } from "./settings/settings.module";
+import { ChatModule } from "./chat/chat.module.js";
+import { ChecklistModule } from "./checklist/checklist.module.js";
+import { validateEnv } from "./config/env.js";
+import { ContextsModule } from "./contexts/contexts.module.js";
+import { HealthModule } from "./health/health.module.js";
+import { PrismaModule } from "./prisma/prisma.module.js";
+import { ProjectsModule } from "./projects/projects.module.js";
+import { ScraperModule } from "./scraper/scraper.module.js";
+import { SettingsModule } from "./settings/settings.module.js";
 
 @Module({
   imports: [

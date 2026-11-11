@@ -1,49 +1,51 @@
-generator client {
-  provider      = "prisma-client-js"
-  binaryTargets = ["native", "linux-musl-openssl-3.0.x", "debian-openssl-3.0.x"]
-}
+// use prisma-8
 
-datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+model mixin Timestamps {
+  createdAt DateTime @default(now()) @onCreate(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @onCreate(now()) @onUpdate(now()) @map("updated_at")
 }
 
 enum ContextType {
-  website
-  x_handle
-  linkedin
-  telegram
-  message
+  @@type("pg/text@1")
+  website  = "website"
+  x_handle = "x_handle"
+  linkedin = "linkedin"
+  telegram = "telegram"
+  message  = "message"
 }
 
 enum ProjectStage {
-  PRE_TGE
-  MAINNET_LIVE
-  IDO_LAUNCHPAD
-  ECOSYSTEM_GROWTH
-  STEALTH
+  @@type("pg/text@1")
+  PRE_TGE          = "Pre-TGE"
+  MAINNET_LIVE     = "Mainnet Live"
+  IDO_LAUNCHPAD    = "IDO / Launchpad"
+  ECOSYSTEM_GROWTH = "Ecosystem Growth"
+  STEALTH          = "Stealth"
 }
 
 enum ProjectBusinessStatus {
-  new
-  contacted
-  collaborated
-  completed
-  unresponsive
-  archived
+  @@type("pg/text@1")
+  new          = "new"
+  contacted    = "contacted"
+  collaborated = "collaborated"
+  completed    = "completed"
+  unresponsive = "unresponsive"
+  archived     = "archived"
 }
 
 enum MessageSender {
-  admin
-  ai
+  @@type("pg/text@1")
+  admin = "admin"
+  ai    = "ai"
 }
 
 enum ScrapeStatus {
-  pending
-  running
-  completed
-  unreachable
-  failed
+  @@type("pg/text@1")
+  pending     = "pending"
+  running     = "running"
+  completed   = "completed"
+  unreachable = "unreachable"
+  failed      = "failed"
 }
 
 model Project {
@@ -58,19 +60,25 @@ model Project {
   tagline          String                @default("")
   campaignBudget   String                @default("$25,000 / mo") @map("campaign_budget")
   sentimentScore   Int                   @default(90) @map("sentiment_score")
+  tags             String[]              @default(sql`'{}'::text[]`)
   isPinned         Boolean               @default(false) @map("is_pinned")
   unreadInsights   Int                   @default(0) @map("unread_insights")
   lastActivityTime String                @default("Now") @map("last_activity_time")
-  createdAt        DateTime              @default(now()) @map("created_at")
-  updatedAt        DateTime              @updatedAt @map("updated_at")
+  lastScrapedAt    DateTime?             @map("last_scraped_at")
+  archivedAt       DateTime?             @map("archived_at")
+  +Timestamps
 
   contexts        ProjectContext[]
   messages        ChatMessage[]
   checklistStates ProjectChecklistState[]
   scrapeJobs      ScrapeJob[]
 
+  @@check(expression: sql`sentiment_score >= 0 AND sentiment_score <= 100`, name: "project_sentiment_bounds")
   @@index([businessStatus])
-  @@index([updatedAt(sort: Desc)])
+  @@index([businessStatus], where: sql`archived_at IS NULL`, name: "projects_active_status_idx")
+  @@index([isPinned, createdAt])
+  @@index([updatedAt])
+  @@fullTextIndex([[name, ticker], tagline], name: "projects_search_idx")
   @@map("projects")
 }
 
@@ -79,21 +87,22 @@ model ProjectContext {
   projectId       String        @map("project_id")
   type            ContextType
   title           String
-  value           String        @db.Text
+  value           String
   url             String?
-  summary         String?       @db.Text
+  summary         String?
   isActive        Boolean       @default(true) @map("is_active")
   updatedAtLabel  String        @default("Now") @map("updated_at_label")
   scrapeStatus    ScrapeStatus? @map("scrape_status")
   lastScrapedAt   DateTime?     @map("last_scraped_at")
   scrapedMetadata Json?         @map("scraped_metadata")
-  createdAt       DateTime      @default(now()) @map("created_at")
-  updatedAt       DateTime      @updatedAt @map("updated_at")
+  +Timestamps
 
   project    Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
   scrapeJobs ScrapeJob[]
 
   @@index([projectId, createdAt])
+  @@index([projectId, isActive])
+  @@index([scrapeStatus])
   @@map("project_contexts")
 }
 
@@ -101,53 +110,59 @@ model ChatMessage {
   id                       String        @id
   projectId                String        @map("project_id")
   sender                   MessageSender
-  content                  String        @db.Text
+  content                  String
   timestampLabel           String        @map("timestamp_label")
-  usedContextIds           String[]      @default([]) @map("used_context_ids")
-  suggestedActions         String[]      @default([]) @map("suggested_actions")
+  usedContextIds           String[]      @default(sql`'{}'::text[]`) @map("used_context_ids")
+  suggestedActions         String[]      @default(sql`'{}'::text[]`) @map("suggested_actions")
   appliedSystemPromptTitle String?       @map("applied_system_prompt_title")
-  createdAt                DateTime      @default(now()) @map("created_at")
+  model                    String?
+  metadata                 Json?
+  createdAt                DateTime      @default(now()) @onCreate(now()) @map("created_at")
 
   project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   @@index([projectId, createdAt])
+  @@fullTextIndex([content], name: "chat_messages_search_idx")
   @@map("chat_messages")
 }
 
 model PromptTemplate {
-  id           String   @id
+  id           String  @id
   label        String
-  systemPrompt String   @map("system_prompt") @db.Text
-  sortOrder    Int      @default(0) @map("sort_order")
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  description  String?
+  systemPrompt String  @map("system_prompt")
+  isDefault    Boolean @default(false) @map("is_default")
+  sortOrder    Int     @default(0) @map("sort_order")
+  +Timestamps
 
   @@index([sortOrder])
   @@map("prompt_templates")
 }
 
 model ChecklistItem {
-  id         String   @id
+  id         String  @id
   label      String
-  scanPrompt String   @map("scan_prompt") @db.Text
-  sortOrder  Int      @default(0) @map("sort_order")
-  createdAt  DateTime @default(now()) @map("created_at")
-  updatedAt  DateTime @updatedAt @map("updated_at")
+  category   String  @default("general")
+  scanPrompt String  @map("scan_prompt")
+  isRequired Boolean @default(false) @map("is_required")
+  sortOrder  Int     @default(0) @map("sort_order")
+  +Timestamps
 
   projectStates ProjectChecklistState[]
 
   @@index([sortOrder])
+  @@index([category])
   @@map("checklist_items")
 }
 
 model ProjectChecklistState {
-  id              String   @id @default(cuid())
+  id              String   @id @onCreate(cuid(2))
   projectId       String   @map("project_id")
   checklistItemId String   @map("checklist_item_id")
   checked         Boolean  @default(false)
-  scanResultNote  String?  @map("scan_result_note") @db.Text
+  scanResultNote  String?  @map("scan_result_note")
   scannedAtLabel  String?  @map("scanned_at_label")
-  updatedAt       DateTime @updatedAt @map("updated_at")
+  updatedAt       DateTime @default(now()) @onCreate(now()) @onUpdate(now()) @map("updated_at")
 
   project       Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
   checklistItem ChecklistItem @relation(fields: [checklistItemId], references: [id], onDelete: Cascade)
@@ -157,27 +172,30 @@ model ProjectChecklistState {
 }
 
 model ScrapeJob {
-  id                   String       @id @default(cuid())
+  id                   String       @id @onCreate(cuid(2))
   projectId            String       @map("project_id")
   contextId            String?      @map("context_id")
   targetType           ContextType  @map("target_type")
-  targetValue          String       @map("target_value") @db.Text
+  targetValue          String       @map("target_value")
   normalizedUrl        String?      @map("normalized_url")
   status               ScrapeStatus @default(pending)
+  httpStatus           Int?         @map("http_status")
+  attemptCount         Int          @default(1) @map("attempt_count")
   extractedTitle       String?      @map("extracted_title")
-  extractedDescription String?      @map("extracted_description") @db.Text
+  extractedDescription String?      @map("extracted_description")
   detectedSocials      Json?        @map("detected_socials")
-  detectedSignals      String[]     @default([]) @map("detected_signals")
-  rawPreview           String?      @map("raw_preview") @db.Text
-  errorMessage         String?      @map("error_message") @db.Text
+  detectedSignals      String[]     @default(sql`'{}'::text[]`) @map("detected_signals")
+  rawPreview           String?      @map("raw_preview")
+  errorMessage         String?      @map("error_message")
   durationMs           Int?         @map("duration_ms")
-  createdAt            DateTime     @default(now()) @map("created_at")
+  createdAt            DateTime     @default(now()) @onCreate(now()) @map("created_at")
   completedAt          DateTime?    @map("completed_at")
 
   project Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
   context ProjectContext? @relation(fields: [contextId], references: [id], onDelete: SetNull)
 
-  @@index([projectId, createdAt(sort: Desc)])
+  @@index([projectId, createdAt])
+  @@index([status, createdAt])
   @@index([contextId])
   @@map("scrape_jobs")
 }

@@ -1,30 +1,30 @@
-import { Injectable } from "@nestjs/common";
-import { ContextType, MessageSender } from "@repo/database";
+import { Injectable, NotFoundException } from "@nestjs/common";
 import {
   SOLID_AVATAR_COLORS,
+  type ContextType,
   type CryptoProject,
   type NewProjectFormValues,
   type ProjectBusinessStatus,
 } from "@repo/shared";
 import { randomUUID } from "crypto";
-import { PrismaService } from "../prisma/prisma.service";
+import { PrismaService } from "../prisma/prisma.service.js";
 import {
-  FULL_PROJECT_INCLUDE,
   findFullProjectOrThrow,
+  fullProjectQuery,
   mapPrismaProjectToDomain,
-  toPrismaStage,
-} from "./project.mapper";
+} from "./project.mapper.js";
 
 @Injectable()
 export class ProjectsService {
   constructor(private readonly prisma: PrismaService) {}
 
   async findAll(): Promise<CryptoProject[]> {
-    const projects = await this.prisma.project.findMany({
-      include: FULL_PROJECT_INCLUDE,
-      orderBy: [{ isPinned: "desc" }, { createdAt: "desc" }],
-    });
-    return projects.map(mapPrismaProjectToDomain);
+    const projects = await fullProjectQuery(this.prisma.db.orm)
+      .orderBy((p) => p.createdAt.desc())
+      .all();
+    return [...projects]
+      .sort((a, b) => Number(b.isPinned) - Number(a.isPinned))
+      .map(mapPrismaProjectToDomain);
   }
 
   async findOne(projectId: string): Promise<CryptoProject> {
@@ -54,7 +54,7 @@ export class ProjectsService {
     if (input.website) {
       contextCreates.push({
         id: `ctx-${baseTime}-web-${suffix}`,
-        type: ContextType.website,
+        type: "website",
         title: "Official Website",
         value: input.website,
         url: input.website.startsWith("http")
@@ -72,7 +72,7 @@ export class ProjectsService {
         : `@${input.xHandle}`;
       contextCreates.push({
         id: `ctx-${baseTime}-x-${suffix}`,
-        type: ContextType.x_handle,
+        type: "x_handle",
         title: "Official X",
         value: cleanHandle,
         url: `https://x.com/${cleanHandle.replace(/^@/, "")}`,
@@ -85,7 +85,7 @@ export class ProjectsService {
     if (input.linkedin) {
       contextCreates.push({
         id: `ctx-${baseTime}-li-${suffix}`,
-        type: ContextType.linkedin,
+        type: "linkedin",
         title: "LinkedIn",
         value: input.linkedin,
         url: input.linkedin.startsWith("http")
@@ -100,7 +100,7 @@ export class ProjectsService {
     if (input.tagline) {
       contextCreates.push({
         id: `ctx-${baseTime}-note-${suffix}`,
-        type: ContextType.message,
+        type: "message",
         title: "Project Positioning",
         value: input.tagline,
         url: null,
@@ -115,49 +115,62 @@ export class ProjectsService {
         Math.floor(Math.random() * SOLID_AVATAR_COLORS.length)
       ];
 
-    const created = await this.prisma.project.create({
-      data: {
+    const tags = [
+      input.chain.toLowerCase(),
+      input.stage.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+    ];
+
+    await this.prisma.db.transaction(async (tx) => {
+      await tx.orm.public.Project.create({
         id: projectId,
         name: input.name,
         ticker: cleanTicker,
         chain: input.chain,
-        stage: toPrismaStage(input.stage),
+        stage: input.stage,
         businessStatus: input.businessStatus,
         avatarBg,
         logoUrl: input.logoUrl || null,
         tagline: input.tagline || `${input.chain} project (${input.stage})`,
         campaignBudget: "$25,000 / mo",
         sentimentScore: 90,
+        tags,
         isPinned: true,
         unreadInsights: 0,
         lastActivityTime: "Now",
-        contexts: {
-          create: contextCreates,
-        },
-        messages: {
-          create: [
-            {
-              id: `msg-${baseTime}-${suffix}`,
-              sender: MessageSender.ai,
-              content: `Chat initialized for **${input.name} (${cleanTicker})** with ${contextCreates.length} context items active.`,
-              timestampLabel: "Now",
-              usedContextIds: contextCreates.map((c) => c.id),
-              suggestedActions: [],
-            },
-          ],
-        },
-      },
-      include: FULL_PROJECT_INCLUDE,
+        archivedAt: input.businessStatus === "archived" ? new Date() : null,
+      });
+
+      if (contextCreates.length > 0) {
+        await tx.orm.public.ProjectContext.createAll(
+          contextCreates.map((ctx) => ({
+            ...ctx,
+            projectId,
+          }))
+        );
+      }
+
+      await tx.orm.public.ChatMessage.create({
+        id: `msg-${baseTime}-${suffix}`,
+        projectId,
+        sender: "ai",
+        content: `Chat initialized for **${input.name} (${cleanTicker})** with ${contextCreates.length} context items active.`,
+        timestampLabel: "Now",
+        usedContextIds: contextCreates.map((c) => c.id),
+        suggestedActions: [],
+        model: "pulseos-engine",
+      });
     });
 
-    return mapPrismaProjectToDomain(created);
+    return findFullProjectOrThrow(this.prisma, projectId);
   }
 
   async markAsRead(projectId: string): Promise<CryptoProject> {
-    await this.prisma.project.update({
-      where: { id: projectId },
-      data: { unreadInsights: 0 },
-    });
+    const updated = await this.prisma.db.orm.public.Project.where({
+      id: projectId,
+    }).update({ unreadInsights: 0 });
+    if (!updated) {
+      throw new NotFoundException(`Project "${projectId}" not found.`);
+    }
     return findFullProjectOrThrow(this.prisma, projectId);
   }
 
@@ -165,13 +178,16 @@ export class ProjectsService {
     projectId: string,
     status: ProjectBusinessStatus
   ): Promise<CryptoProject> {
-    await this.prisma.project.update({
-      where: { id: projectId },
-      data: {
-        businessStatus: status,
-        lastActivityTime: "Now",
-      },
+    const updated = await this.prisma.db.orm.public.Project.where({
+      id: projectId,
+    }).update({
+      businessStatus: status,
+      archivedAt: status === "archived" ? new Date() : null,
+      lastActivityTime: "Now",
     });
+    if (!updated) {
+      throw new NotFoundException(`Project "${projectId}" not found.`);
+    }
     return findFullProjectOrThrow(this.prisma, projectId);
   }
 
@@ -179,19 +195,24 @@ export class ProjectsService {
     projectId: string,
     logoUrl: string | null | undefined
   ): Promise<CryptoProject> {
-    await this.prisma.project.update({
-      where: { id: projectId },
-      data: {
-        logoUrl: logoUrl && logoUrl.trim().length > 0 ? logoUrl.trim() : null,
-      },
+    const updated = await this.prisma.db.orm.public.Project.where({
+      id: projectId,
+    }).update({
+      logoUrl: logoUrl && logoUrl.trim().length > 0 ? logoUrl.trim() : null,
     });
+    if (!updated) {
+      throw new NotFoundException(`Project "${projectId}" not found.`);
+    }
     return findFullProjectOrThrow(this.prisma, projectId);
   }
 
   async delete(projectId: string): Promise<{ deleted: true; id: string }> {
-    await this.prisma.project.delete({
-      where: { id: projectId },
-    });
+    const deleted = await this.prisma.db.orm.public.Project.where({
+      id: projectId,
+    }).delete();
+    if (!deleted) {
+      throw new NotFoundException(`Project "${projectId}" not found.`);
+    }
     return { deleted: true, id: projectId };
   }
 }

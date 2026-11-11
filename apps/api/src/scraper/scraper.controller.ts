@@ -1,6 +1,6 @@
 import { Controller, Get, Param, Post } from "@nestjs/common";
 import { ApiOperation, ApiTags } from "@nestjs/swagger";
-import { ScraperService } from "./scraper.service";
+import { ScraperService } from "./scraper.service.js";
 
 @ApiTags("scraper")
 @Controller("projects/:projectId")

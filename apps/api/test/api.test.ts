@@ -1,62 +1,49 @@
 import { describe, expect, it } from "bun:test";
 import { BadRequestException } from "@nestjs/common";
 import {
-  ContextType,
-  MessageSender,
-  ProjectBusinessStatus,
-  ProjectStage,
-  ScrapeStatus,
-} from "@repo/database";
-import {
   addContextFormSchema,
   buildContextualAiResponse,
   evaluateChecklistItemAgainstProject,
 } from "@repo/shared";
-import { ZodValidationPipe } from "../src/common/pipes/zod-validation.pipe";
-import { validateEnv } from "../src/config/env";
-import {
-  mapPrismaProjectToDomain,
-  toDomainStage,
-  toPrismaStage,
-} from "../src/projects/project.mapper";
+import { ZodValidationPipe } from "../src/common/pipes/zod-validation.pipe.js";
+import { validateEnv } from "../src/config/env.js";
+import { mapPrismaProjectToDomain } from "../src/projects/project.mapper.js";
 
 describe("NestJS Core Backend Unit Tests", () => {
-  it("maps Prisma stage enums bidirectionally", () => {
-    expect(toPrismaStage("Pre-TGE")).toBe(ProjectStage.PRE_TGE);
-    expect(toDomainStage(ProjectStage.IDO_LAUNCHPAD)).toBe("IDO / Launchpad");
-  });
-
-  it("maps a full Prisma Project graph into CryptoProject domain DTO", () => {
+  it("maps a full Prisma 8 Project graph into CryptoProject domain DTO", () => {
     const now = new Date("2026-11-11T10:00:00.000Z");
     const mapped = mapPrismaProjectToDomain({
       id: "proj-1",
       name: "Test Protocol",
       ticker: "$TEST",
       chain: "Solana",
-      stage: ProjectStage.PRE_TGE,
-      businessStatus: ProjectBusinessStatus.new,
+      stage: "Pre-TGE",
+      businessStatus: "new",
       avatarBg: "bg-[#1d4ed8]",
       logoUrl: null,
       tagline: "Sub-second DeFi mesh",
       campaignBudget: "$25,000 / mo",
       sentimentScore: 92,
+      tags: ["solana", "pre-tge"],
       isPinned: true,
       unreadInsights: 1,
       lastActivityTime: "Now",
+      lastScrapedAt: now,
+      archivedAt: null,
       createdAt: now,
       updatedAt: now,
       contexts: [
         {
           id: "ctx-1",
           projectId: "proj-1",
-          type: ContextType.website,
+          type: "website",
           title: "Website",
           value: "https://test.xyz",
           url: "https://test.xyz",
           summary: "Official site",
           isActive: true,
           updatedAtLabel: "Now",
-          scrapeStatus: ScrapeStatus.completed,
+          scrapeStatus: "completed",
           lastScrapedAt: now,
           scrapedMetadata: {
             reachable: true,
@@ -73,12 +60,14 @@ describe("NestJS Core Backend Unit Tests", () => {
         {
           id: "msg-1",
           projectId: "proj-1",
-          sender: MessageSender.ai,
+          sender: "ai",
           content: "Welcome!",
           timestampLabel: "10:00 AM",
           usedContextIds: ["ctx-1"],
           suggestedActions: [],
           appliedSystemPromptTitle: null,
+          model: "pulseos-engine",
+          metadata: null,
           createdAt: now,
         },
       ],

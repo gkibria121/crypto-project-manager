@@ -6,8 +6,8 @@ import {
   type AddContextFormValues,
   type ToggleAllContextsDto,
 } from "@repo/shared";
-import { ZodValidationPipe } from "../common/pipes/zod-validation.pipe";
-import { ContextsService } from "./contexts.service";
+import { ZodValidationPipe } from "../common/pipes/zod-validation.pipe.js";
+import { ContextsService } from "./contexts.service.js";
 
 @ApiTags("contexts")
 @Controller("projects/:projectId/contexts")

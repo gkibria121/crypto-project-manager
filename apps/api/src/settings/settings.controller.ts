@@ -6,8 +6,8 @@ import {
   type ChecklistItemConfig,
   type PromptTemplate,
 } from "@repo/shared";
-import { ZodValidationPipe } from "../common/pipes/zod-validation.pipe";
-import { SettingsService } from "./settings.service";
+import { ZodValidationPipe } from "../common/pipes/zod-validation.pipe.js";
+import { SettingsService } from "./settings.service.js";
 
 @ApiTags("settings")
 @Controller("settings")

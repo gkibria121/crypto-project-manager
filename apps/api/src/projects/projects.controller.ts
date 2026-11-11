@@ -16,8 +16,8 @@ import {
   type UpdateBusinessStatusDto,
   type UpdateProjectLogoDto,
 } from "@repo/shared";
-import { ZodValidationPipe } from "../common/pipes/zod-validation.pipe";
-import { ProjectsService } from "./projects.service";
+import { ZodValidationPipe } from "../common/pipes/zod-validation.pipe.js";
+import { ProjectsService } from "./projects.service.js";
 
 @ApiTags("projects")
 @Controller("projects")

@@ -1,6 +1,6 @@
 import { Module } from "@nestjs/common";
-import { ScraperController } from "./scraper.controller";
-import { ScraperService } from "./scraper.service";
+import { ScraperController } from "./scraper.controller.js";
+import { ScraperService } from "./scraper.service.js";
 
 @Module({
   controllers: [ScraperController],

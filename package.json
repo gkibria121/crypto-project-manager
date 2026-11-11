@@ -3,7 +3,7 @@
   "devDependencies": {
     "@types/bun": "^1.4.4",
     "turbo": "^2.11.10",
-    "typescript": "^5.8.2"
+    "typescript": "^5.9.3"
   },
   "packageManager": "bun@1.4.2",
   "private": true,
@@ -17,9 +17,9 @@
     "db:generate": "bun --filter @repo/database db:generate",
     "db:migrate": "bun --filter @repo/database db:migrate",
     "db:migrate:deploy": "bun --filter @repo/database db:migrate:deploy",
-    "db:push": "bun --filter @repo/database db:push",
+    "db:update": "bun --filter @repo/database db:update",
+    "db:verify": "bun --filter @repo/database db:verify",
     "db:seed": "bun --filter @repo/database db:seed",
-    "db:studio": "bun --filter @repo/database db:studio",
     "setup:scraper": "bun --filter @repo/scraper setup",
     "docker:up": "docker compose up --build -d",
     "docker:down": "docker compose down",

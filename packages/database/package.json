@@ -11,24 +11,27 @@
     }
   },
   "scripts": {
-    "build": "prisma generate && tsc -p tsconfig.json",
+    "build": "prisma contract emit && tsc -p tsconfig.json && mkdir -p dist/src/prisma && cp src/prisma/contract.json src/prisma/contract.d.ts dist/src/prisma/",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "db:generate": "prisma generate",
-    "db:migrate": "prisma migrate dev",
-    "db:migrate:deploy": "prisma migrate deploy",
-    "db:push": "prisma db push",
+    "db:generate": "prisma contract emit",
+    "db:migrate": "prisma migration plan",
+    "db:migrate:deploy": "prisma db migrate",
+    "db:update": "prisma db update",
+    "db:verify": "prisma db verify",
     "db:seed": "bun prisma/seed.ts",
     "db:seed:prod": "node dist/prisma/seed.js",
-    "db:studio": "prisma studio",
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@prisma/client": "~6.19.3"
+    "@prisma/orm-postgres": "8.0.0-rc.23",
+    "pg": "^8.22.0",
+    "temporal-polyfill": "^1.0.4"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
     "@types/node": "^22.0.0",
-    "prisma": "~6.19.3",
-    "typescript": "^5.8.2"
+    "@types/pg": "^8.20.4",
+    "prisma": "8.0.0-rc.33",
+    "typescript": "^5.9.3"
   }
 }

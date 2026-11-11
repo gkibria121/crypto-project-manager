@@ -4,8 +4,8 @@ import {
   scanSingleChecklistDtoSchema,
   type ScanSingleChecklistDto,
 } from "@repo/shared";
-import { ZodValidationPipe } from "../common/pipes/zod-validation.pipe";
-import { ChecklistService } from "./checklist.service";
+import { ZodValidationPipe } from "../common/pipes/zod-validation.pipe.js";
+import { ChecklistService } from "./checklist.service.js";
 
 @ApiTags("checklist")
 @Controller("projects/:projectId/checklist")

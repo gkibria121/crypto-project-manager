@@ -4,10 +4,10 @@ import { ConfigService } from "@nestjs/config";
 import { NestFactory } from "@nestjs/core";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import { json, urlencoded } from "express";
-import { AppModule } from "./app.module";
-import { GlobalExceptionFilter } from "./common/filters/http-exception.filter";
-import { LoggingInterceptor } from "./common/interceptors/logging.interceptor";
-import type { AppEnv } from "./config/env";
+import { AppModule } from "./app.module.js";
+import { GlobalExceptionFilter } from "./common/filters/http-exception.filter.js";
+import { LoggingInterceptor } from "./common/interceptors/logging.interceptor.js";
+import type { AppEnv } from "./config/env.js";
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);

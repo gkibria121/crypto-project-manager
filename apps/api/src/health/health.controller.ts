@@ -1,8 +1,8 @@
 import { Controller, Get } from "@nestjs/common";
 import { ApiOperation, ApiTags } from "@nestjs/swagger";
 import type { SystemHealthStatus } from "@repo/shared";
-import { PrismaService } from "../prisma/prisma.service";
-import { ScraperService } from "../scraper/scraper.service";
+import { PrismaService } from "../prisma/prisma.service.js";
+import { ScraperService } from "../scraper/scraper.service.js";
 
 @ApiTags("health")
 @Controller()
@@ -31,7 +31,9 @@ export class HealthController {
   private async buildHealthReport(): Promise<SystemHealthStatus> {
     let databaseUp = false;
     try {
-      await this.prisma.$queryRaw`SELECT 1`;
+      await this.prisma.db.orm.public.PromptTemplate.select("id")
+        .limit(1)
+        .all();
       databaseUp = true;
     } catch {
       databaseUp = false;

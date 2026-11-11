@@ -35,7 +35,7 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-pulseos}:${POSTGRES_PASSWORD:-pulseos_secret}@postgres:5432/${POSTGRES_DB:-pulseos}?schema=public
+      DATABASE_URL: postgresql://${POSTGRES_USER:-pulseos}:${POSTGRES_PASSWORD:-pulseos_secret}@postgres:5432/${POSTGRES_DB:-pulseos}
     command:
       [
         "sh",
@@ -91,7 +91,7 @@ services:
     environment:
       NODE_ENV: production
       PORT: 4000
-      DATABASE_URL: postgresql://${POSTGRES_USER:-pulseos}:${POSTGRES_PASSWORD:-pulseos_secret}@postgres:5432/${POSTGRES_DB:-pulseos}?schema=public
+      DATABASE_URL: postgresql://${POSTGRES_USER:-pulseos}:${POSTGRES_PASSWORD:-pulseos_secret}@postgres:5432/${POSTGRES_DB:-pulseos}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
       SCRAPER_SERVICE_URL: http://scraper:8000
       SCRAPER_API_KEY: ${SCRAPER_API_KEY:-pulseos-internal-scraper-key}

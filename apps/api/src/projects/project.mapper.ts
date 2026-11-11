@@ -1,55 +1,31 @@
 import { NotFoundException } from "@nestjs/common";
-import {
-  Prisma,
-  ProjectStage as PrismaProjectStage,
-  type ScrapeJob as PrismaScrapeJob,
+import type {
+  Models,
+  PulseDbClient,
+  ResultType,
+  Scalars,
 } from "@repo/database";
 import {
   scrapedMetadataSchema,
   type CryptoProject,
   type ProjectChecklistItemState,
-  type ProjectStage,
   type ScrapeJob,
 } from "@repo/shared";
-import type { PrismaService } from "../prisma/prisma.service";
+import type { PrismaService } from "../prisma/prisma.service.js";
 
-export const FULL_PROJECT_INCLUDE = {
-  contexts: {
-    orderBy: { createdAt: "asc" },
-  },
-  messages: {
-    orderBy: { createdAt: "asc" },
-  },
-  checklistStates: true,
-} satisfies Prisma.ProjectInclude;
-
-export type ProjectWithRelations = Prisma.ProjectGetPayload<{
-  include: typeof FULL_PROJECT_INCLUDE;
-}>;
-
-const PRISMA_TO_DOMAIN_STAGE: Record<PrismaProjectStage, ProjectStage> = {
-  PRE_TGE: "Pre-TGE",
-  MAINNET_LIVE: "Mainnet Live",
-  IDO_LAUNCHPAD: "IDO / Launchpad",
-  ECOSYSTEM_GROWTH: "Ecosystem Growth",
-  STEALTH: "Stealth",
-};
-
-const DOMAIN_TO_PRISMA_STAGE: Record<ProjectStage, PrismaProjectStage> = {
-  "Pre-TGE": PrismaProjectStage.PRE_TGE,
-  "Mainnet Live": PrismaProjectStage.MAINNET_LIVE,
-  "IDO / Launchpad": PrismaProjectStage.IDO_LAUNCHPAD,
-  "Ecosystem Growth": PrismaProjectStage.ECOSYSTEM_GROWTH,
-  Stealth: PrismaProjectStage.STEALTH,
-};
-
-export function toPrismaStage(stage: ProjectStage): PrismaProjectStage {
-  return DOMAIN_TO_PRISMA_STAGE[stage];
+export function fullProjectQuery(orm: PulseDbClient["orm"]) {
+  return orm.public.Project.include("contexts", (c) =>
+    c.orderBy((ctx) => ctx.createdAt.asc())
+  )
+    .include("messages", (m) => m.orderBy((msg) => msg.createdAt.asc()))
+    .include("checklistStates");
 }
 
-export function toDomainStage(stage: PrismaProjectStage): ProjectStage {
-  return PRISMA_TO_DOMAIN_STAGE[stage];
-}
+export type ProjectWithRelations = ResultType<
+  ReturnType<typeof fullProjectQuery>
+>;
+
+export type PrismaScrapeJobRow = Scalars<Models.public_ScrapeJob>;
 
 export function mapPrismaProjectToDomain(
   project: ProjectWithRelations
@@ -68,7 +44,7 @@ export function mapPrismaProjectToDomain(
     name: project.name,
     ticker: project.ticker,
     chain: project.chain,
-    stage: toDomainStage(project.stage),
+    stage: project.stage,
     businessStatus: project.businessStatus,
     avatarBg: project.avatarBg,
     logoUrl: project.logoUrl ?? undefined,
@@ -101,15 +77,15 @@ export function mapPrismaProjectToDomain(
       sender: msg.sender,
       content: msg.content,
       timestamp: msg.timestampLabel,
-      usedContextIds: msg.usedContextIds,
-      suggestedActions: msg.suggestedActions,
+      usedContextIds: [...msg.usedContextIds],
+      suggestedActions: [...msg.suggestedActions],
       appliedSystemPromptTitle: msg.appliedSystemPromptTitle ?? undefined,
     })),
     checklistState,
   };
 }
 
-export function mapPrismaScrapeJobToDomain(job: PrismaScrapeJob): ScrapeJob {
+export function mapPrismaScrapeJobToDomain(job: PrismaScrapeJobRow): ScrapeJob {
   const socials =
     job.detectedSocials &&
     typeof job.detectedSocials === "object" &&
@@ -128,7 +104,7 @@ export function mapPrismaScrapeJobToDomain(job: PrismaScrapeJob): ScrapeJob {
     extractedTitle: job.extractedTitle ?? undefined,
     extractedDescription: job.extractedDescription ?? undefined,
     detectedSocials: socials,
-    detectedSignals: job.detectedSignals,
+    detectedSignals: [...job.detectedSignals],
     rawPreview: job.rawPreview ?? undefined,
     errorMessage: job.errorMessage ?? undefined,
     durationMs: job.durationMs ?? undefined,
@@ -141,10 +117,9 @@ export async function findFullProjectOrThrow(
   prisma: PrismaService,
   projectId: string
 ): Promise<CryptoProject> {
-  const project = await prisma.project.findUnique({
-    where: { id: projectId },
-    include: FULL_PROJECT_INCLUDE,
-  });
+  const project = await fullProjectQuery(prisma.db.orm)
+    .where({ id: projectId })
+    .first();
 
   if (!project) {
     throw new NotFoundException(`Project "${projectId}" not found.`);

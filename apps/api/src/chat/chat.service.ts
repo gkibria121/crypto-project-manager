@@ -1,6 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { MessageSender } from "@repo/database";
 import {
   buildContextualAiResponse,
   formatCurrentTimestamp,
@@ -10,9 +9,9 @@ import {
   type SendMessageDto,
 } from "@repo/shared";
 import { randomUUID } from "crypto";
-import type { AppEnv } from "../config/env";
-import { PrismaService } from "../prisma/prisma.service";
-import { findFullProjectOrThrow } from "../projects/project.mapper";
+import type { AppEnv } from "../config/env.js";
+import { PrismaService } from "../prisma/prisma.service.js";
+import { findFullProjectOrThrow } from "../projects/project.mapper.js";
 
 @Injectable()
 export class ChatService {
@@ -32,9 +31,9 @@ export class ChatService {
 
     let appliedTemplate: PromptTemplate | undefined = dto.template;
     if (!appliedTemplate && dto.templateId) {
-      const dbTpl = await this.prisma.promptTemplate.findUnique({
-        where: { id: dto.templateId },
-      });
+      const dbTpl = await this.prisma.db.orm.public.PromptTemplate.where({
+        id: dto.templateId,
+      }).first();
       if (dbTpl) {
         appliedTemplate = {
           id: dbTpl.id,
@@ -48,43 +47,46 @@ export class ChatService {
     const adminTimestamp = formatCurrentTimestamp();
     const suffix = randomUUID().slice(0, 6);
 
-    await this.prisma.chatMessage.create({
-      data: {
-        id: `msg-admin-${nowMs}-${suffix}`,
-        projectId,
-        sender: MessageSender.admin,
-        content: dto.content.trim(),
-        timestampLabel: adminTimestamp,
-        usedContextIds: [],
-        suggestedActions: [],
-        createdAt: new Date(nowMs),
-      },
+    await this.prisma.db.orm.public.ChatMessage.create({
+      id: `msg-admin-${nowMs}-${suffix}`,
+      projectId,
+      sender: "admin",
+      content: dto.content.trim(),
+      timestampLabel: adminTimestamp,
+      usedContextIds: [],
+      suggestedActions: [],
+      createdAt: new Date(nowMs),
     });
 
-    const aiContent = await this.generateAiResponse(
+    const generated = await this.generateAiResponse(
       project,
       dto.content.trim(),
       activeContexts,
       appliedTemplate
     );
 
-    await this.prisma.chatMessage.create({
-      data: {
+    await this.prisma.db.transaction(async (tx) => {
+      await tx.orm.public.ChatMessage.create({
         id: `msg-ai-${nowMs + 1}-${suffix}`,
         projectId,
-        sender: MessageSender.ai,
-        content: aiContent,
+        sender: "ai",
+        content: generated.content,
         timestampLabel: formatCurrentTimestamp(),
         usedContextIds: activeContexts.map((c) => c.id),
         suggestedActions: [],
         appliedSystemPromptTitle: appliedTemplate?.label ?? null,
+        model: generated.model,
+        metadata: {
+          activeContextCount: activeContexts.length,
+          templateId: appliedTemplate?.id ?? null,
+          provider: generated.provider,
+        },
         createdAt: new Date(nowMs + 5),
-      },
-    });
+      });
 
-    await this.prisma.project.update({
-      where: { id: projectId },
-      data: { lastActivityTime: "Just now" },
+      await tx.orm.public.Project.where({ id: projectId }).update({
+        lastActivityTime: "Just now",
+      });
     });
 
     return findFullProjectOrThrow(this.prisma, projectId);
@@ -94,20 +96,19 @@ export class ChatService {
     const project = await findFullProjectOrThrow(this.prisma, projectId);
     const enabledContexts = project.contexts.filter((c) => c.isActive);
 
-    await this.prisma.$transaction([
-      this.prisma.chatMessage.deleteMany({ where: { projectId } }),
-      this.prisma.chatMessage.create({
-        data: {
-          id: `msg-reset-${Date.now()}-${randomUUID().slice(0, 6)}`,
-          projectId,
-          sender: MessageSender.ai,
-          content: `Chat cleared for **${project.name} (${project.ticker})** (${enabledContexts.length} contexts active).`,
-          timestampLabel: "Now",
-          usedContextIds: enabledContexts.map((c) => c.id),
-          suggestedActions: [],
-        },
-      }),
-    ]);
+    await this.prisma.db.transaction(async (tx) => {
+      await tx.orm.public.ChatMessage.where({ projectId }).deleteAll();
+      await tx.orm.public.ChatMessage.create({
+        id: `msg-reset-${Date.now()}-${randomUUID().slice(0, 6)}`,
+        projectId,
+        sender: "ai",
+        content: `Chat cleared for **${project.name} (${project.ticker})** (${enabledContexts.length} contexts active).`,
+        timestampLabel: "Now",
+        usedContextIds: enabledContexts.map((c) => c.id),
+        suggestedActions: [],
+        model: "pulseos-engine",
+      });
+    });
 
     return findFullProjectOrThrow(this.prisma, projectId);
   }
@@ -117,15 +118,19 @@ export class ChatService {
     userPrompt: string,
     activeContexts: ProjectContextItem[],
     template?: PromptTemplate
-  ): Promise<string> {
+  ): Promise<{ content: string; model: string; provider: string }> {
     const apiKey = this.config.get("OPENAI_API_KEY", { infer: true })?.trim();
     if (!apiKey) {
-      return buildContextualAiResponse(
-        project,
-        userPrompt,
-        activeContexts,
-        template
-      );
+      return {
+        content: buildContextualAiResponse(
+          project,
+          userPrompt,
+          activeContexts,
+          template
+        ),
+        model: "pulseos-engine",
+        provider: "deterministic",
+      };
     }
 
     const model = this.config.get("OPENAI_MODEL", { infer: true });
@@ -179,9 +184,13 @@ export class ChatService {
       };
       const content = data.choices?.[0]?.message?.content?.trim();
       if (content) {
-        return template
-          ? `> **Applied System Prompt (${template.label}):** ${template.systemPrompt}\n\n${content}`
-          : content;
+        return {
+          content: template
+            ? `> **Applied System Prompt (${template.label}):** ${template.systemPrompt}\n\n${content}`
+            : content,
+          model,
+          provider: "openai",
+        };
       }
     } catch (error) {
       this.logger.warn(
@@ -191,11 +200,15 @@ export class ChatService {
       );
     }
 
-    return buildContextualAiResponse(
-      project,
-      userPrompt,
-      activeContexts,
-      template
-    );
+    return {
+      content: buildContextualAiResponse(
+        project,
+        userPrompt,
+        activeContexts,
+        template
+      ),
+      model: "pulseos-engine",
+      provider: "deterministic-fallback",
+    };
   }
 }
