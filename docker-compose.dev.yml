@@ -5,6 +5,8 @@ services:
     image: postgres:16-alpine
     container_name: pulseos-postgres-dev
     restart: unless-stopped
+    env_file:
+      - .env
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-pulseos}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-pulseos_secret}

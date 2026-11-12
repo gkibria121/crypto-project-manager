@@ -24,6 +24,7 @@ import { PrismaService } from "../prisma/prisma.service.js";
 import {
   fullProjectQuery,
   mapPrismaProjectToDomain,
+  type ProjectWithRelations,
 } from "./project.mapper.js";
 
 export interface NormalizedThirdPartyProject {
@@ -311,12 +312,22 @@ export class ProjectSyncService {
       .orderBy((p) => p.createdAt.desc())
       .all();
 
-    const existingTickers = new Set(
-      existingProjects.map((p) => p.ticker.replace(/^\$/, "").toUpperCase())
-    );
-    const existingNames = new Set(
-      existingProjects.map((p) => p.name.trim().toLowerCase())
-    );
+    const existingByTicker = new Map<string, ProjectWithRelations>();
+    const existingByName = new Map<string, ProjectWithRelations>();
+
+    for (const proj of existingProjects) {
+      const tickerKey = proj.ticker.replace(/^\$/, "").toUpperCase();
+      const nameKey = proj.name.trim().toLowerCase();
+      if (tickerKey && !existingByTicker.has(tickerKey)) {
+        existingByTicker.set(tickerKey, proj);
+      }
+      if (nameKey && !existingByName.has(nameKey)) {
+        existingByName.set(nameKey, proj);
+      }
+    }
+
+    const existingTickers = new Set(existingByTicker.keys());
+    const existingNames = new Set(existingByName.keys());
 
     const fetchCandidateCount = Math.min(Math.max(limit * 2, 10), 40);
 
@@ -357,6 +368,11 @@ export class ProjectSyncService {
 
     let skippedCount = 0;
     const toCreate: NormalizedThirdPartyProject[] = [];
+    const toUpdate: Array<{
+      existing: ProjectWithRelations;
+      candidate: NormalizedThirdPartyProject;
+    }> = [];
+    const seenUpdatedIds = new Set<string>();
 
     for (const candidate of candidates) {
       const normalizedSymbol = candidate.symbol
@@ -365,8 +381,26 @@ export class ProjectSyncService {
         .slice(0, 11);
       const normalizedName = candidate.name.trim().toLowerCase();
 
+      if (!normalizedSymbol) {
+        skippedCount += 1;
+        continue;
+      }
+
+      const existingMatch =
+        existingByTicker.get(normalizedSymbol) ??
+        existingByName.get(normalizedName);
+
+      if (existingMatch) {
+        if (!seenUpdatedIds.has(existingMatch.id)) {
+          seenUpdatedIds.add(existingMatch.id);
+          toUpdate.push({ existing: existingMatch, candidate });
+        } else {
+          skippedCount += 1;
+        }
+        continue;
+      }
+
       if (
-        !normalizedSymbol ||
         existingTickers.has(normalizedSymbol) ||
         existingNames.has(normalizedName)
       ) {
@@ -374,24 +408,223 @@ export class ProjectSyncService {
         continue;
       }
 
+      if (toCreate.length >= limit) {
+        continue;
+      }
+
       existingTickers.add(normalizedSymbol);
       existingNames.add(normalizedName);
       toCreate.push(candidate);
-
-      if (toCreate.length >= limit) {
-        break;
-      }
     }
 
     const createdProjectIds: string[] = [];
+    const updatedProjectIds: string[] = [];
     const baseTime = Date.now();
 
-    if (toCreate.length > 0) {
+    if (toCreate.length > 0 || toUpdate.length > 0) {
       await this.prisma.db.transaction(async (tx) => {
+        // 1. Update existing DB projects with latest provider data
+        for (let idx = 0; idx < toUpdate.length; idx++) {
+          const { existing, candidate: item } = toUpdate[idx];
+          const suffix = randomUUID().slice(0, 8);
+          const itemTime = baseTime + idx * 50;
+          const cleanSymbol = item.symbol
+            .replace(/^\$/, "")
+            .toUpperCase()
+            .slice(0, 11);
+          const cleanTicker = `$${cleanSymbol}`;
+          const slug = item.slug || slugifyProjectName(item.name);
+          const mcapLabel = formatCompactUsd(item.marketCapUsd);
+          const sentimentScore = inferSentimentScore(item.changePercent24h);
+
+          const rawSummary = item.description
+            ? stripHtmlTags(item.description).slice(0, 140)
+            : existing.tagline;
+          const nextTagline =
+            item.marketCapUsd && item.marketCapUsd > 0
+              ? `Rank #${item.rank} (${mcapLabel} Market Cap) — ${rawSummary}`
+              : existing.tagline || rawSummary;
+
+          const mergedTags = Array.from(
+            new Set([
+              ...(existing.businessStatus === "new" ? ["new"] : []),
+              ...existing.tags,
+              provider,
+            ])
+          );
+
+          await tx.orm.public.Project.where({ id: existing.id }).update({
+            logoUrl: item.logoUrl || existing.logoUrl || null,
+            tagline: nextTagline,
+            sentimentScore,
+            tags: mergedTags,
+            lastActivityTime: "Now",
+          });
+
+          const websiteCtx = normalizeWebsiteUrl(item.websiteUrl, slug);
+          const xCtx = normalizeXHandle(item.xHandle, slug);
+          const linkedinCtx = normalizeLinkedinUrl(item.linkedinUrl, slug);
+
+          const existingWeb = existing.contexts.find(
+            (c) => c.type === "website"
+          );
+          if (!existingWeb) {
+            await tx.orm.public.ProjectContext.create({
+              id: `ctx-${itemTime}-web-${suffix}`,
+              projectId: existing.id,
+              type: "website",
+              title: "Official Website",
+              value: websiteCtx.value,
+              url: websiteCtx.url,
+              summary: `Official website for ${existing.name} (${cleanTicker}) synced via ${meta.shortLabel}.`,
+              isActive: true,
+              updatedAtLabel: "Now",
+              createdAt: new Date(itemTime),
+            });
+          } else if (item.websiteUrl && item.websiteUrl.trim()) {
+            await tx.orm.public.ProjectContext.where({
+              id: existingWeb.id,
+            }).update({
+              value: websiteCtx.value,
+              url: websiteCtx.url,
+              updatedAtLabel: "Now",
+            });
+          }
+
+          const existingX = existing.contexts.find(
+            (c) => c.type === "x_handle"
+          );
+          if (!existingX) {
+            await tx.orm.public.ProjectContext.create({
+              id: `ctx-${itemTime}-x-${suffix}`,
+              projectId: existing.id,
+              type: "x_handle",
+              title: "Official X",
+              value: xCtx.handle,
+              url: xCtx.url,
+              summary: `Official X (Twitter) channel (${xCtx.handle}) synced via ${meta.shortLabel}.`,
+              isActive: true,
+              updatedAtLabel: "Now",
+              createdAt: new Date(itemTime + 10),
+            });
+          } else if (item.xHandle && item.xHandle.trim()) {
+            await tx.orm.public.ProjectContext.where({
+              id: existingX.id,
+            }).update({
+              value: xCtx.handle,
+              url: xCtx.url,
+              updatedAtLabel: "Now",
+            });
+          }
+
+          const existingLinkedin = existing.contexts.find(
+            (c) => c.type === "linkedin"
+          );
+          if (!existingLinkedin) {
+            await tx.orm.public.ProjectContext.create({
+              id: `ctx-${itemTime}-li-${suffix}`,
+              projectId: existing.id,
+              type: "linkedin",
+              title: "LinkedIn",
+              value: linkedinCtx.value,
+              url: linkedinCtx.url,
+              summary: `Company LinkedIn profile for ${existing.name} synced via ${meta.shortLabel}.`,
+              isActive: true,
+              updatedAtLabel: "Now",
+              createdAt: new Date(itemTime + 20),
+            });
+          } else if (item.linkedinUrl && item.linkedinUrl.trim()) {
+            await tx.orm.public.ProjectContext.where({
+              id: existingLinkedin.id,
+            }).update({
+              value: linkedinCtx.value,
+              url: linkedinCtx.url,
+              updatedAtLabel: "Now",
+            });
+          }
+
+          if (item.telegramUrl && item.telegramUrl.trim()) {
+            const rawTg = item.telegramUrl.trim();
+            const tgUrl =
+              rawTg.startsWith("http://") || rawTg.startsWith("https://")
+                ? rawTg
+                : rawTg.startsWith("t.me/")
+                  ? `https://${rawTg}`
+                  : `https://t.me/${rawTg.replace(/^@/, "")}`;
+            const existingTg = existing.contexts.find(
+              (c) => c.type === "telegram"
+            );
+            if (!existingTg) {
+              await tx.orm.public.ProjectContext.create({
+                id: `ctx-${itemTime}-tg-${suffix}`,
+                projectId: existing.id,
+                type: "telegram",
+                title: "Telegram Community",
+                value: rawTg,
+                url: tgUrl,
+                summary: `Official Telegram community synced via ${meta.shortLabel}.`,
+                isActive: true,
+                updatedAtLabel: "Now",
+                createdAt: new Date(itemTime + 25),
+              });
+            } else {
+              await tx.orm.public.ProjectContext.where({
+                id: existingTg.id,
+              }).update({
+                value: rawTg,
+                url: tgUrl,
+                updatedAtLabel: "Now",
+              });
+            }
+          }
+
+          const priceDisplay =
+            item.priceUsd !== null && Number.isFinite(item.priceUsd)
+              ? `$${item.priceUsd >= 1 ? item.priceUsd.toFixed(2) : item.priceUsd.toPrecision(4)}`
+              : "N/A";
+          const changeDisplay =
+            item.changePercent24h !== null &&
+            Number.isFinite(item.changePercent24h)
+              ? `${item.changePercent24h >= 0 ? "+" : ""}${item.changePercent24h.toFixed(2)}%`
+              : "N/A";
+          const mcapValue = `Provider: ${meta.shortLabel} • Market Cap Rank: #${item.rank} • Market Cap: ${mcapLabel} • Price: ${priceDisplay} (24h: ${changeDisplay}). ${rawSummary}`;
+
+          const existingMcapCtx = existing.contexts.find(
+            (c) =>
+              c.type === "message" &&
+              c.title === "Market Cap & Sync Intelligence"
+          );
+          if (existingMcapCtx) {
+            await tx.orm.public.ProjectContext.where({
+              id: existingMcapCtx.id,
+            }).update({
+              value: mcapValue,
+              summary: `Market capitalization telemetry synced from ${meta.label}.`,
+              updatedAtLabel: "Now",
+            });
+          } else {
+            await tx.orm.public.ProjectContext.create({
+              id: `ctx-${itemTime}-mcap-${suffix}`,
+              projectId: existing.id,
+              type: "message",
+              title: "Market Cap & Sync Intelligence",
+              value: mcapValue,
+              url: null,
+              summary: `Market capitalization telemetry synced from ${meta.label}.`,
+              isActive: true,
+              updatedAtLabel: "Now",
+              createdAt: new Date(itemTime + 30),
+            });
+          }
+
+          updatedProjectIds.push(existing.id);
+        }
+
+        // 2. Create missing projects in DB and tag them "new"
         for (let idx = 0; idx < toCreate.length; idx++) {
           const item = toCreate[idx];
           const suffix = randomUUID().slice(0, 8);
-          const itemTime = baseTime + idx * 100;
+          const itemTime = baseTime + 5000 + idx * 100;
           const projectId = `proj-sync-${itemTime}-${suffix}`;
           const cleanSymbol = item.symbol
             .replace(/^\$/, "")
@@ -519,6 +752,15 @@ export class ProjectSyncService {
             createdAt: new Date(itemTime + 30),
           });
 
+          const projectTags = Array.from(
+            new Set([
+              "new",
+              chain.toLowerCase(),
+              stage.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+              provider,
+            ])
+          );
+
           await tx.orm.public.Project.create({
             id: projectId,
             name: item.name,
@@ -531,11 +773,7 @@ export class ProjectSyncService {
             tagline,
             campaignBudget,
             sentimentScore,
-            tags: [
-              chain.toLowerCase(),
-              stage.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
-              provider,
-            ],
+            tags: projectTags,
             isPinned: false,
             unreadInsights: 1,
             lastActivityTime: "Now",
@@ -548,7 +786,7 @@ export class ProjectSyncService {
             id: `msg-${itemTime}-${suffix}`,
             projectId,
             sender: "ai",
-            content: `Synced **${item.name} (${cleanTicker})** from **${meta.shortLabel}** in **New** pipeline status with **${contextCreates.length} active contexts** (Website: \`${websiteCtx.url}\`, X: \`${xCtx.handle}\`, LinkedIn: \`${linkedinCtx.value}\`).`,
+            content: `Synced **${item.name} (${cleanTicker})** from **${meta.shortLabel}** into **New** status and tagged **\`new\`** with **${contextCreates.length} active contexts** (Website: \`${websiteCtx.url}\`, X: \`${xCtx.handle}\`, LinkedIn: \`${linkedinCtx.value}\`).`,
             timestampLabel: "Now",
             usedContextIds: contextCreates.map((c) => c.id),
             suggestedActions: [],
@@ -566,11 +804,12 @@ export class ProjectSyncService {
             actorRole: actor.role,
             action: "projects.synced",
             resource: "project",
-            resourceId: createdProjectIds[0] ?? null,
+            resourceId: createdProjectIds[0] ?? updatedProjectIds[0] ?? null,
             details: {
               provider,
               providerName: meta.shortLabel,
               syncedCount: createdProjectIds.length,
+              updatedCount: updatedProjectIds.length,
               skippedCount,
             },
             ipAddress: null,
@@ -590,18 +829,29 @@ export class ProjectSyncService {
     const createdProjects = allProjects.filter((p) =>
       createdProjectIds.includes(p.id)
     );
+    const updatedProjects = allProjects.filter((p) =>
+      updatedProjectIds.includes(p.id)
+    );
 
-    const message =
-      createdProjects.length > 0
-        ? `Synced ${createdProjects.length} new crypto ${createdProjects.length === 1 ? "project" : "projects"} from ${meta.shortLabel} into New status${skippedCount > 0 ? ` (${skippedCount} existing skipped)` : ""}.`
-        : `All ${skippedCount} projects returned by ${meta.shortLabel} are already in your workspace.`;
+    let message: string;
+    if (createdProjects.length > 0 && updatedProjects.length > 0) {
+      message = `Added ${createdProjects.length} new ${createdProjects.length === 1 ? "project" : "projects"} (tagged "new") and synced ${updatedProjects.length} existing ${updatedProjects.length === 1 ? "project" : "projects"} from ${meta.shortLabel}.`;
+    } else if (createdProjects.length > 0) {
+      message = `Added ${createdProjects.length} new crypto ${createdProjects.length === 1 ? "project" : "projects"} from ${meta.shortLabel} into New status and tagged "new".`;
+    } else if (updatedProjects.length > 0) {
+      message = `Synced latest market data and context links for ${updatedProjects.length} existing ${updatedProjects.length === 1 ? "project" : "projects"} from ${meta.shortLabel} (no new projects found).`;
+    } else {
+      message = `No projects returned by ${meta.shortLabel} to sync.`;
+    }
 
     return {
       provider,
       providerName: meta.shortLabel,
       syncedCount: createdProjects.length,
+      updatedCount: updatedProjects.length,
       skippedCount,
       createdProjects,
+      updatedProjects,
       projects: allProjects,
       message,
     };

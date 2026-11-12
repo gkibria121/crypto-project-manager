@@ -21,9 +21,10 @@
     "db:verify": "bun --filter @repo/database db:verify",
     "db:seed": "bun --filter @repo/database db:seed",
     "setup:scraper": "bun --filter @repo/scraper setup",
-    "docker:up": "docker compose up --build -d",
-    "docker:down": "docker compose down",
-    "docker:logs": "docker compose logs -f"
+    "env:link": "node scripts/link-env.mjs",
+    "docker:up": "docker compose --env-file .env up --build -d",
+    "docker:down": "docker compose --env-file .env down",
+    "docker:logs": "docker compose --env-file .env logs -f"
   },
   "workspaces": [
     "apps/*",

@@ -12,7 +12,8 @@
 # Git & local artifacts
 .git
 .gitignore
-.env
-.env.local
+**/.env
+**/.env.*
+!**/.env.example
 coverage
 npm-debug.log*

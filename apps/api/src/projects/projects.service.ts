@@ -116,10 +116,13 @@ export class ProjectsService {
         Math.floor(Math.random() * SOLID_AVATAR_COLORS.length)
       ];
 
-    const tags = [
-      input.chain.toLowerCase(),
-      input.stage.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
-    ];
+    const tags = Array.from(
+      new Set([
+        ...(input.businessStatus === "new" ? ["new"] : []),
+        input.chain.toLowerCase(),
+        input.stage.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+      ])
+    );
 
     await this.prisma.db.transaction(async (tx) => {
       await tx.orm.public.Project.create({
@@ -190,10 +193,20 @@ export class ProjectsService {
     const normalizedTagline =
       input.tagline.trim() || `${input.chain} project (${input.stage})`;
 
-    const tags = [
-      input.chain.toLowerCase(),
-      input.stage.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
-    ];
+    const preservedTags = existing.tags.filter(
+      (tag) =>
+        tag !== "new" &&
+        tag !== existing.chain.toLowerCase() &&
+        tag !== existing.stage.toLowerCase().replace(/[^a-z0-9]+/g, "-")
+    );
+    const tags = Array.from(
+      new Set([
+        ...(input.businessStatus === "new" ? ["new"] : []),
+        input.chain.toLowerCase(),
+        input.stage.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+        ...preservedTags,
+      ])
+    );
 
     const archivedAt =
       input.businessStatus === "archived"
@@ -356,16 +369,25 @@ export class ProjectsService {
     projectId: string,
     status: ProjectBusinessStatus
   ): Promise<CryptoProject> {
-    const updated = await this.prisma.db.orm.public.Project.where({
+    const existing = await this.prisma.db.orm.public.Project.where({
+      id: projectId,
+    }).first();
+    if (!existing) {
+      throw new NotFoundException(`Project "${projectId}" not found.`);
+    }
+
+    const baseTags = existing.tags.filter((t) => t !== "new");
+    const nextTags =
+      status === "new" ? ["new", ...baseTags] : baseTags;
+
+    await this.prisma.db.orm.public.Project.where({
       id: projectId,
     }).update({
       businessStatus: status,
+      tags: nextTags,
       archivedAt: status === "archived" ? new Date() : null,
       lastActivityTime: "Now",
     });
-    if (!updated) {
-      throw new NotFoundException(`Project "${projectId}" not found.`);
-    }
     return findFullProjectOrThrow(this.prisma, projectId);
   }
 

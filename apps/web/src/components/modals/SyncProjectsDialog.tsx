@@ -81,7 +81,7 @@ export function SyncProjectsDialog({
     <ModalDialog
       dialogRef={dialogRef}
       title="Sync Crypto Projects"
-      subtitle="Import market-cap ranked crypto projects into the New state with Website, X, and LinkedIn context links."
+      subtitle="Sync your database with third-party market cap data: existing projects are updated, and missing projects are added in the New state and tagged 'new'."
       maxWidthClass="max-w-lg"
     >
       <form
@@ -234,9 +234,13 @@ export function SyncProjectsDialog({
             aria-hidden="true"
           />
           <div>
-            New projects are placed in the{" "}
+            Projects not yet in your database are added in the{" "}
             <strong className="text-[#050505] dark:text-[#e9edef]">New</strong>{" "}
-            pipeline status with active context links for{" "}
+            state and tagged{" "}
+            <code className="px-1 py-0.5 rounded bg-white dark:bg-[#202c33] text-[#00a884] font-semibold">
+              new
+            </code>{" "}
+            with active context links for{" "}
             <strong className="text-[#050505] dark:text-[#e9edef]">
               Official Website
             </strong>
@@ -248,7 +252,8 @@ export function SyncProjectsDialog({
             <strong className="text-[#050505] dark:text-[#e9edef]">
               LinkedIn
             </strong>
-            . Existing projects are automatically skipped.
+            . Existing projects in your database are synced with the latest
+            provider data.
           </div>
         </div>
 

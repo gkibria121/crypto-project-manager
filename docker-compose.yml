@@ -5,6 +5,8 @@ services:
     image: postgres:16-alpine
     container_name: pulseos-postgres
     restart: unless-stopped
+    env_file:
+      - .env
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-pulseos}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-pulseos_secret}
@@ -34,6 +36,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    env_file:
+      - .env
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-pulseos}:${POSTGRES_PASSWORD:-pulseos_secret}@postgres:5432/${POSTGRES_DB:-pulseos}
     command:
@@ -52,6 +56,8 @@ services:
       dockerfile: apps/scraper/Dockerfile
     container_name: pulseos-scraper
     restart: unless-stopped
+    env_file:
+      - .env
     environment:
       SCRAPER_PORT: 8000
       SCRAPER_API_KEY: ${SCRAPER_API_KEY:-pulseos-internal-scraper-key}
@@ -88,6 +94,8 @@ services:
         condition: service_completed_successfully
       scraper:
         condition: service_healthy
+    env_file:
+      - .env
     environment:
       NODE_ENV: production
       PORT: 4000
@@ -129,6 +137,8 @@ services:
     depends_on:
       api:
         condition: service_healthy
+    env_file:
+      - .env
     environment:
       NODE_ENV: production
       PORT: 3000

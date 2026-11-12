@@ -3,13 +3,24 @@
   "ui": "tui",
   "globalEnv": [
     "NODE_ENV",
+    "PORT",
+    "API_PORT",
+    "WEB_PORT",
+    "SCRAPER_PORT",
     "DATABASE_URL",
     "API_INTERNAL_URL",
     "SCRAPER_SERVICE_URL",
     "SCRAPER_API_KEY",
+    "SCRAPER_TIMEOUT_MS",
     "CORS_ORIGINS",
+    "JWT_SECRET",
+    "SESSION_TTL_SECONDS",
     "OPENAI_API_KEY",
-    "OPENAI_MODEL"
+    "OPENAI_MODEL",
+    "COINGECKO_API_KEY",
+    "COINMARKETCAP_API_KEY",
+    "LIVECOINWATCH_API_KEY",
+    "COINCAP_API_KEY"
   ],
   "tasks": {
     "db:generate": {

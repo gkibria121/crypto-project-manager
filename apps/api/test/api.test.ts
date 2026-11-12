@@ -545,12 +545,34 @@ describe("NestJS Core Backend Unit Tests", () => {
             });
             return row;
           },
+          where: ({ id }: { id: string }) => ({
+            update: async (patch: Record<string, unknown>) => {
+              const target = projectsStore.find((p) => p["id"] === id);
+              if (target) {
+                Object.assign(target, patch, { updatedAt: new Date() });
+              }
+              return target ?? null;
+            },
+          }),
         },
         ProjectContext: {
+          create: async (row: Record<string, unknown>) => {
+            contextsStore.push(row);
+            return row;
+          },
           createAll: async (rows: Array<Record<string, unknown>>) => {
             contextsStore.push(...rows);
             return rows;
           },
+          where: ({ id }: { id: string }) => ({
+            update: async (patch: Record<string, unknown>) => {
+              const target = contextsStore.find((c) => c["id"] === id);
+              if (target) {
+                Object.assign(target, patch, { updatedAt: new Date() });
+              }
+              return target ?? null;
+            },
+          }),
         },
         ChatMessage: {
           create: async (row: Record<string, unknown>) => {
@@ -666,6 +688,8 @@ describe("NestJS Core Backend Unit Tests", () => {
     expect(syncedProject?.name).toBe("Render Network");
     expect(syncedProject?.ticker).toBe("$RNDR");
     expect(syncedProject?.businessStatus).toBe("new");
+    expect(syncedProject?.tags).toContain("new");
+    expect(syncedProject?.tags).toContain("coingecko");
     expect(syncedProject?.chain).toBe("Solana");
 
     const contextTypes = syncedProject?.contexts.map((c) => c.type) ?? [];
@@ -686,5 +710,15 @@ describe("NestJS Core Backend Unit Tests", () => {
     expect(linkedinCtx?.url).toBe(
       "https://www.linkedin.com/company/render-network"
     );
+
+    // 3. Re-syncing when project already exists in DB updates existing project with fresh data
+    const secondSync = await syncService.syncFromProvider(
+      { provider: "coingecko", limit: 2 },
+      undefined,
+      mockFetch
+    );
+    expect(secondSync.syncedCount).toBe(0);
+    expect(secondSync.updatedCount).toBe(1);
+    expect(secondSync.updatedProjects[0]?.id).toBe(syncedProject?.id);
   });
 });

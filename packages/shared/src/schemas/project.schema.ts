@@ -190,6 +190,7 @@ export const cryptoProjectSchema = z.object({
   tagline: z.string(),
   campaignBudget: z.string(),
   sentimentScore: z.number().min(0).max(100),
+  tags: z.array(z.string()).optional(),
   isPinned: z.boolean().optional(),
   unreadInsights: z.number().int().nonnegative().optional(),
   lastActivityTime: z.string(),
@@ -318,8 +319,10 @@ export const syncProjectsResponseSchema = z.object({
   provider: syncProviderSchema,
   providerName: z.string(),
   syncedCount: z.number().int().nonnegative(),
+  updatedCount: z.number().int().nonnegative().default(0),
   skippedCount: z.number().int().nonnegative(),
   createdProjects: z.array(cryptoProjectSchema),
+  updatedProjects: z.array(cryptoProjectSchema).default([]),
   projects: z.array(cryptoProjectSchema),
   message: z.string(),
 });

@@ -51,6 +51,7 @@ export function mapPrismaProjectToDomain(
     tagline: project.tagline,
     campaignBudget: project.campaignBudget,
     sentimentScore: project.sentimentScore,
+    tags: [...project.tags],
     isPinned: project.isPinned,
     unreadInsights: project.unreadInsights,
     lastActivityTime: project.lastActivityTime,

@@ -371,7 +371,8 @@ export function AdminDashboard() {
       project.name.toLowerCase().includes(query) ||
       project.ticker.toLowerCase().includes(query) ||
       project.chain.toLowerCase().includes(query) ||
-      project.tagline.toLowerCase().includes(query);
+      project.tagline.toLowerCase().includes(query) ||
+      (project.tags ?? []).some((tag) => tag.toLowerCase().includes(query));
 
     if (!matchesSearch) return false;
     if (projectFilter === "all") return true;
@@ -2060,13 +2061,19 @@ export function AdminDashboard() {
                                     decorative={false}
                                   />
                                   <div className="min-w-0">
-                                    <div className="flex items-center gap-1.5">
+                                    <div className="flex items-center gap-1.5 flex-wrap">
                                       <span className="font-semibold text-[#050505] dark:text-[#e9edef] truncate">
                                         {project.name}
                                       </span>
                                       <span className="font-mono text-[11px] text-[#0084ff] font-semibold">
                                         {project.ticker}
                                       </span>
+                                      {(project.tags?.includes("new") ||
+                                        project.businessStatus === "new") && (
+                                        <span className="px-1.5 py-0.2 rounded bg-emerald-500/12 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300 border border-emerald-500/30 font-mono text-[9px] font-bold uppercase tracking-wider">
+                                          new
+                                        </span>
+                                      )}
                                     </div>
                                     <div className="text-[11px] text-[#65676b] dark:text-[#8696a0] truncate max-w-xs">
                                       {project.tagline}
