@@ -11,9 +11,11 @@ import {
   type ChecklistItemFormValues,
   type PromptTemplate,
   type PromptTemplateFormValues,
+  type ScraperProviderStatus,
+  type SpecializedScraperProvider,
 } from "@/types/project";
+import { ScraperProviderKeysPanel } from "@/components/ScraperProviderKeysPanel";
 import {
-  FilterChip,
   FormField,
   ModalDialog,
   PaginationBar,
@@ -28,6 +30,15 @@ interface GlobalSettingsDialogProps {
   checklistItems: ChecklistItemConfig[];
   onSaveChecklistItem: (item: ChecklistItemConfig) => void;
   onDeleteChecklistItem: (id: string) => void;
+  scraperProviders?: ScraperProviderStatus[];
+  canEditScraperKeys?: boolean;
+  onSaveScraperProviderKey?: (params: {
+    provider: SpecializedScraperProvider;
+    apiKey: string;
+  }) => Promise<unknown>;
+  onDeleteScraperProviderKey?: (
+    provider: SpecializedScraperProvider
+  ) => Promise<unknown>;
 }
 
 export function GlobalSettingsDialog({
@@ -38,10 +49,14 @@ export function GlobalSettingsDialog({
   checklistItems,
   onSaveChecklistItem,
   onDeleteChecklistItem,
+  scraperProviders = [],
+  canEditScraperKeys = false,
+  onSaveScraperProviderKey,
+  onDeleteScraperProviderKey,
 }: GlobalSettingsDialogProps) {
-  const [activeTab, setActiveTab] = useState<"prompts" | "checklist">(
-    "prompts"
-  );
+  const [activeTab, setActiveTab] = useState<
+    "prompts" | "checklist" | "scraper-apis"
+  >("prompts");
 
   const promptsPagination = usePagination(promptTemplates, {
     initialPageSize: 4,
@@ -102,22 +117,55 @@ export function GlobalSettingsDialog({
       subtitle="Manage system prompts and feature checklist items across all projects"
       maxWidthClass="max-w-2xl"
     >
-      <div className="flex items-center gap-2 mt-3 pb-3 border-b border-[#e4e6eb] dark:border-[#2a3942] overflow-x-auto scroller">
-        <FilterChip
-          active={activeTab === "prompts"}
+      <div
+        role="tablist"
+        aria-label="Global settings sections"
+        className="flex items-center gap-1 mt-3 border-b border-[#e4e6eb] dark:border-[#2a3942] overflow-x-auto scroller"
+      >
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === "prompts"}
           onClick={() => setActiveTab("prompts")}
+          className="accessible-tab px-3 py-2 text-xs font-semibold text-[#65676b] dark:text-[#8696a0] hover:text-[#050505] dark:hover:text-[#e9edef] transition cursor-pointer whitespace-nowrap"
         >
           System Prompts ({promptTemplates.length})
-        </FilterChip>
-        <FilterChip
-          active={activeTab === "checklist"}
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === "checklist"}
           onClick={() => setActiveTab("checklist")}
+          className="accessible-tab px-3 py-2 text-xs font-semibold text-[#65676b] dark:text-[#8696a0] hover:text-[#050505] dark:hover:text-[#e9edef] transition cursor-pointer whitespace-nowrap"
         >
           Global Checklist ({checklistItems.length})
-        </FilterChip>
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === "scraper-apis"}
+          onClick={() => setActiveTab("scraper-apis")}
+          className="accessible-tab px-3 py-2 text-xs font-semibold text-[#65676b] dark:text-[#8696a0] hover:text-[#050505] dark:hover:text-[#e9edef] transition cursor-pointer whitespace-nowrap"
+        >
+          Scraper APIs ({scraperProviders.filter((p) => p.configured).length}/
+          {scraperProviders.length || 3})
+        </button>
       </div>
 
-      {activeTab === "prompts" ? (
+      {activeTab === "scraper-apis" ? (
+        <div className="mt-4">
+          <ScraperProviderKeysPanel
+            providerStatuses={scraperProviders}
+            canEdit={canEditScraperKeys}
+            onSaveKey={
+              onSaveScraperProviderKey ?? (async () => undefined)
+            }
+            onDeleteKey={
+              onDeleteScraperProviderKey ?? (async () => undefined)
+            }
+          />
+        </div>
+      ) : activeTab === "prompts" ? (
         <div className="mt-4 space-y-4">
           <div className="max-h-72 overflow-y-auto scroller space-y-3 pr-1">
             {promptsPagination.items.map((tpl) => (

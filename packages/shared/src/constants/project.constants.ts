@@ -1,8 +1,11 @@
 import type {
+  ContextType,
   Permission,
   ProjectBusinessStatus,
   ProjectChain,
   ProjectStage,
+  ScrapeConfig,
+  SpecializedScraperProvider,
   SyncProvider,
   UserRole,
 } from "../schemas/project.schema";
@@ -384,3 +387,115 @@ export const SYNC_PROVIDER_META: Record<
       "bg-amber-500/12 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300",
   },
 };
+
+export const DEFAULT_SCRAPE_CONFIG: ScrapeConfig = {
+  levels: 2,
+  maxPages: 10,
+  renderJs: true,
+  waitUntil: "networkidle",
+  waitForMs: 1200,
+  scrollToBottom: true,
+  sameDomainOnly: true,
+  includeSubdomains: true,
+  respectRobotsTxt: true,
+  extractStructuredData: true,
+  extractContacts: true,
+  blockMedia: true,
+  timeoutSeconds: 15,
+  includePatterns: [],
+  excludePatterns: [],
+  specializedMaxItems: 15,
+};
+
+export const SPECIALIZED_SCRAPER_PROVIDERS: readonly SpecializedScraperProvider[] =
+  ["x", "linkedin", "telegram"] as const;
+
+export const SPECIALIZED_SCRAPER_PROVIDER_META: Record<
+  SpecializedScraperProvider,
+  {
+    label: string;
+    shortLabel: string;
+    envVar: string;
+    preferredMethod: string;
+    docsUrl: string;
+    requiredNotice: string;
+    badgeClass: string;
+  }
+> = {
+  x: {
+    label: "X (Twitter) API v2",
+    shortLabel: "X / Twitter",
+    envVar: "X_API_BEARER_TOKEN",
+    preferredMethod:
+      "Official X API v2 (/2/users/by/username & /2/users/:id/tweets)",
+    docsUrl: "https://developer.x.com/en/docs/twitter-api",
+    requiredNotice:
+      "API key needed: X (Twitter) requires an X API v2 Bearer Token (X_API_BEARER_TOKEN) because unauthenticated scraping is blocked.",
+    badgeClass:
+      "bg-slate-900/10 text-slate-800 dark:bg-white/10 dark:text-[#e9edef]",
+  },
+  linkedin: {
+    label: "LinkedIn REST API",
+    shortLabel: "LinkedIn",
+    envVar: "LINKEDIN_API_KEY",
+    preferredMethod:
+      "Official LinkedIn Organizations & Community API (/rest/organizations & /rest/posts)",
+    docsUrl: "https://learn.microsoft.com/en-us/linkedin/",
+    requiredNotice:
+      "API key needed: LinkedIn requires an official LinkedIn OAuth 2.0 Access Token (LINKEDIN_API_KEY) to access organization and profile metadata.",
+    badgeClass:
+      "bg-[#0a66c2]/12 text-[#0a66c2] dark:bg-[#0a66c2]/25 dark:text-[#60a5fa]",
+  },
+  telegram: {
+    label: "Telegram Bot API",
+    shortLabel: "Telegram",
+    envVar: "TELEGRAM_BOT_TOKEN",
+    preferredMethod:
+      "Official Telegram Bot API (getChat, getChatMemberCount, getUpdates)",
+    docsUrl: "https://core.telegram.org/bots/api",
+    requiredNotice:
+      "API key needed: Telegram requires a Bot API Token from @BotFather (TELEGRAM_BOT_TOKEN) to inspect channels, groups, and messages.",
+    badgeClass:
+      "bg-[#229ed9]/12 text-[#167fb3] dark:bg-[#229ed9]/20 dark:text-[#5cc4f5]",
+  },
+};
+
+export function detectSpecializedProvider(
+  contextType: ContextType,
+  rawValueOrUrl?: string | null
+): SpecializedScraperProvider | null {
+  if (contextType === "x_handle") return "x";
+  if (contextType === "linkedin") return "linkedin";
+  if (contextType === "telegram") return "telegram";
+  if (contextType === "message" || !rawValueOrUrl) return null;
+
+  const lower = rawValueOrUrl.trim().toLowerCase();
+  let host = "";
+  try {
+    const parsed = new URL(lower.includes("://") ? lower : `https://${lower}`);
+    host = parsed.hostname;
+  } catch {
+    host = lower;
+  }
+
+  if (
+    host === "x.com" ||
+    host.endsWith(".x.com") ||
+    host === "twitter.com" ||
+    host.endsWith(".twitter.com")
+  ) {
+    return "x";
+  }
+  if (host === "linkedin.com" || host.endsWith(".linkedin.com")) {
+    return "linkedin";
+  }
+  if (
+    host === "t.me" ||
+    host.endsWith(".t.me") ||
+    host === "telegram.me" ||
+    host.endsWith(".telegram.me")
+  ) {
+    return "telegram";
+  }
+  return null;
+}

@@ -42,11 +42,12 @@ enum MessageSender {
 
 enum ScrapeStatus {
   @@type("pg/text@1")
-  pending     = "pending"
-  running     = "running"
-  completed   = "completed"
-  unreachable = "unreachable"
-  failed      = "failed"
+  pending          = "pending"
+  running          = "running"
+  completed        = "completed"
+  unreachable      = "unreachable"
+  failed           = "failed"
+  api_key_required = "api_key_required"
 }
 
 enum UserRole {
@@ -135,6 +136,7 @@ model Project {
   messages        ChatMessage[]
   checklistStates ProjectChecklistState[]
   scrapeJobs      ScrapeJob[]
+  scrapedPages    ScrapedPage[]
 
   @@check(expression: sql`sentiment_score >= 0 AND sentiment_score <= 100`, name: "project_sentiment_bounds")
   @@index([businessStatus])
@@ -160,8 +162,9 @@ model ProjectContext {
   scrapedMetadata Json?         @map("scraped_metadata")
   +Timestamps
 
-  project    Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  scrapeJobs ScrapeJob[]
+  project      Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  scrapeJobs   ScrapeJob[]
+  scrapedPages ScrapedPage[]
 
   @@index([projectId, createdAt])
   @@index([projectId, isActive])
@@ -251,14 +254,72 @@ model ScrapeJob {
   rawPreview           String?      @map("raw_preview")
   errorMessage         String?      @map("error_message")
   durationMs           Int?         @map("duration_ms")
+  config               Json?
+  providerUsed         String?      @map("provider_used")
+  requiresApiKey       Boolean      @default(false) @map("requires_api_key")
+  levelsScraped        Int          @default(0) @map("levels_scraped")
+  pagesScraped         Int          @default(0) @map("pages_scraped")
+  platformData         Json?        @map("platform_data")
   createdAt            DateTime     @default(now()) @onCreate(now()) @map("created_at")
   completedAt          DateTime?    @map("completed_at")
 
   project Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
   context ProjectContext? @relation(fields: [contextId], references: [id], onDelete: SetNull)
+  pages   ScrapedPage[]
 
   @@index([projectId, createdAt])
   @@index([status, createdAt])
   @@index([contextId])
   @@map("scrape_jobs")
+}
+
+model ScrapedPage {
+  id             String   @id @onCreate(cuid(2))
+  projectId      String   @map("project_id")
+  contextId      String   @map("context_id")
+  scrapeJobId    String   @map("scrape_job_id")
+  url            String
+  canonicalUrl   String?  @map("canonical_url")
+  parentUrl      String?  @map("parent_url")
+  depth          Int      @default(1)
+  httpStatus     Int?     @map("http_status")
+  contentType    String?  @map("content_type")
+  renderMode     String   @default("playwright_js") @map("render_mode")
+  title          String?
+  description    String?
+  language       String?
+  headings       Json?
+  textContent    String?  @map("text_content")
+  wordCount      Int      @default(0) @map("word_count")
+  links          Json?
+  socialLinks    Json?    @map("social_links")
+  contacts       String[] @default(sql`'{}'::text[]`)
+  signals        String[] @default(sql`'{}'::text[]`)
+  metaTags       Json?    @map("meta_tags")
+  structuredData Json?    @map("structured_data")
+  platformData   Json?    @map("platform_data")
+  errorMessage   String?  @map("error_message")
+  durationMs     Int?     @map("duration_ms")
+  scrapedAt      DateTime @default(now()) @onCreate(now()) @map("scraped_at")
+
+  project   Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  context   ProjectContext @relation(fields: [contextId], references: [id], onDelete: Cascade)
+  scrapeJob ScrapeJob      @relation(fields: [scrapeJobId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, scrapedAt])
+  @@index([contextId, scrapedAt])
+  @@index([scrapeJobId, depth])
+  @@map("scraped_pages")
+}
+
+model ScraperProviderConfig {
+  provider    String   @id
+  apiKey      String?  @map("api_key")
+  apiSecret   String?  @map("api_secret")
+  extraConfig Json?    @map("extra_config")
+  isEnabled   Boolean  @default(true) @map("is_enabled")
+  updatedBy   String?  @map("updated_by")
+  +Timestamps
+
+  @@map("scraper_provider_configs")
 }

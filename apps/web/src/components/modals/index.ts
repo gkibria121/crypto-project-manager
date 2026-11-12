@@ -6,3 +6,5 @@ export * from "./SyncProjectsDialog";
 export * from "./ProjectChecklistDialog";
 export * from "./GlobalSettingsDialog";
 export * from "./TeamRbacDialog";
+export * from "./ScrapeConfigDialog";
+export * from "./ScrapedDataDialog";

@@ -46,6 +46,19 @@ export const scrapeStatusSchema = z.enum([
   "completed",
   "unreachable",
   "failed",
+  "api_key_required",
+]);
+
+export const specializedScraperProviderSchema = z.enum([
+  "x",
+  "linkedin",
+  "telegram",
+]);
+
+export const scrapeWaitUntilSchema = z.enum([
+  "domcontentloaded",
+  "load",
+  "networkidle",
 ]);
 
 export const syncProviderSchema = z.enum([
@@ -83,6 +96,72 @@ export const permissionSchema = z.enum([
 /**
  * Scraper & Enrichment Schemas
  */
+export const scrapeConfigSchema = z.object({
+  levels: z.coerce.number().int().min(1).max(5).default(2),
+  maxPages: z.coerce.number().int().min(1).max(50).default(10),
+  renderJs: z.boolean().default(true),
+  waitUntil: scrapeWaitUntilSchema.default("networkidle"),
+  waitForMs: z.coerce.number().int().min(0).max(10000).default(1200),
+  scrollToBottom: z.boolean().default(true),
+  sameDomainOnly: z.boolean().default(true),
+  includeSubdomains: z.boolean().default(true),
+  respectRobotsTxt: z.boolean().default(true),
+  extractStructuredData: z.boolean().default(true),
+  extractContacts: z.boolean().default(true),
+  blockMedia: z.boolean().default(true),
+  timeoutSeconds: z.coerce.number().int().min(5).max(60).default(15),
+  includePatterns: z.array(z.string().trim().min(1)).max(20).default([]),
+  excludePatterns: z.array(z.string().trim().min(1)).max(20).default([]),
+  specializedMaxItems: z.coerce.number().int().min(1).max(100).default(15),
+});
+
+export const triggerScrapeDtoSchema = scrapeConfigSchema.partial();
+
+export const scrapedHeadingSchema = z.object({
+  level: z.string(),
+  text: z.string(),
+});
+
+export const scrapedLinkSchema = z.object({
+  url: z.string(),
+  text: z.string().default(""),
+  isInternal: z.boolean().default(false),
+  category: z.string().nullable().optional(),
+});
+
+export const scraperServicePageSchema = z.object({
+  url: z.string(),
+  canonicalUrl: z.string().nullable().optional(),
+  parentUrl: z.string().nullable().optional(),
+  depth: z.number().int().min(1),
+  httpStatus: z.number().int().nullable().optional(),
+  contentType: z.string().nullable().optional(),
+  renderMode: z.string().default("playwright_js"),
+  title: z.string().nullable().optional(),
+  description: z.string().nullable().optional(),
+  language: z.string().nullable().optional(),
+  headings: z.array(scrapedHeadingSchema).default([]),
+  textContent: z.string().nullable().optional(),
+  wordCount: z.number().int().nonnegative().default(0),
+  links: z.array(scrapedLinkSchema).default([]),
+  socialLinks: z.record(z.string(), z.string()).default({}),
+  contacts: z.array(z.string()).default([]),
+  signals: z.array(z.string()).default([]),
+  metaTags: z.record(z.string(), z.string()).default({}),
+  structuredData: z.array(z.unknown()).default([]),
+  platformData: z.record(z.string(), z.unknown()).nullable().optional(),
+  errorMessage: z.string().nullable().optional(),
+  durationMs: z.number().int().nonnegative().nullable().optional(),
+});
+
+export const scrapedPageSchema = scraperServicePageSchema.extend({
+  id: z.string().min(1),
+  projectId: z.string().min(1),
+  contextId: z.string().min(1),
+  scrapeJobId: z.string().min(1),
+  scrapedAt: z.string(),
+});
+
 export const scrapedMetadataSchema = z.object({
   normalizedUrl: z.string().optional(),
   title: z.string().optional(),
@@ -95,6 +174,16 @@ export const scrapedMetadataSchema = z.object({
   rawPreview: z.string().optional(),
   summary: z.string().optional(),
   errorReason: z.string().optional(),
+  providerUsed: z.string().optional(),
+  specializedProvider: specializedScraperProviderSchema.nullable().optional(),
+  requiresApiKey: z.boolean().optional(),
+  apiKeyConfigured: z.boolean().optional(),
+  levelsScraped: z.number().int().nonnegative().optional(),
+  pagesCount: z.number().int().nonnegative().optional(),
+  contacts: z.array(z.string()).default([]),
+  lastJobId: z.string().optional(),
+  configUsed: scrapeConfigSchema.partial().optional(),
+  platformData: z.record(z.string(), z.unknown()).nullable().optional(),
 });
 
 export const scrapeJobSchema = z.object({
@@ -105,6 +194,7 @@ export const scrapeJobSchema = z.object({
   targetValue: z.string().min(1),
   normalizedUrl: z.string().optional(),
   status: scrapeStatusSchema,
+  httpStatus: z.number().int().nullable().optional(),
   extractedTitle: z.string().optional(),
   extractedDescription: z.string().optional(),
   detectedSocials: z.record(z.string(), z.string()).optional(),
@@ -112,6 +202,13 @@ export const scrapeJobSchema = z.object({
   rawPreview: z.string().optional(),
   errorMessage: z.string().optional(),
   durationMs: z.number().int().nonnegative().optional(),
+  config: scrapeConfigSchema.partial().optional(),
+  providerUsed: z.string().optional(),
+  requiresApiKey: z.boolean().default(false),
+  levelsScraped: z.number().int().nonnegative().default(0),
+  pagesScraped: z.number().int().nonnegative().default(0),
+  platformData: z.record(z.string(), z.unknown()).nullable().optional(),
+  pages: z.array(scrapedPageSchema).optional(),
   createdAt: z.string(),
   completedAt: z.string().optional(),
 });
@@ -132,6 +229,43 @@ export const scraperServiceResponseSchema = z.object({
   summary: z.string().nullable().optional(),
   errorReason: z.string().nullable().optional(),
   durationMs: z.number().int().nonnegative().default(0),
+  providerUsed: z.string().optional(),
+  specializedProvider: specializedScraperProviderSchema.nullable().optional(),
+  requiresApiKey: z.boolean().default(false),
+  apiKeyConfigured: z.boolean().default(false),
+  levelsScraped: z.number().int().nonnegative().default(0),
+  pagesScraped: z.number().int().nonnegative().default(0),
+  contacts: z.array(z.string()).default([]),
+  structuredData: z.array(z.unknown()).default([]),
+  platformData: z.record(z.string(), z.unknown()).nullable().optional(),
+  pages: z.array(scraperServicePageSchema).default([]),
+  configUsed: scrapeConfigSchema.optional(),
+});
+
+export const scraperProviderStatusSchema = z.object({
+  provider: specializedScraperProviderSchema,
+  label: z.string(),
+  shortLabel: z.string(),
+  envVar: z.string(),
+  preferredMethod: z.string(),
+  docsUrl: z.string(),
+  requiredNotice: z.string(),
+  configured: z.boolean(),
+  source: z.enum(["workspace", "env", "none"]),
+  maskedKey: z.string().nullable().optional(),
+  updatedAt: z.string().nullable().optional(),
+});
+
+export const updateScraperProviderKeyDtoSchema = z.object({
+  apiKey: z.string().trim().min(1, "API key or token is required").max(4000),
+});
+
+export const projectScrapedDataResponseSchema = z.object({
+  projectId: z.string(),
+  projectName: z.string(),
+  contextId: z.string().nullable().optional(),
+  jobs: z.array(scrapeJobSchema),
+  pages: z.array(scrapedPageSchema),
 });
 
 /**
@@ -498,6 +632,23 @@ export type ProjectBusinessStatus = z.infer<typeof projectBusinessStatusSchema>;
 export type ProjectChain = z.infer<typeof projectChainSchema>;
 export type MessageSender = z.infer<typeof messageSenderSchema>;
 export type ScrapeStatus = z.infer<typeof scrapeStatusSchema>;
+export type SpecializedScraperProvider = z.infer<
+  typeof specializedScraperProviderSchema
+>;
+export type ScrapeWaitUntil = z.infer<typeof scrapeWaitUntilSchema>;
+export type ScrapeConfig = z.infer<typeof scrapeConfigSchema>;
+export type TriggerScrapeDto = z.infer<typeof triggerScrapeDtoSchema>;
+export type ScrapedHeading = z.infer<typeof scrapedHeadingSchema>;
+export type ScrapedLink = z.infer<typeof scrapedLinkSchema>;
+export type ScraperServicePage = z.infer<typeof scraperServicePageSchema>;
+export type ScrapedPage = z.infer<typeof scrapedPageSchema>;
+export type ScraperProviderStatus = z.infer<typeof scraperProviderStatusSchema>;
+export type UpdateScraperProviderKeyDto = z.infer<
+  typeof updateScraperProviderKeyDtoSchema
+>;
+export type ProjectScrapedDataResponse = z.infer<
+  typeof projectScrapedDataResponseSchema
+>;
 export type SyncProvider = z.infer<typeof syncProviderSchema>;
 export type SyncLogLevel = z.infer<typeof syncLogLevelSchema>;
 export type SyncLogEntry = z.infer<typeof syncLogEntrySchema>;

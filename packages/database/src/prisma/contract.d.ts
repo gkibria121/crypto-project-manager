@@ -23,9 +23,9 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'12fdf4409b6d3ae12d8e0503e0bc189283b2b2ab3af89965175c3dd40dad2cb9'>;
+  StorageHashBase<'6801bdf4e036bc679e894f360a258dd13640c0a13b63c8ea91605b34c57aff0f'>;
 export type ExecutionHash =
-  ExecutionHashBase<'8b603fd160e574fc4a6a55564d577df8f14873eb55e2a9c5b14c4fadf80f42a2'>;
+  ExecutionHashBase<'42ab2f47ad84cf640f24c69cb969e6ffdbacf886db68f673ca5bb9f542df6e68'>;
 export type ProfileHash =
   ProfileHashBase<'3916f444a8a17ad749191acf9e08dad97d1a327b88c2f1d45d12f240296aa8b2'>;
 
@@ -315,8 +315,10 @@ type FieldTypeOverrides = {
       };
       readonly ProjectContext: {
         readonly scrapeStatus: {
-          readonly output: 'pending' | 'running' | 'completed' | 'unreachable' | 'failed';
-          readonly input: 'pending' | 'running' | 'completed' | 'unreachable' | 'failed';
+          readonly output:
+            'pending' | 'running' | 'completed' | 'unreachable' | 'failed' | 'api_key_required';
+          readonly input:
+            'pending' | 'running' | 'completed' | 'unreachable' | 'failed' | 'api_key_required';
         };
         readonly type: {
           readonly output: 'website' | 'x_handle' | 'linkedin' | 'telegram' | 'message';
@@ -325,8 +327,10 @@ type FieldTypeOverrides = {
       };
       readonly ScrapeJob: {
         readonly status: {
-          readonly output: 'pending' | 'running' | 'completed' | 'unreachable' | 'failed';
-          readonly input: 'pending' | 'running' | 'completed' | 'unreachable' | 'failed';
+          readonly output:
+            'pending' | 'running' | 'completed' | 'unreachable' | 'failed' | 'api_key_required';
+          readonly input:
+            'pending' | 'running' | 'completed' | 'unreachable' | 'failed' | 'api_key_required';
         };
         readonly targetType: {
           readonly output: 'website' | 'x_handle' | 'linkedin' | 'telegram' | 'message';
@@ -371,8 +375,10 @@ type ColumnTypeOverrides = {
     };
     readonly project_contexts: {
       readonly scrape_status: {
-        readonly output: 'pending' | 'running' | 'completed' | 'unreachable' | 'failed';
-        readonly input: 'pending' | 'running' | 'completed' | 'unreachable' | 'failed';
+        readonly output:
+          'pending' | 'running' | 'completed' | 'unreachable' | 'failed' | 'api_key_required';
+        readonly input:
+          'pending' | 'running' | 'completed' | 'unreachable' | 'failed' | 'api_key_required';
       };
       readonly type: {
         readonly output: 'website' | 'x_handle' | 'linkedin' | 'telegram' | 'message';
@@ -407,8 +413,10 @@ type ColumnTypeOverrides = {
     };
     readonly scrape_jobs: {
       readonly status: {
-        readonly output: 'pending' | 'running' | 'completed' | 'unreachable' | 'failed';
-        readonly input: 'pending' | 'running' | 'completed' | 'unreachable' | 'failed';
+        readonly output:
+          'pending' | 'running' | 'completed' | 'unreachable' | 'failed' | 'api_key_required';
+        readonly input:
+          'pending' | 'running' | 'completed' | 'unreachable' | 'failed' | 'api_key_required';
       };
       readonly target_type: {
         readonly output: 'website' | 'x_handle' | 'linkedin' | 'telegram' | 'message';
@@ -515,7 +523,9 @@ export namespace Models {
     contexts: public_ProjectContext[];
     messages: public_ChatMessage[];
     scrapeJobs: public_ScrapeJob[];
-    readonly [RelationKeys]?: 'checklistStates' | 'contexts' | 'messages' | 'scrapeJobs';
+    scrapedPages: public_ScrapedPage[];
+    readonly [RelationKeys]?:
+      'checklistStates' | 'contexts' | 'messages' | 'scrapeJobs' | 'scrapedPages';
   };
   export type public_ProjectChecklistState = {
     checked: FieldOutputTypes['public']['ProjectChecklistState']['checked'];
@@ -546,7 +556,8 @@ export namespace Models {
     value: FieldOutputTypes['public']['ProjectContext']['value'];
     project: public_Project;
     scrapeJobs: public_ScrapeJob[];
-    readonly [RelationKeys]?: 'project' | 'scrapeJobs';
+    scrapedPages: public_ScrapedPage[];
+    readonly [RelationKeys]?: 'project' | 'scrapeJobs' | 'scrapedPages';
   };
   export type public_PromptTemplate = {
     createdAt: FieldOutputTypes['public']['PromptTemplate']['createdAt'];
@@ -562,6 +573,7 @@ export namespace Models {
   export type public_ScrapeJob = {
     attemptCount: FieldOutputTypes['public']['ScrapeJob']['attemptCount'];
     completedAt: FieldOutputTypes['public']['ScrapeJob']['completedAt'];
+    config: FieldOutputTypes['public']['ScrapeJob']['config'];
     contextId: FieldOutputTypes['public']['ScrapeJob']['contextId'];
     createdAt: FieldOutputTypes['public']['ScrapeJob']['createdAt'];
     detectedSignals: FieldOutputTypes['public']['ScrapeJob']['detectedSignals'];
@@ -572,15 +584,65 @@ export namespace Models {
     extractedTitle: FieldOutputTypes['public']['ScrapeJob']['extractedTitle'];
     httpStatus: FieldOutputTypes['public']['ScrapeJob']['httpStatus'];
     id: FieldOutputTypes['public']['ScrapeJob']['id'];
+    levelsScraped: FieldOutputTypes['public']['ScrapeJob']['levelsScraped'];
     normalizedUrl: FieldOutputTypes['public']['ScrapeJob']['normalizedUrl'];
+    pagesScraped: FieldOutputTypes['public']['ScrapeJob']['pagesScraped'];
+    platformData: FieldOutputTypes['public']['ScrapeJob']['platformData'];
     projectId: FieldOutputTypes['public']['ScrapeJob']['projectId'];
+    providerUsed: FieldOutputTypes['public']['ScrapeJob']['providerUsed'];
     rawPreview: FieldOutputTypes['public']['ScrapeJob']['rawPreview'];
+    requiresApiKey: FieldOutputTypes['public']['ScrapeJob']['requiresApiKey'];
     status: FieldOutputTypes['public']['ScrapeJob']['status'];
     targetType: FieldOutputTypes['public']['ScrapeJob']['targetType'];
     targetValue: FieldOutputTypes['public']['ScrapeJob']['targetValue'];
     context: public_ProjectContext | null;
+    pages: public_ScrapedPage[];
     project: public_Project;
-    readonly [RelationKeys]?: 'context' | 'project';
+    readonly [RelationKeys]?: 'context' | 'pages' | 'project';
+  };
+  export type public_ScrapedPage = {
+    canonicalUrl: FieldOutputTypes['public']['ScrapedPage']['canonicalUrl'];
+    contacts: FieldOutputTypes['public']['ScrapedPage']['contacts'];
+    contentType: FieldOutputTypes['public']['ScrapedPage']['contentType'];
+    contextId: FieldOutputTypes['public']['ScrapedPage']['contextId'];
+    depth: FieldOutputTypes['public']['ScrapedPage']['depth'];
+    description: FieldOutputTypes['public']['ScrapedPage']['description'];
+    durationMs: FieldOutputTypes['public']['ScrapedPage']['durationMs'];
+    errorMessage: FieldOutputTypes['public']['ScrapedPage']['errorMessage'];
+    headings: FieldOutputTypes['public']['ScrapedPage']['headings'];
+    httpStatus: FieldOutputTypes['public']['ScrapedPage']['httpStatus'];
+    id: FieldOutputTypes['public']['ScrapedPage']['id'];
+    language: FieldOutputTypes['public']['ScrapedPage']['language'];
+    links: FieldOutputTypes['public']['ScrapedPage']['links'];
+    metaTags: FieldOutputTypes['public']['ScrapedPage']['metaTags'];
+    parentUrl: FieldOutputTypes['public']['ScrapedPage']['parentUrl'];
+    platformData: FieldOutputTypes['public']['ScrapedPage']['platformData'];
+    projectId: FieldOutputTypes['public']['ScrapedPage']['projectId'];
+    renderMode: FieldOutputTypes['public']['ScrapedPage']['renderMode'];
+    scrapeJobId: FieldOutputTypes['public']['ScrapedPage']['scrapeJobId'];
+    scrapedAt: FieldOutputTypes['public']['ScrapedPage']['scrapedAt'];
+    signals: FieldOutputTypes['public']['ScrapedPage']['signals'];
+    socialLinks: FieldOutputTypes['public']['ScrapedPage']['socialLinks'];
+    structuredData: FieldOutputTypes['public']['ScrapedPage']['structuredData'];
+    textContent: FieldOutputTypes['public']['ScrapedPage']['textContent'];
+    title: FieldOutputTypes['public']['ScrapedPage']['title'];
+    url: FieldOutputTypes['public']['ScrapedPage']['url'];
+    wordCount: FieldOutputTypes['public']['ScrapedPage']['wordCount'];
+    context: public_ProjectContext;
+    project: public_Project;
+    scrapeJob: public_ScrapeJob;
+    readonly [RelationKeys]?: 'context' | 'project' | 'scrapeJob';
+  };
+  export type public_ScraperProviderConfig = {
+    apiKey: FieldOutputTypes['public']['ScraperProviderConfig']['apiKey'];
+    apiSecret: FieldOutputTypes['public']['ScraperProviderConfig']['apiSecret'];
+    createdAt: FieldOutputTypes['public']['ScraperProviderConfig']['createdAt'];
+    extraConfig: FieldOutputTypes['public']['ScraperProviderConfig']['extraConfig'];
+    isEnabled: FieldOutputTypes['public']['ScraperProviderConfig']['isEnabled'];
+    provider: FieldOutputTypes['public']['ScraperProviderConfig']['provider'];
+    updatedAt: FieldOutputTypes['public']['ScraperProviderConfig']['updatedAt'];
+    updatedBy: FieldOutputTypes['public']['ScraperProviderConfig']['updatedBy'];
+    readonly [RelationKeys]?: never;
   };
   export type public_User = {
     avatarColor: FieldOutputTypes['public']['User']['avatarColor'];
@@ -610,6 +672,8 @@ export declare const models: {
     ProjectContext: Models.public_ProjectContext;
     PromptTemplate: Models.public_PromptTemplate;
     ScrapeJob: Models.public_ScrapeJob;
+    ScrapedPage: Models.public_ScrapedPage;
+    ScraperProviderConfig: Models.public_ScraperProviderConfig;
     User: Models.public_User;
   };
 };
@@ -1552,6 +1616,12 @@ type ContractBase = Omit<
                   readonly typeParams: { readonly precision: 3 };
                   readonly many: false;
                 };
+                readonly config: {
+                  readonly dataType: 'pg/json';
+                  readonly codecId: 'pg/json@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
                 readonly context_id: {
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
@@ -1618,9 +1688,35 @@ type ContractBase = Omit<
                   readonly nullable: false;
                   readonly many: false;
                 };
+                readonly levels_scraped: {
+                  readonly dataType: 'pg/int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/int4@1', 0>;
+                  };
+                  readonly many: false;
+                };
                 readonly normalized_url: {
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly pages_scraped: {
+                  readonly dataType: 'pg/int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/int4@1', 0>;
+                  };
+                  readonly many: false;
+                };
+                readonly platform_data: {
+                  readonly dataType: 'pg/json';
+                  readonly codecId: 'pg/json@1';
                   readonly nullable: true;
                   readonly many: false;
                 };
@@ -1630,10 +1726,26 @@ type ContractBase = Omit<
                   readonly nullable: false;
                   readonly many: false;
                 };
+                readonly provider_used: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
                 readonly raw_preview: {
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
                   readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly requires_api_key: {
+                  readonly dataType: 'pg/bool';
+                  readonly codecId: 'pg/bool@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/bool@1', false>;
+                  };
                   readonly many: false;
                 };
                 readonly status: {
@@ -1713,6 +1825,336 @@ type ContractBase = Omit<
                   };
                 },
               ];
+            };
+            readonly scraped_pages: {
+              columns: {
+                readonly canonical_url: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly contacts: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'function';
+                    readonly expression: "'{}'::text[]";
+                  };
+                  readonly many: { readonly elementNullable: false };
+                };
+                readonly content_type: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly context_id: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly depth: {
+                  readonly dataType: 'pg/int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/int4@1', 1>;
+                  };
+                  readonly many: false;
+                };
+                readonly description: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly duration_ms: {
+                  readonly dataType: 'pg/int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly error_message: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly headings: {
+                  readonly dataType: 'pg/json';
+                  readonly codecId: 'pg/json@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly http_status: {
+                  readonly dataType: 'pg/int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly id: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly language: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly links: {
+                  readonly dataType: 'pg/json';
+                  readonly codecId: 'pg/json@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly meta_tags: {
+                  readonly dataType: 'pg/json';
+                  readonly codecId: 'pg/json@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly parent_url: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly platform_data: {
+                  readonly dataType: 'pg/json';
+                  readonly codecId: 'pg/json@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly project_id: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly render_mode: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/text@1', 'playwright_js'>;
+                  };
+                  readonly many: false;
+                };
+                readonly scrape_job_id: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly scraped_at: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: false;
+                  readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+                readonly signals: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'function';
+                    readonly expression: "'{}'::text[]";
+                  };
+                  readonly many: { readonly elementNullable: false };
+                };
+                readonly social_links: {
+                  readonly dataType: 'pg/json';
+                  readonly codecId: 'pg/json@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly structured_data: {
+                  readonly dataType: 'pg/json';
+                  readonly codecId: 'pg/json@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly text_content: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly title: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly url: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly word_count: {
+                  readonly dataType: 'pg/int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/int4@1', 0>;
+                  };
+                  readonly many: false;
+                };
+              };
+              primaryKey: { readonly columns: readonly ['id'] };
+              uniques: readonly [];
+              indexes: readonly [
+                {
+                  readonly name: 'scraped_pages_context_id_idx_0d3b2250';
+                  readonly prefix: 'scraped_pages_context_id_idx';
+                  readonly columns: readonly ['context_id'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'scraped_pages_context_id_scraped_at_idx_2803cdad';
+                  readonly prefix: 'scraped_pages_context_id_scraped_at_idx';
+                  readonly columns: readonly ['context_id', 'scraped_at'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'scraped_pages_project_id_idx_6ad92603';
+                  readonly prefix: 'scraped_pages_project_id_idx';
+                  readonly columns: readonly ['project_id'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'scraped_pages_project_id_scraped_at_idx_33362faa';
+                  readonly prefix: 'scraped_pages_project_id_scraped_at_idx';
+                  readonly columns: readonly ['project_id', 'scraped_at'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'scraped_pages_scrape_job_id_depth_idx_42001e3b';
+                  readonly prefix: 'scraped_pages_scrape_job_id_depth_idx';
+                  readonly columns: readonly ['scrape_job_id', 'depth'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'scraped_pages_scrape_job_id_idx_eacb5c9f';
+                  readonly prefix: 'scraped_pages_scrape_job_id_idx';
+                  readonly columns: readonly ['scrape_job_id'];
+                  readonly unique: false;
+                },
+              ];
+              foreignKeys: readonly [
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'scraped_pages';
+                    readonly columns: readonly ['project_id'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'projects';
+                    readonly columns: readonly ['id'];
+                  };
+                },
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'scraped_pages';
+                    readonly columns: readonly ['context_id'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'project_contexts';
+                    readonly columns: readonly ['id'];
+                  };
+                },
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'scraped_pages';
+                    readonly columns: readonly ['scrape_job_id'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'scrape_jobs';
+                    readonly columns: readonly ['id'];
+                  };
+                },
+              ];
+            };
+            readonly scraper_provider_configs: {
+              columns: {
+                readonly api_key: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly api_secret: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly created_at: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: false;
+                  readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+                readonly extra_config: {
+                  readonly dataType: 'pg/json';
+                  readonly codecId: 'pg/json@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly is_enabled: {
+                  readonly dataType: 'pg/bool';
+                  readonly codecId: 'pg/bool@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/bool@1', true>;
+                  };
+                  readonly many: false;
+                };
+                readonly provider: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly updated_at: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: false;
+                  readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+                readonly updated_by: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+              };
+              primaryKey: { readonly columns: readonly ['provider'] };
+              uniques: readonly [];
+              indexes: readonly [];
+              foreignKeys: readonly [];
             };
             readonly users: {
               columns: {
@@ -1862,6 +2304,7 @@ type ContractBase = Omit<
                 'completed',
                 'unreachable',
                 'failed',
+                'api_key_required',
               ];
             };
             readonly UserRole: {
@@ -1908,6 +2351,14 @@ type ContractBase = Omit<
     readonly scrape_jobs: {
       readonly namespace: 'public' & NamespaceId;
       readonly model: 'ScrapeJob';
+    };
+    readonly scraped_pages: {
+      readonly namespace: 'public' & NamespaceId;
+      readonly model: 'ScrapedPage';
+    };
+    readonly scraper_provider_configs: {
+      readonly namespace: 'public' & NamespaceId;
+      readonly model: 'ScraperProviderConfig';
     };
     readonly users: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
   };
@@ -2352,6 +2803,17 @@ type ContractBase = Omit<
                   readonly targetFields: readonly ['projectId'];
                 };
               };
+              readonly scrapedPages: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'ScrapedPage';
+                };
+                readonly cardinality: '1:N';
+                readonly on: {
+                  readonly localFields: readonly ['id'];
+                  readonly targetFields: readonly ['projectId'];
+                };
+              };
             };
             readonly storage: {
               readonly table: 'projects';
@@ -2549,6 +3011,17 @@ type ContractBase = Omit<
                   readonly targetFields: readonly ['contextId'];
                 };
               };
+              readonly scrapedPages: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'ScrapedPage';
+                };
+                readonly cardinality: '1:N';
+                readonly on: {
+                  readonly localFields: readonly ['id'];
+                  readonly targetFields: readonly ['contextId'];
+                };
+              };
             };
             readonly storage: {
               readonly table: 'project_contexts';
@@ -2630,6 +3103,195 @@ type ContractBase = Omit<
               };
             };
           };
+          readonly ScrapedPage: {
+            readonly fields: {
+              readonly canonicalUrl: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly contacts: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+                readonly many: { readonly elementNullable: false };
+              };
+              readonly contentType: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly contextId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly depth: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly description: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly durationMs: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly errorMessage: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly headings: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/json@1' };
+              };
+              readonly httpStatus: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly id: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly language: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly links: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/json@1' };
+              };
+              readonly metaTags: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/json@1' };
+              };
+              readonly parentUrl: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly platformData: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/json@1' };
+              };
+              readonly projectId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly renderMode: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly scrapeJobId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly scrapedAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly signals: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+                readonly many: { readonly elementNullable: false };
+              };
+              readonly socialLinks: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/json@1' };
+              };
+              readonly structuredData: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/json@1' };
+              };
+              readonly textContent: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly title: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly url: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly wordCount: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+            };
+            readonly relations: {
+              readonly context: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'ProjectContext';
+                };
+                readonly cardinality: 'N:1';
+                readonly nullable: false;
+                readonly on: {
+                  readonly localFields: readonly ['contextId'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
+              readonly project: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'Project';
+                };
+                readonly cardinality: 'N:1';
+                readonly nullable: false;
+                readonly on: {
+                  readonly localFields: readonly ['projectId'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
+              readonly scrapeJob: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'ScrapeJob';
+                };
+                readonly cardinality: 'N:1';
+                readonly nullable: false;
+                readonly on: {
+                  readonly localFields: readonly ['scrapeJobId'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
+            };
+            readonly storage: {
+              readonly table: 'scraped_pages';
+              readonly namespaceId: 'public';
+              readonly fields: {
+                readonly canonicalUrl: { readonly column: 'canonical_url' };
+                readonly contacts: { readonly column: 'contacts' };
+                readonly contentType: { readonly column: 'content_type' };
+                readonly contextId: { readonly column: 'context_id' };
+                readonly depth: { readonly column: 'depth' };
+                readonly description: { readonly column: 'description' };
+                readonly durationMs: { readonly column: 'duration_ms' };
+                readonly errorMessage: { readonly column: 'error_message' };
+                readonly headings: { readonly column: 'headings' };
+                readonly httpStatus: { readonly column: 'http_status' };
+                readonly id: { readonly column: 'id' };
+                readonly language: { readonly column: 'language' };
+                readonly links: { readonly column: 'links' };
+                readonly metaTags: { readonly column: 'meta_tags' };
+                readonly parentUrl: { readonly column: 'parent_url' };
+                readonly platformData: { readonly column: 'platform_data' };
+                readonly projectId: { readonly column: 'project_id' };
+                readonly renderMode: { readonly column: 'render_mode' };
+                readonly scrapeJobId: { readonly column: 'scrape_job_id' };
+                readonly scrapedAt: { readonly column: 'scraped_at' };
+                readonly signals: { readonly column: 'signals' };
+                readonly socialLinks: { readonly column: 'social_links' };
+                readonly structuredData: { readonly column: 'structured_data' };
+                readonly textContent: { readonly column: 'text_content' };
+                readonly title: { readonly column: 'title' };
+                readonly url: { readonly column: 'url' };
+                readonly wordCount: { readonly column: 'word_count' };
+              };
+            };
+          };
           readonly ScrapeJob: {
             readonly fields: {
               readonly attemptCount: {
@@ -2643,6 +3305,10 @@ type ContractBase = Omit<
                   readonly codecId: 'pg/timestamptz-date@1';
                   readonly typeParams: { readonly precision: 3 };
                 };
+              };
+              readonly config: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/json@1' };
               };
               readonly contextId: {
                 readonly nullable: true;
@@ -2689,17 +3355,37 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
+              readonly levelsScraped: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
               readonly normalizedUrl: {
                 readonly nullable: true;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly pagesScraped: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly platformData: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/json@1' };
               };
               readonly projectId: {
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
+              readonly providerUsed: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
               readonly rawPreview: {
                 readonly nullable: true;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly requiresApiKey: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/bool@1' };
               };
               readonly status: {
                 readonly nullable: false;
@@ -2727,6 +3413,17 @@ type ContractBase = Omit<
                   readonly targetFields: readonly ['id'];
                 };
               };
+              readonly pages: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'ScrapedPage';
+                };
+                readonly cardinality: '1:N';
+                readonly on: {
+                  readonly localFields: readonly ['id'];
+                  readonly targetFields: readonly ['scrapeJobId'];
+                };
+              };
               readonly project: {
                 readonly to: {
                   readonly namespace: 'public' & NamespaceId;
@@ -2746,6 +3443,7 @@ type ContractBase = Omit<
               readonly fields: {
                 readonly attemptCount: { readonly column: 'attempt_count' };
                 readonly completedAt: { readonly column: 'completed_at' };
+                readonly config: { readonly column: 'config' };
                 readonly contextId: { readonly column: 'context_id' };
                 readonly createdAt: { readonly column: 'created_at' };
                 readonly detectedSignals: { readonly column: 'detected_signals' };
@@ -2756,12 +3454,76 @@ type ContractBase = Omit<
                 readonly extractedTitle: { readonly column: 'extracted_title' };
                 readonly httpStatus: { readonly column: 'http_status' };
                 readonly id: { readonly column: 'id' };
+                readonly levelsScraped: { readonly column: 'levels_scraped' };
                 readonly normalizedUrl: { readonly column: 'normalized_url' };
+                readonly pagesScraped: { readonly column: 'pages_scraped' };
+                readonly platformData: { readonly column: 'platform_data' };
                 readonly projectId: { readonly column: 'project_id' };
+                readonly providerUsed: { readonly column: 'provider_used' };
                 readonly rawPreview: { readonly column: 'raw_preview' };
+                readonly requiresApiKey: { readonly column: 'requires_api_key' };
                 readonly status: { readonly column: 'status' };
                 readonly targetType: { readonly column: 'target_type' };
                 readonly targetValue: { readonly column: 'target_value' };
+              };
+            };
+          };
+          readonly ScraperProviderConfig: {
+            readonly fields: {
+              readonly apiKey: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly apiSecret: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly createdAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly extraConfig: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/json@1' };
+              };
+              readonly isEnabled: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/bool@1' };
+              };
+              readonly provider: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly updatedAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly updatedBy: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+            };
+            readonly relations: Record<string, never>;
+            readonly storage: {
+              readonly table: 'scraper_provider_configs';
+              readonly namespaceId: 'public';
+              readonly fields: {
+                readonly apiKey: { readonly column: 'api_key' };
+                readonly apiSecret: { readonly column: 'api_secret' };
+                readonly createdAt: { readonly column: 'created_at' };
+                readonly extraConfig: { readonly column: 'extra_config' };
+                readonly isEnabled: { readonly column: 'is_enabled' };
+                readonly provider: { readonly column: 'provider' };
+                readonly updatedAt: { readonly column: 'updated_at' };
+                readonly updatedBy: { readonly column: 'updated_by' };
               };
             };
           };
@@ -2904,6 +3666,7 @@ type ContractBase = Omit<
               { readonly name: 'completed'; readonly value: 'completed' },
               { readonly name: 'unreachable'; readonly value: 'unreachable' },
               { readonly name: 'failed'; readonly value: 'failed' },
+              { readonly name: 'api_key_required'; readonly value: 'api_key_required' },
             ];
           };
           readonly UserRole: {
@@ -2950,6 +3713,7 @@ type ContractBase = Omit<
             { readonly name: 'completed'; readonly value: 'completed' },
             { readonly name: 'unreachable'; readonly value: 'unreachable' },
             { readonly name: 'failed'; readonly value: 'failed' },
+            { readonly name: 'api_key_required'; readonly value: 'api_key_required' },
           ];
           readonly UserRole: readonly [
             { readonly name: 'admin'; readonly value: 'admin' },
@@ -3204,6 +3968,55 @@ type ContractBase = Omit<
           readonly ref: {
             readonly entry: 'scrape_jobs';
             readonly field: 'id';
+            readonly namespace: 'public';
+          };
+        },
+        {
+          readonly onCreate: { readonly id: 'cuid2'; readonly kind: 'generator' };
+          readonly ref: {
+            readonly entry: 'scraped_pages';
+            readonly field: 'id';
+            readonly namespace: 'public';
+          };
+        },
+        {
+          readonly onCreate: {
+            readonly id: 'timestampNow';
+            readonly kind: 'generator';
+            readonly params: { readonly precision: 3 };
+          };
+          readonly ref: {
+            readonly entry: 'scraped_pages';
+            readonly field: 'scraped_at';
+            readonly namespace: 'public';
+          };
+        },
+        {
+          readonly onCreate: {
+            readonly id: 'timestampNow';
+            readonly kind: 'generator';
+            readonly params: { readonly precision: 3 };
+          };
+          readonly ref: {
+            readonly entry: 'scraper_provider_configs';
+            readonly field: 'created_at';
+            readonly namespace: 'public';
+          };
+        },
+        {
+          readonly onCreate: {
+            readonly id: 'timestampNow';
+            readonly kind: 'generator';
+            readonly params: { readonly precision: 3 };
+          };
+          readonly onUpdate: {
+            readonly id: 'timestampNow';
+            readonly kind: 'generator';
+            readonly params: { readonly precision: 3 };
+          };
+          readonly ref: {
+            readonly entry: 'scraper_provider_configs';
+            readonly field: 'updated_at';
             readonly namespace: 'public';
           };
         },

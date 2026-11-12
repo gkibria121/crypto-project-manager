@@ -167,24 +167,9 @@ export function ProjectSidebar({
               >
                 <LayoutDashboard className="w-4 h-4" aria-hidden="true" />
                 <span className="hidden lg:inline">Admin</span>
-                {pendingUsersCount > 0 && (
-                  <span className="px-1.5 py-0.2 rounded-full bg-amber-500 text-white text-[10px] font-bold leading-tight">
-                    {pendingUsersCount}
-                  </span>
-                )}
+              
               </Link>
-            )}
-
-            <button
-              type="button"
-              onClick={onOpenTeamRbacModal}
-              aria-label="Team and RBAC access control"
-              title="Team & RBAC Access Control"
-              className="w-10 h-10 sm:w-9 sm:h-9 rounded-full bg-[#f0f2f5] hover:bg-[#e4e6eb] dark:bg-[#202c33] dark:hover:bg-[#2a3942] text-[#050505] dark:text-[#e9edef] flex items-center justify-center transition cursor-pointer"
-            >
-              <Shield className="w-4 h-4 text-[#0084ff]" />
-            </button>
-
+            )} 
             {canWriteSettings && (
               <button
                 type="button"

@@ -46,13 +46,17 @@ async function proxyToCoreApi(
   const hasBody = !["GET", "HEAD"].includes(request.method.toUpperCase());
   const body = hasBody ? await request.arrayBuffer() : undefined;
 
+  const isScrapeAction =
+    targetPath.endsWith("/scrape") || targetPath.endsWith("/scrape-all");
+  const requestTimeoutMs = isScrapeAction ? 240_000 : 30_000;
+
   try {
     const upstreamResponse = await fetch(targetUrl, {
       method: request.method,
       headers,
       body: body && body.byteLength > 0 ? body : undefined,
       cache: "no-store",
-      signal: AbortSignal.timeout(30000),
+      signal: AbortSignal.timeout(requestTimeoutMs),
     });
 
     const responseText = await upstreamResponse.text();

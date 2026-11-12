@@ -18,6 +18,7 @@ import {
   FolderKanban,
   Globe,
   History,
+  KeyRound,
   LayoutDashboard,
   ListChecks,
   LogOut,
@@ -58,7 +59,9 @@ import {
   type CryptoProject,
   type NewProjectFormValues,
   type ProjectBusinessStatus,
+  type ProjectContextItem,
   type PromptTemplateFormValues,
+  type ScrapeConfig,
   type SyncProjectsDto,
   type UpdateProjectFormValues,
   type UserRole,
@@ -85,6 +88,11 @@ import {
   useRegisterMutation,
   useSaveChecklistItemMutation,
   useSavePromptTemplateMutation,
+  useSaveScraperProviderKeyMutation,
+  useScrapeAllContextsMutation,
+  useScrapeContextMutation,
+  useScraperProvidersQuery,
+  useDeleteScraperProviderKeyMutation,
   useSyncProvidersQuery,
   useSystemHealthQuery,
   useUpdateBusinessStatusMutation,
@@ -95,9 +103,12 @@ import {
 } from "@/hooks";
 import { AuthScreen } from "@/components/AuthScreen";
 import { ProjectAvatar } from "@/components/ProjectAvatar";
+import { ScraperProviderKeysPanel } from "@/components/ScraperProviderKeysPanel";
 import {
   EditProjectDialog,
   NewProjectDialog,
+  ScrapeConfigDialog,
+  ScrapedDataDialog,
   SyncProjectsDialog,
 } from "@/components/modals";
 import { FilterChip, FormField, ModalDialog, PaginationBar } from "@/components/ui";
@@ -171,6 +182,9 @@ export function AdminDashboard() {
   const syncProvidersQuery = useSyncProvidersQuery(
     isAuthenticated && isAdmin
   );
+  const scraperProvidersQuery = useScraperProvidersQuery(
+    isAuthenticated && isAdmin
+  );
 
   const users = usersQuery.data ?? [];
   const projects = projectsQuery.data ?? [];
@@ -178,6 +192,7 @@ export function AdminDashboard() {
   const promptTemplates = promptTemplatesQuery.data ?? [];
   const checklistItems = checklistItemsQuery.data ?? [];
   const syncProviders = syncProvidersQuery.data ?? [];
+  const scraperProviders = scraperProvidersQuery.data ?? [];
 
   const loginMutation = useLoginMutation();
   const registerMutation = useRegisterMutation();
@@ -209,16 +224,25 @@ export function AdminDashboard() {
   const deletePromptTemplateMutation = useDeletePromptTemplateMutation();
   const saveChecklistItemMutation = useSaveChecklistItemMutation();
   const deleteChecklistItemMutation = useDeleteChecklistItemMutation();
+  const saveScraperProviderKeyMutation = useSaveScraperProviderKeyMutation();
+  const deleteScraperProviderKeyMutation =
+    useDeleteScraperProviderKeyMutation();
+  const scrapeContextMutation = useScrapeContextMutation();
+  const scrapeAllContextsMutation = useScrapeAllContextsMutation();
 
   const {
     newProjectDialogRef,
     editProjectDialogRef,
     syncProjectsDialogRef,
     bulkDeleteProjectsDialogRef,
+    scrapeConfigDialogRef,
+    scrapedDataDialogRef,
     openNewProjectModal,
     openEditProjectModal,
     openSyncProjectsModal,
     openBulkDeleteProjectsModal,
+    openScrapeConfigModal,
+    openScrapedDataModal,
   } = useDashboardDialogs();
 
   const mainHeadingRef = useRef<HTMLHeadingElement | null>(null);
@@ -228,6 +252,11 @@ export function AdminDashboard() {
   const [editingProject, setEditingProject] = useState<CryptoProject | null>(
     null
   );
+  const [scrapedModalProject, setScrapedModalProject] =
+    useState<CryptoProject | null>(null);
+  const [scrapeTargetCtx, setScrapeTargetCtx] =
+    useState<ProjectContextItem | null>(null);
+  const [isScrapedModalOpen, setIsScrapedModalOpen] = useState(false);
 
   const [userSearchQuery, setUserSearchQuery] = useState("");
   const [userFilter, setUserFilter] = useState<UserFilterStatus>("all");
@@ -726,6 +755,47 @@ export function AdminDashboard() {
     setActionError(null);
     setEditingProject(project);
     openEditProjectModal();
+  };
+
+  const handleOpenScrapedData = (project: CryptoProject) => {
+    setActionError(null);
+    setScrapedModalProject(project);
+    setIsScrapedModalOpen(true);
+    openScrapedDataModal();
+  };
+
+  const handleOpenAdminScrapeConfig = (
+    project: CryptoProject,
+    ctx: ProjectContextItem | null
+  ) => {
+    setActionError(null);
+    setScrapedModalProject(project);
+    setScrapeTargetCtx(ctx);
+    openScrapeConfigModal();
+  };
+
+  const handleRunAdminScrape = async (config: ScrapeConfig) => {
+    if (!scrapedModalProject) return;
+    setActionError(null);
+    setStatusAnnouncement(null);
+    if (scrapeTargetCtx) {
+      await scrapeContextMutation.mutateAsync({
+        projectId: scrapedModalProject.id,
+        contextId: scrapeTargetCtx.id,
+        config,
+      });
+      setStatusAnnouncement(
+        `Scraped ${scrapeTargetCtx.title} for ${scrapedModalProject.name} (Level ${config.levels}).`
+      );
+    } else {
+      await scrapeAllContextsMutation.mutateAsync({
+        projectId: scrapedModalProject.id,
+        config,
+      });
+      setStatusAnnouncement(
+        `Batch-scraped all contexts for ${scrapedModalProject.name} (Level ${config.levels}).`
+      );
+    }
   };
 
   const handleUpdateProject = async (
@@ -2470,9 +2540,32 @@ export function AdminDashboard() {
                               </td>
 
                               <td className="py-3 px-3.5">
-                                <div className="font-medium text-[#050505] dark:text-[#e9edef]">
-                                  {activeContextsCount}/
-                                  {project.contexts.length} active contexts
+                                <div className="font-medium text-[#050505] dark:text-[#e9edef] flex items-center gap-2 flex-wrap">
+                                  <span>
+                                    {activeContextsCount}/
+                                    {project.contexts.length} active contexts
+                                  </span>
+                                  {project.contexts.some((c) =>
+                                    Boolean(
+                                      c.lastScrapedAt ||
+                                        c.scrapedMetadata ||
+                                        c.scrapeStatus
+                                    )
+                                  ) && (
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        handleOpenScrapedData(project)
+                                      }
+                                      className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#0084ff] hover:underline cursor-pointer"
+                                    >
+                                      <Database
+                                        className="w-3 h-3"
+                                        aria-hidden="true"
+                                      />
+                                      <span>Scraped data</span>
+                                    </button>
+                                  )}
                                 </div>
                                 <div className="text-[11px] text-[#65676b] dark:text-[#8696a0]">
                                   {project.messages.length} messages · Active{" "}
@@ -2491,6 +2584,23 @@ export function AdminDashboard() {
 
                               <td className="py-3 px-3.5 text-right">
                                 <div className="inline-flex items-center justify-end gap-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      handleOpenAdminScrapeConfig(project, null)
+                                    }
+                                    disabled={project.contexts.length === 0}
+                                    title="Configure crawl depth & scrape project links"
+                                    aria-label={`Scrape ${project.name}`}
+                                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-emerald-500/12 hover:bg-emerald-500/20 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300 disabled:opacity-40 transition cursor-pointer"
+                                  >
+                                    <RefreshCw
+                                      className="w-3.5 h-3.5"
+                                      aria-hidden="true"
+                                    />
+                                    <span>Scrape</span>
+                                  </button>
+
                                   <Link
                                     href={`/?projectId=${encodeURIComponent(project.id)}`}
                                     aria-label={`Open ${project.name} in workspace`}
@@ -3034,6 +3144,42 @@ export function AdminDashboard() {
                     </div>
                   </form>
                 </section>
+
+                {/* Specialized Scraper API Keys Section */}
+                <section
+                  aria-labelledby="admin-scraper-keys-heading"
+                  className="lg:col-span-2 rounded-2xl bg-white dark:bg-[#202c33] border border-[#e4e6eb] dark:border-[#2a3942] p-4 sm:p-5 shadow-2xs space-y-4"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-xl bg-amber-500/12 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                      <KeyRound className="w-4 h-4" aria-hidden="true" />
+                    </div>
+                    <div>
+                      <h2
+                        id="admin-scraper-keys-heading"
+                        className="text-base font-bold"
+                      >
+                        Specialized Scraper API Keys (X, LinkedIn & Telegram)
+                      </h2>
+                      <p className="text-xs text-[#65676b] dark:text-[#8696a0]">
+                        Configure official platform API tokens for social
+                        intelligence extraction. Standard websites use headless
+                        Chromium with JS enabled automatically.
+                      </p>
+                    </div>
+                  </div>
+
+                  <ScraperProviderKeysPanel
+                    providerStatuses={scraperProviders}
+                    canEdit={hasPermission(currentUser, "settings:write")}
+                    onSaveKey={(params) =>
+                      saveScraperProviderKeyMutation.mutateAsync(params)
+                    }
+                    onDeleteKey={(provider) =>
+                      deleteScraperProviderKeyMutation.mutateAsync(provider)
+                    }
+                  />
+                </section>
               </div>
             )}
 
@@ -3200,6 +3346,49 @@ export function AdminDashboard() {
         project={editingProject}
         onUpdateProject={handleUpdateProject}
       />
+
+      {(() => {
+        const activeAdminScrapedProject = scrapedModalProject
+          ? projects.find((p) => p.id === scrapedModalProject.id) ??
+            scrapedModalProject
+          : null;
+        return (
+          <>
+            <ScrapeConfigDialog
+              dialogRef={scrapeConfigDialogRef}
+              project={activeAdminScrapedProject}
+              targetContext={scrapeTargetCtx}
+              providerStatuses={scraperProviders}
+              canWriteSettings={hasPermission(currentUser, "settings:write")}
+              isScraping={
+                scrapeContextMutation.isPending ||
+                scrapeAllContextsMutation.isPending
+              }
+              onSaveProviderKey={(params) =>
+                saveScraperProviderKeyMutation.mutateAsync(params)
+              }
+              onStartScrape={handleRunAdminScrape}
+              onOpenGlobalSettings={() => handleSelectSection("settings", true)}
+            />
+
+            <ScrapedDataDialog
+              dialogRef={scrapedDataDialogRef}
+              project={activeAdminScrapedProject}
+              initialContextId={null}
+              isOpen={isScrapedModalOpen}
+              onClose={() => setIsScrapedModalOpen(false)}
+              canTriggerScraper={hasPermission(currentUser, "scraper:trigger")}
+              canWriteSettings={hasPermission(currentUser, "settings:write")}
+              onOpenScrapeConfig={(ctx) => {
+                if (activeAdminScrapedProject) {
+                  handleOpenAdminScrapeConfig(activeAdminScrapedProject, ctx);
+                }
+              }}
+              onOpenGlobalSettings={() => handleSelectSection("settings", true)}
+            />
+          </>
+        );
+      })()}
 
       <ModalDialog
         dialogRef={bulkDeleteProjectsDialogRef}

@@ -8,6 +8,7 @@ from fastapi import FastAPI, Request
 
 from scraper.config import get_settings
 from scraper.routers import health, scrape
+from scraper.services.browser_fetcher import BrowserFetcher
 
 settings = get_settings()
 
@@ -24,10 +25,12 @@ async def lifespan(app: FastAPI):
         timeout=httpx.Timeout(settings.scraper_timeout_seconds),
         follow_redirects=False,
     )
+    app.state.browser_fetcher = BrowserFetcher(settings)
     logger.info("PulseOS Python Scraper initialized")
     try:
         yield
     finally:
+        await app.state.browser_fetcher.close()
         await app.state.http_client.aclose()
         logger.info("PulseOS Python Scraper shut down")
 
@@ -37,8 +40,9 @@ def create_app() -> FastAPI:
         title="PulseOS Python Scraper Microservice",
         version=settings.service_version,
         description=(
-            "Extracts metadata, social links, and Web3 product signals from project "
-            "websites, social profiles, and context notes."
+            "Extracts dynamic JS-rendered content, multi-level crawl graphs, metadata, "
+            "social links, and Web3 product signals from project websites and specialized "
+            "platform APIs (X, LinkedIn, Telegram)."
         ),
         lifespan=lifespan,
     )

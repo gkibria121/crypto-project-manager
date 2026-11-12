@@ -23,6 +23,7 @@ import {
   bulkDeleteProjectsDtoSchema,
   calculatePaginationMeta,
   clampPage,
+  detectSpecializedProvider,
   evaluateChecklistItemAgainstProject,
   getPermissionsForRole,
   hasAnyRole,
@@ -49,6 +50,12 @@ import { computeActivatedProjectPatch } from "../src/projects/project-lifecycle.
 import { mapPrismaProjectToDomain } from "../src/projects/project.mapper.js";
 import { ProjectSyncService } from "../src/projects/project-sync.service.js";
 import { ProjectsService } from "../src/projects/projects.service.js";
+import {
+  decryptProviderSecret,
+  encryptProviderSecret,
+  maskProviderSecret,
+} from "../src/scraper/scraper-crypto.helper.js";
+import { ScraperService } from "../src/scraper/scraper.service.js";
 import { UsersService } from "../src/users/users.service.js";
 
 describe("NestJS Core Backend Unit Tests", () => {
@@ -983,5 +990,400 @@ describe("NestJS Core Backend Unit Tests", () => {
       "ellipsis",
       12,
     ]);
+  });
+
+  it("detects specialized platforms, encrypts provider API keys, and persists relational multi-level scraped pages", async () => {
+    expect(detectSpecializedProvider("x_handle", "@AetherisNetwork")).toBe("x");
+    expect(detectSpecializedProvider("linkedin", "linkedin.com/company/x")).toBe(
+      "linkedin"
+    );
+    expect(detectSpecializedProvider("telegram", "t.me/AetherisOfficial")).toBe(
+      "telegram"
+    );
+    expect(
+      detectSpecializedProvider("website", "https://x.com/SomeProject")
+    ).toBe("x");
+    expect(
+      detectSpecializedProvider("website", "https://aetheris.network")
+    ).toBeNull();
+
+    const secretMaterial = "test-jwt-secret-key-for-encryption-1234";
+    const encrypted = encryptProviderSecret("x-bearer-secret-9876", secretMaterial);
+    expect(encrypted.startsWith("enc:v1:")).toBe(true);
+    expect(encrypted).not.toContain("x-bearer-secret-9876");
+    expect(decryptProviderSecret(encrypted, secretMaterial)).toBe(
+      "x-bearer-secret-9876"
+    );
+    expect(maskProviderSecret("x-bearer-secret-9876")).toBe("••••••9876");
+
+    const providerConfigs: Array<Record<string, unknown>> = [];
+    const scrapeJobsStore: Array<Record<string, unknown>> = [
+      {
+        id: "job-1",
+        projectId: "proj-scrape-1",
+        contextId: "ctx-web-1",
+        targetType: "website",
+        targetValue: "https://aetheris.network",
+        normalizedUrl: "https://aetheris.network",
+        status: "running",
+        httpStatus: null,
+        attemptCount: 1,
+        extractedTitle: null,
+        extractedDescription: null,
+        detectedSocials: null,
+        detectedSignals: [],
+        rawPreview: null,
+        errorMessage: null,
+        durationMs: null,
+        config: null,
+        providerUsed: null,
+        requiresApiKey: false,
+        levelsScraped: 0,
+        pagesScraped: 0,
+        platformData: null,
+        createdAt: new Date(),
+        completedAt: null,
+      },
+    ];
+    const scrapedPagesStore: Array<Record<string, unknown>> = [];
+    const contextsStore: Array<Record<string, unknown>> = [
+      {
+        id: "ctx-web-1",
+        projectId: "proj-scrape-1",
+        type: "website",
+        title: "Official Website",
+        value: "https://aetheris.network",
+        url: "https://aetheris.network",
+        summary: null,
+        isActive: true,
+        updatedAtLabel: "Now",
+        scrapeStatus: "running",
+        lastScrapedAt: null,
+        scrapedMetadata: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    ];
+    const projectsStore: Array<Record<string, unknown>> = [
+      {
+        id: "proj-scrape-1",
+        name: "Aetheris AI",
+        ticker: "$AETH",
+        chain: "Solana",
+        stage: "Pre-TGE",
+        businessStatus: "new",
+        avatarBg: "bg-[#1d4ed8]",
+        logoUrl: null,
+        tagline: "AI GPU mesh",
+        campaignBudget: "$25,000 / mo",
+        sentimentScore: 90,
+        tags: ["new", "solana"],
+        isPinned: true,
+        unreadInsights: 0,
+        lastActivityTime: "Now",
+        lastScrapedAt: null,
+        archivedAt: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    ];
+    const auditLogsStore: Array<Record<string, unknown>> = [];
+
+    const ormMock = {
+      public: {
+        ScraperProviderConfig: {
+          all: async () => [...providerConfigs],
+          upsert: async (args: {
+            create: Record<string, unknown>;
+            update: Record<string, unknown>;
+          }) => {
+            const existing = providerConfigs.find(
+              (r) => r["provider"] === args.create["provider"]
+            );
+            if (existing) {
+              Object.assign(existing, args.update, { updatedAt: new Date() });
+              return existing;
+            }
+            const created = {
+              ...args.create,
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            };
+            providerConfigs.push(created);
+            return created;
+          },
+          where: ({ provider }: { provider: string }) => ({
+            deleteAll: async () => {
+              const idx = providerConfigs.findIndex(
+                (r) => r["provider"] === provider
+              );
+              if (idx >= 0) providerConfigs.splice(idx, 1);
+              return [];
+            },
+          }),
+        },
+        ScrapeJob: {
+          where: (filter: {
+            id?: string;
+            projectId?: string;
+            contextId?: string;
+          }) => ({
+            update: async (patch: Record<string, unknown>) => {
+              const target = scrapeJobsStore.find((j) => j["id"] === filter.id);
+              if (target) Object.assign(target, patch);
+              return target ?? null;
+            },
+            orderBy: () => ({
+              limit: () => ({
+                all: async () =>
+                  scrapeJobsStore.filter(
+                    (j) =>
+                      (!filter.projectId ||
+                        j["projectId"] === filter.projectId) &&
+                      (!filter.contextId || j["contextId"] === filter.contextId)
+                  ),
+              }),
+            }),
+          }),
+        },
+        ScrapedPage: {
+          createAll: async (rows: Array<Record<string, unknown>>) => {
+            const created = rows.map((r, i) => ({
+              id: `pg-${Date.now()}-${i}`,
+              ...r,
+            }));
+            scrapedPagesStore.push(...created);
+            return created;
+          },
+          where: (filter: {
+            projectId?: string;
+            contextId?: string;
+            scrapeJobId?: string;
+          }) => ({
+            orderBy: () => ({
+              limit: () => ({
+                all: async () =>
+                  scrapedPagesStore.filter(
+                    (p) =>
+                      (!filter.projectId ||
+                        p["projectId"] === filter.projectId) &&
+                      (!filter.contextId ||
+                        p["contextId"] === filter.contextId) &&
+                      (!filter.scrapeJobId ||
+                        p["scrapeJobId"] === filter.scrapeJobId)
+                  ),
+              }),
+            }),
+          }),
+        },
+        ProjectContext: {
+          where: ({ id }: { id: string }) => ({
+            update: async (patch: Record<string, unknown>) => {
+              const target = contextsStore.find((c) => c["id"] === id);
+              if (target) Object.assign(target, patch);
+              return target ?? null;
+            },
+          }),
+        },
+        Project: {
+          select: () => ({
+            where: ({ id }: { id: string }) => ({
+              first: async () =>
+                projectsStore.find((p) => p["id"] === id) ?? null,
+            }),
+          }),
+          where: ({ id }: { id: string }) => ({
+            update: async (patch: Record<string, unknown>) => {
+              const target = projectsStore.find((p) => p["id"] === id);
+              if (target) Object.assign(target, patch);
+              return target ?? null;
+            },
+          }),
+          include: () => ({
+            include: () => ({
+              include: () => ({
+                where: ({ id }: { id: string }) => ({
+                  first: async () => {
+                    const row = projectsStore.find((p) => p["id"] === id);
+                    if (!row) return null;
+                    return {
+                      ...row,
+                      contexts: contextsStore.filter(
+                        (c) => c["projectId"] === id
+                      ),
+                      messages: [],
+                      checklistStates: [],
+                    };
+                  },
+                }),
+              }),
+            }),
+          }),
+        },
+        AuditLog: {
+          create: async (row: Record<string, unknown>) => {
+            auditLogsStore.push(row);
+            return row;
+          },
+        },
+      },
+    };
+
+    const prismaMock = {
+      db: {
+        orm: ormMock,
+        transaction: async (
+          fn: (tx: { orm: typeof ormMock }) => Promise<unknown>
+        ) => fn({ orm: ormMock }),
+      },
+    };
+
+    const configMock = {
+      get: (key: string) => {
+        if (key === "JWT_SECRET") return secretMaterial;
+        if (key === "SCRAPER_SERVICE_URL") return "http://localhost:8001";
+        if (key === "SCRAPER_TIMEOUT_MS") return 60000;
+        return "";
+      },
+    };
+
+    const scraperService = new ScraperService(
+      prismaMock as never,
+      configMock as never
+    );
+
+    const adminActor: AuthenticatedUser = {
+      id: "usr-admin-1",
+      email: "alex@pulseos.xyz",
+      name: "Alex Vance",
+      role: "admin",
+      title: "Managing Partner",
+      avatarColor: "bg-[#1d4ed8]",
+      isActive: true,
+      permissions: getPermissionsForRole("admin"),
+      lastLoginAt: null,
+      createdAt: new Date().toISOString(),
+      sessionId: "ses-admin-1",
+    };
+
+    const initialStatuses = await scraperService.listProviderStatuses();
+    expect(initialStatuses.every((s) => !s.configured)).toBe(true);
+
+    const afterSave = await scraperService.saveProviderKey(
+      "x",
+      "x-live-token-5555",
+      adminActor
+    );
+    const xStatus = afterSave.find((s) => s.provider === "x");
+    expect(xStatus?.configured).toBe(true);
+    expect(xStatus?.source).toBe("workspace");
+    expect(xStatus?.maskedKey).toBe("••••••5555");
+    expect(auditLogsStore).toHaveLength(1);
+
+    const savedJob = await scraperService.persistScrapeOutcome(
+      "job-1",
+      "ctx-web-1",
+      "proj-scrape-1",
+      null,
+      {
+        targetType: "website",
+        targetValue: "https://aetheris.network",
+        normalizedUrl: "https://aetheris.network",
+        status: "completed",
+        reachable: true,
+        httpStatus: 200,
+        title: "Aetheris AI",
+        description: "GPU Mesh",
+        headings: ["Aetheris AI"],
+        socialLinks: { github: "https://github.com/aetheris" },
+        signals: ["mcp_server"],
+        rawPreview: "Hydrated content",
+        summary: "Aetheris AI • Crawled 2 pages across 2 levels",
+        durationMs: 420,
+        providerUsed: "playwright_js",
+        specializedProvider: null,
+        requiresApiKey: false,
+        apiKeyConfigured: false,
+        levelsScraped: 2,
+        pagesScraped: 2,
+        contacts: ["hello@aetheris.network"],
+        structuredData: [],
+        pages: [
+          {
+            url: "https://aetheris.network",
+            parentUrl: null,
+            depth: 1,
+            httpStatus: 200,
+            renderMode: "playwright_js",
+            title: "Aetheris AI",
+            headings: [{ level: "h1", text: "Aetheris AI" }],
+            textContent: "Root JS hydrated text",
+            wordCount: 4,
+            links: [
+              {
+                url: "https://aetheris.network/docs",
+                text: "Docs",
+                isInternal: true,
+                category: "docs",
+              },
+            ],
+            socialLinks: {},
+            contacts: ["hello@aetheris.network"],
+            signals: ["mcp_server"],
+            metaTags: {},
+            structuredData: [],
+          },
+          {
+            url: "https://aetheris.network/docs",
+            parentUrl: "https://aetheris.network",
+            depth: 2,
+            httpStatus: 200,
+            renderMode: "playwright_js",
+            title: "Aetheris Docs",
+            headings: [{ level: "h2", text: "SDK" }],
+            textContent: "Docs JS hydrated text",
+            wordCount: 4,
+            links: [],
+            socialLinks: {},
+            contacts: [],
+            signals: ["developer_sdk"],
+            metaTags: {},
+            structuredData: [],
+          },
+        ],
+      },
+      {
+        levels: 2,
+        maxPages: 10,
+        renderJs: true,
+        waitUntil: "networkidle",
+        waitForMs: 1200,
+        scrollToBottom: true,
+        sameDomainOnly: true,
+        includeSubdomains: true,
+        respectRobotsTxt: true,
+        extractStructuredData: true,
+        extractContacts: true,
+        blockMedia: true,
+        timeoutSeconds: 15,
+        includePatterns: [],
+        excludePatterns: [],
+        specializedMaxItems: 15,
+      }
+    );
+
+    expect(savedJob.levelsScraped).toBe(2);
+    expect(savedJob.pagesScraped).toBe(2);
+    expect(savedJob.pages).toHaveLength(2);
+    expect(scrapedPagesStore).toHaveLength(2);
+    expect(projectsStore[0]?.["businessStatus"]).toBe("active");
+
+    const relationalData = await scraperService.getProjectScrapedData(
+      "proj-scrape-1",
+      { contextId: "ctx-web-1" }
+    );
+    expect(relationalData.jobs).toHaveLength(1);
+    expect(relationalData.pages).toHaveLength(2);
+    expect(relationalData.pages[1]?.parentUrl).toBe("https://aetheris.network");
   });
 });

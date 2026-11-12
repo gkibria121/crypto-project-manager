@@ -11,7 +11,10 @@ export const envSchema = z.object({
     .default("http://localhost:3000,http://127.0.0.1:3000"),
   SCRAPER_SERVICE_URL: z.string().url().default("http://localhost:8001"),
   SCRAPER_API_KEY: z.string().default(""),
-  SCRAPER_TIMEOUT_MS: z.coerce.number().int().positive().default(15000),
+  SCRAPER_TIMEOUT_MS: z.coerce.number().int().positive().default(60000),
+  X_API_BEARER_TOKEN: z.string().default(""),
+  LINKEDIN_API_KEY: z.string().default(""),
+  TELEGRAM_BOT_TOKEN: z.string().default(""),
   JWT_SECRET: z
     .string()
     .min(16, "JWT_SECRET must be at least 16 characters")

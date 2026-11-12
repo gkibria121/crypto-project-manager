@@ -20,7 +20,10 @@
     "COINGECKO_API_KEY",
     "COINMARKETCAP_API_KEY",
     "LIVECOINWATCH_API_KEY",
-    "COINCAP_API_KEY"
+    "COINCAP_API_KEY",
+    "X_API_BEARER_TOKEN",
+    "LINKEDIN_API_KEY",
+    "TELEGRAM_BOT_TOKEN"
   ],
   "tasks": {
     "db:generate": {

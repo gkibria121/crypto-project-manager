@@ -40,6 +40,14 @@
       "model": "ScrapeJob",
       "namespace": "public"
     },
+    "scraped_pages": {
+      "model": "ScrapedPage",
+      "namespace": "public"
+    },
+    "scraper_provider_configs": {
+      "model": "ScraperProviderConfig",
+      "namespace": "public"
+    },
     "users": {
       "model": "User",
       "namespace": "public"
@@ -167,6 +175,10 @@
               {
                 "name": "failed",
                 "value": "failed"
+              },
+              {
+                "name": "api_key_required",
+                "value": "api_key_required"
               }
             ]
           },
@@ -919,6 +931,21 @@
                   "model": "ScrapeJob",
                   "namespace": "public"
                 }
+              },
+              "scrapedPages": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "projectId"
+                  ]
+                },
+                "to": {
+                  "model": "ScrapedPage",
+                  "namespace": "public"
+                }
               }
             },
             "storage": {
@@ -1255,6 +1282,21 @@
                   "model": "ScrapeJob",
                   "namespace": "public"
                 }
+              },
+              "scrapedPages": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "contextId"
+                  ]
+                },
+                "to": {
+                  "model": "ScrapedPage",
+                  "namespace": "public"
+                }
               }
             },
             "storage": {
@@ -1422,6 +1464,13 @@
                   }
                 }
               },
+              "config": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/json@1",
+                  "kind": "scalar"
+                }
+              },
               "contextId": {
                 "nullable": true,
                 "type": {
@@ -1498,10 +1547,31 @@
                   "kind": "scalar"
                 }
               },
+              "levelsScraped": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
               "normalizedUrl": {
                 "nullable": true,
                 "type": {
                   "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "pagesScraped": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "platformData": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/json@1",
                   "kind": "scalar"
                 }
               },
@@ -1512,10 +1582,24 @@
                   "kind": "scalar"
                 }
               },
+              "providerUsed": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
               "rawPreview": {
                 "nullable": true,
                 "type": {
                   "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "requiresApiKey": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/bool@1",
                   "kind": "scalar"
                 }
               },
@@ -1570,6 +1654,21 @@
                   "namespace": "public"
                 }
               },
+              "pages": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "scrapeJobId"
+                  ]
+                },
+                "to": {
+                  "model": "ScrapedPage",
+                  "namespace": "public"
+                }
+              },
               "project": {
                 "cardinality": "N:1",
                 "nullable": false,
@@ -1594,6 +1693,9 @@
                 },
                 "completedAt": {
                   "column": "completed_at"
+                },
+                "config": {
+                  "column": "config"
                 },
                 "contextId": {
                   "column": "context_id"
@@ -1625,14 +1727,29 @@
                 "id": {
                   "column": "id"
                 },
+                "levelsScraped": {
+                  "column": "levels_scraped"
+                },
                 "normalizedUrl": {
                   "column": "normalized_url"
+                },
+                "pagesScraped": {
+                  "column": "pages_scraped"
+                },
+                "platformData": {
+                  "column": "platform_data"
                 },
                 "projectId": {
                   "column": "project_id"
                 },
+                "providerUsed": {
+                  "column": "provider_used"
+                },
                 "rawPreview": {
                   "column": "raw_preview"
+                },
+                "requiresApiKey": {
+                  "column": "requires_api_key"
                 },
                 "status": {
                   "column": "status"
@@ -1646,6 +1763,442 @@
               },
               "namespaceId": "public",
               "table": "scrape_jobs"
+            }
+          },
+          "ScrapedPage": {
+            "fields": {
+              "canonicalUrl": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "contacts": {
+                "many": {
+                  "elementNullable": false
+                },
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "contentType": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "contextId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "depth": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "description": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "durationMs": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "errorMessage": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "headings": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/json@1",
+                  "kind": "scalar"
+                }
+              },
+              "httpStatus": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "language": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "links": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/json@1",
+                  "kind": "scalar"
+                }
+              },
+              "metaTags": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/json@1",
+                  "kind": "scalar"
+                }
+              },
+              "parentUrl": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "platformData": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/json@1",
+                  "kind": "scalar"
+                }
+              },
+              "projectId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "renderMode": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "scrapeJobId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "scrapedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "signals": {
+                "many": {
+                  "elementNullable": false
+                },
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "socialLinks": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/json@1",
+                  "kind": "scalar"
+                }
+              },
+              "structuredData": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/json@1",
+                  "kind": "scalar"
+                }
+              },
+              "textContent": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "title": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "url": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "wordCount": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "context": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "contextId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "ProjectContext",
+                  "namespace": "public"
+                }
+              },
+              "project": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "projectId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Project",
+                  "namespace": "public"
+                }
+              },
+              "scrapeJob": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "scrapeJobId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "ScrapeJob",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "canonicalUrl": {
+                  "column": "canonical_url"
+                },
+                "contacts": {
+                  "column": "contacts"
+                },
+                "contentType": {
+                  "column": "content_type"
+                },
+                "contextId": {
+                  "column": "context_id"
+                },
+                "depth": {
+                  "column": "depth"
+                },
+                "description": {
+                  "column": "description"
+                },
+                "durationMs": {
+                  "column": "duration_ms"
+                },
+                "errorMessage": {
+                  "column": "error_message"
+                },
+                "headings": {
+                  "column": "headings"
+                },
+                "httpStatus": {
+                  "column": "http_status"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "language": {
+                  "column": "language"
+                },
+                "links": {
+                  "column": "links"
+                },
+                "metaTags": {
+                  "column": "meta_tags"
+                },
+                "parentUrl": {
+                  "column": "parent_url"
+                },
+                "platformData": {
+                  "column": "platform_data"
+                },
+                "projectId": {
+                  "column": "project_id"
+                },
+                "renderMode": {
+                  "column": "render_mode"
+                },
+                "scrapeJobId": {
+                  "column": "scrape_job_id"
+                },
+                "scrapedAt": {
+                  "column": "scraped_at"
+                },
+                "signals": {
+                  "column": "signals"
+                },
+                "socialLinks": {
+                  "column": "social_links"
+                },
+                "structuredData": {
+                  "column": "structured_data"
+                },
+                "textContent": {
+                  "column": "text_content"
+                },
+                "title": {
+                  "column": "title"
+                },
+                "url": {
+                  "column": "url"
+                },
+                "wordCount": {
+                  "column": "word_count"
+                }
+              },
+              "namespaceId": "public",
+              "table": "scraped_pages"
+            }
+          },
+          "ScraperProviderConfig": {
+            "fields": {
+              "apiKey": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "apiSecret": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "extraConfig": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/json@1",
+                  "kind": "scalar"
+                }
+              },
+              "isEnabled": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/bool@1",
+                  "kind": "scalar"
+                }
+              },
+              "provider": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "updatedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "updatedBy": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {},
+            "storage": {
+              "fields": {
+                "apiKey": {
+                  "column": "api_key"
+                },
+                "apiSecret": {
+                  "column": "api_secret"
+                },
+                "createdAt": {
+                  "column": "created_at"
+                },
+                "extraConfig": {
+                  "column": "extra_config"
+                },
+                "isEnabled": {
+                  "column": "is_enabled"
+                },
+                "provider": {
+                  "column": "provider"
+                },
+                "updatedAt": {
+                  "column": "updated_at"
+                },
+                "updatedBy": {
+                  "column": "updated_by"
+                }
+              },
+              "namespaceId": "public",
+              "table": "scraper_provider_configs"
             }
           },
           "User": {
@@ -2424,8 +2977,8 @@
             "project_contexts": {
               "checks": [
                 {
-                  "expression": "\"scrape_status\" IN ('pending', 'running', 'completed', 'unreachable', 'failed')",
-                  "name": "project_contexts_scrape_status_check_5ae745cd",
+                  "expression": "\"scrape_status\" IN ('pending', 'running', 'completed', 'unreachable', 'failed', 'api_key_required')",
+                  "name": "project_contexts_scrape_status_check_05985b9d",
                   "prefix": "project_contexts_scrape_status_check"
                 },
                 {
@@ -2953,8 +3506,8 @@
                   "prefix": "scrape_jobs_detected_signals_elem_not_null"
                 },
                 {
-                  "expression": "\"status\" IN ('pending', 'running', 'completed', 'unreachable', 'failed')",
-                  "name": "scrape_jobs_status_check_819d5415",
+                  "expression": "\"status\" IN ('pending', 'running', 'completed', 'unreachable', 'failed', 'api_key_required')",
+                  "name": "scrape_jobs_status_check_67d5b9aa",
                   "prefix": "scrape_jobs_status_check"
                 },
                 {
@@ -2980,6 +3533,11 @@
                   "typeParams": {
                     "precision": 3
                   }
+                },
+                "config": {
+                  "codecId": "pg/json@1",
+                  "dataType": "pg/json",
+                  "nullable": true
                 },
                 "context_id": {
                   "codecId": "pg/text@1",
@@ -3045,9 +3603,32 @@
                   "dataType": "pg/text",
                   "nullable": false
                 },
+                "levels_scraped": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
+                  "default": {
+                    "kind": "literal",
+                    "value": 0
+                  },
+                  "nullable": false
+                },
                 "normalized_url": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
+                  "nullable": true
+                },
+                "pages_scraped": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
+                  "default": {
+                    "kind": "literal",
+                    "value": 0
+                  },
+                  "nullable": false
+                },
+                "platform_data": {
+                  "codecId": "pg/json@1",
+                  "dataType": "pg/json",
                   "nullable": true
                 },
                 "project_id": {
@@ -3055,10 +3636,24 @@
                   "dataType": "pg/text",
                   "nullable": false
                 },
+                "provider_used": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
                 "raw_preview": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
                   "nullable": true
+                },
+                "requires_api_key": {
+                  "codecId": "pg/bool@1",
+                  "dataType": "pg/bool",
+                  "default": {
+                    "kind": "literal",
+                    "value": false
+                  },
+                  "nullable": false
                 },
                 "status": {
                   "codecId": "pg/text@1",
@@ -3173,6 +3768,381 @@
               "primaryKey": {
                 "columns": [
                   "id"
+                ]
+              },
+              "uniques": []
+            },
+            "scraped_pages": {
+              "checks": [
+                {
+                  "expression": "array_position(\"contacts\", NULL) IS NULL",
+                  "name": "scraped_pages_contacts_elem_not_null_b7b8d745",
+                  "prefix": "scraped_pages_contacts_elem_not_null"
+                },
+                {
+                  "expression": "array_position(\"signals\", NULL) IS NULL",
+                  "name": "scraped_pages_signals_elem_not_null_bd417bea",
+                  "prefix": "scraped_pages_signals_elem_not_null"
+                }
+              ],
+              "columns": {
+                "canonical_url": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
+                "contacts": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "default": {
+                    "expression": "'{}'::text[]",
+                    "kind": "function"
+                  },
+                  "many": {
+                    "elementNullable": false
+                  },
+                  "nullable": false
+                },
+                "content_type": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
+                "context_id": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "depth": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
+                  "default": {
+                    "kind": "literal",
+                    "value": 1
+                  },
+                  "nullable": false
+                },
+                "description": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
+                "duration_ms": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
+                  "nullable": true
+                },
+                "error_message": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
+                "headings": {
+                  "codecId": "pg/json@1",
+                  "dataType": "pg/json",
+                  "nullable": true
+                },
+                "http_status": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
+                  "nullable": true
+                },
+                "id": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "language": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
+                "links": {
+                  "codecId": "pg/json@1",
+                  "dataType": "pg/json",
+                  "nullable": true
+                },
+                "meta_tags": {
+                  "codecId": "pg/json@1",
+                  "dataType": "pg/json",
+                  "nullable": true
+                },
+                "parent_url": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
+                "platform_data": {
+                  "codecId": "pg/json@1",
+                  "dataType": "pg/json",
+                  "nullable": true
+                },
+                "project_id": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "render_mode": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "default": {
+                    "kind": "literal",
+                    "value": "playwright_js"
+                  },
+                  "nullable": false
+                },
+                "scrape_job_id": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "scraped_at": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "signals": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "default": {
+                    "expression": "'{}'::text[]",
+                    "kind": "function"
+                  },
+                  "many": {
+                    "elementNullable": false
+                  },
+                  "nullable": false
+                },
+                "social_links": {
+                  "codecId": "pg/json@1",
+                  "dataType": "pg/json",
+                  "nullable": true
+                },
+                "structured_data": {
+                  "codecId": "pg/json@1",
+                  "dataType": "pg/json",
+                  "nullable": true
+                },
+                "text_content": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
+                "title": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
+                "url": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "word_count": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
+                  "default": {
+                    "kind": "literal",
+                    "value": 0
+                  },
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [
+                {
+                  "index": {
+                    "name": "scraped_pages_project_id_idx_6ad92603"
+                  },
+                  "onDelete": "cascade",
+                  "source": {
+                    "columns": [
+                      "project_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "scraped_pages"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "projects"
+                  }
+                },
+                {
+                  "index": {
+                    "name": "scraped_pages_context_id_idx_0d3b2250"
+                  },
+                  "onDelete": "cascade",
+                  "source": {
+                    "columns": [
+                      "context_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "scraped_pages"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "project_contexts"
+                  }
+                },
+                {
+                  "index": {
+                    "name": "scraped_pages_scrape_job_id_idx_eacb5c9f"
+                  },
+                  "onDelete": "cascade",
+                  "source": {
+                    "columns": [
+                      "scrape_job_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "scraped_pages"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "scrape_jobs"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "context_id"
+                  ],
+                  "name": "scraped_pages_context_id_idx_0d3b2250",
+                  "prefix": "scraped_pages_context_id_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "context_id",
+                    "scraped_at"
+                  ],
+                  "name": "scraped_pages_context_id_scraped_at_idx_2803cdad",
+                  "prefix": "scraped_pages_context_id_scraped_at_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "project_id"
+                  ],
+                  "name": "scraped_pages_project_id_idx_6ad92603",
+                  "prefix": "scraped_pages_project_id_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "project_id",
+                    "scraped_at"
+                  ],
+                  "name": "scraped_pages_project_id_scraped_at_idx_33362faa",
+                  "prefix": "scraped_pages_project_id_scraped_at_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "scrape_job_id",
+                    "depth"
+                  ],
+                  "name": "scraped_pages_scrape_job_id_depth_idx_42001e3b",
+                  "prefix": "scraped_pages_scrape_job_id_depth_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "scrape_job_id"
+                  ],
+                  "name": "scraped_pages_scrape_job_id_idx_eacb5c9f",
+                  "prefix": "scraped_pages_scrape_job_id_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ]
+              },
+              "uniques": []
+            },
+            "scraper_provider_configs": {
+              "columns": {
+                "api_key": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
+                "api_secret": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
+                "created_at": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "extra_config": {
+                  "codecId": "pg/json@1",
+                  "dataType": "pg/json",
+                  "nullable": true
+                },
+                "is_enabled": {
+                  "codecId": "pg/bool@1",
+                  "dataType": "pg/bool",
+                  "default": {
+                    "kind": "literal",
+                    "value": true
+                  },
+                  "nullable": false
+                },
+                "provider": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "updated_at": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "updated_by": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                }
+              },
+              "foreignKeys": [],
+              "indexes": [],
+              "primaryKey": {
+                "columns": [
+                  "provider"
                 ]
               },
               "uniques": []
@@ -3361,7 +4331,8 @@
                 "running",
                 "completed",
                 "unreachable",
-                "failed"
+                "failed",
+                "api_key_required"
               ]
             },
             "UserRole": {
@@ -3379,10 +4350,10 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "12fdf4409b6d3ae12d8e0503e0bc189283b2b2ab3af89965175c3dd40dad2cb9"
+    "storageHash": "6801bdf4e036bc679e894f360a258dd13640c0a13b63c8ea91605b34c57aff0f"
   },
   "execution": {
-    "executionHash": "8b603fd160e574fc4a6a55564d577df8f14873eb55e2a9c5b14c4fadf80f42a2",
+    "executionHash": "42ab2f47ad84cf640f24c69cb969e6ffdbacf886db68f673ca5bb9f542df6e68",
     "mutations": {
       "defaults": [
         {
@@ -3643,6 +4614,66 @@
           "ref": {
             "entry": "scrape_jobs",
             "field": "id",
+            "namespace": "public"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "cuid2",
+            "kind": "generator"
+          },
+          "ref": {
+            "entry": "scraped_pages",
+            "field": "id",
+            "namespace": "public"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "timestampNow",
+            "kind": "generator",
+            "params": {
+              "precision": 3
+            }
+          },
+          "ref": {
+            "entry": "scraped_pages",
+            "field": "scraped_at",
+            "namespace": "public"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "timestampNow",
+            "kind": "generator",
+            "params": {
+              "precision": 3
+            }
+          },
+          "ref": {
+            "entry": "scraper_provider_configs",
+            "field": "created_at",
+            "namespace": "public"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "timestampNow",
+            "kind": "generator",
+            "params": {
+              "precision": 3
+            }
+          },
+          "onUpdate": {
+            "id": "timestampNow",
+            "kind": "generator",
+            "params": {
+              "precision": 3
+            }
+          },
+          "ref": {
+            "entry": "scraper_provider_configs",
+            "field": "updated_at",
             "namespace": "public"
           }
         },

@@ -6,9 +6,13 @@ import type {
   Scalars,
 } from "@repo/database";
 import {
+  scrapeConfigSchema,
+  scrapedHeadingSchema,
+  scrapedLinkSchema,
   scrapedMetadataSchema,
   type CryptoProject,
   type ProjectChecklistItemState,
+  type ScrapedPage,
   type ScrapeJob,
 } from "@repo/shared";
 import type { PrismaService } from "../prisma/prisma.service.js";
@@ -26,6 +30,7 @@ export type ProjectWithRelations = ResultType<
 >;
 
 export type PrismaScrapeJobRow = Scalars<Models.public_ScrapeJob>;
+export type PrismaScrapedPageRow = Scalars<Models.public_ScrapedPage>;
 
 export function mapPrismaProjectToDomain(
   project: ProjectWithRelations
@@ -86,13 +91,71 @@ export function mapPrismaProjectToDomain(
   };
 }
 
-export function mapPrismaScrapeJobToDomain(job: PrismaScrapeJobRow): ScrapeJob {
-  const socials =
-    job.detectedSocials &&
-    typeof job.detectedSocials === "object" &&
-    !Array.isArray(job.detectedSocials)
-      ? (job.detectedSocials as Record<string, string>)
-      : undefined;
+function toPlainRecord<T>(val: unknown): Record<string, T> | undefined {
+  if (!val || typeof val !== "object" || Array.isArray(val)) {
+    return undefined;
+  }
+  return val as Record<string, T>;
+}
+
+export function mapPrismaScrapedPageToDomain(
+  page: PrismaScrapedPageRow
+): ScrapedPage {
+  const headingsParsed = Array.isArray(page.headings)
+    ? page.headings
+        .map((item) => scrapedHeadingSchema.safeParse(item))
+        .filter((r) => r.success)
+        .map((r) => r.data)
+    : [];
+
+  const linksParsed = Array.isArray(page.links)
+    ? page.links
+        .map((item) => scrapedLinkSchema.safeParse(item))
+        .filter((r) => r.success)
+        .map((r) => r.data)
+    : [];
+
+  return {
+    id: page.id,
+    projectId: page.projectId,
+    contextId: page.contextId,
+    scrapeJobId: page.scrapeJobId,
+    url: page.url,
+    canonicalUrl: page.canonicalUrl ?? null,
+    parentUrl: page.parentUrl ?? null,
+    depth: page.depth,
+    httpStatus: page.httpStatus ?? null,
+    contentType: page.contentType ?? null,
+    renderMode: page.renderMode,
+    title: page.title ?? null,
+    description: page.description ?? null,
+    language: page.language ?? null,
+    headings: headingsParsed,
+    textContent: page.textContent ?? null,
+    wordCount: page.wordCount,
+    links: linksParsed,
+    socialLinks: toPlainRecord<string>(page.socialLinks) ?? {},
+    contacts: [...page.contacts],
+    signals: [...page.signals],
+    metaTags: toPlainRecord<string>(page.metaTags) ?? {},
+    structuredData: Array.isArray(page.structuredData)
+      ? page.structuredData
+      : [],
+    platformData: toPlainRecord<unknown>(page.platformData) ?? null,
+    errorMessage: page.errorMessage ?? null,
+    durationMs: page.durationMs ?? null,
+    scrapedAt: page.scrapedAt.toISOString(),
+  };
+}
+
+export function mapPrismaScrapeJobToDomain(
+  job: PrismaScrapeJobRow,
+  pages?: ScrapedPage[]
+): ScrapeJob {
+  const socials = toPlainRecord<string>(job.detectedSocials);
+  const parsedConfig = job.config
+    ? scrapeConfigSchema.partial().safeParse(job.config)
+    : null;
 
   return {
     id: job.id,
@@ -102,6 +165,7 @@ export function mapPrismaScrapeJobToDomain(job: PrismaScrapeJobRow): ScrapeJob {
     targetValue: job.targetValue,
     normalizedUrl: job.normalizedUrl ?? undefined,
     status: job.status,
+    httpStatus: job.httpStatus ?? null,
     extractedTitle: job.extractedTitle ?? undefined,
     extractedDescription: job.extractedDescription ?? undefined,
     detectedSocials: socials,
@@ -109,6 +173,13 @@ export function mapPrismaScrapeJobToDomain(job: PrismaScrapeJobRow): ScrapeJob {
     rawPreview: job.rawPreview ?? undefined,
     errorMessage: job.errorMessage ?? undefined,
     durationMs: job.durationMs ?? undefined,
+    config: parsedConfig?.success ? parsedConfig.data : undefined,
+    providerUsed: job.providerUsed ?? undefined,
+    requiresApiKey: job.requiresApiKey,
+    levelsScraped: job.levelsScraped,
+    pagesScraped: job.pagesScraped,
+    platformData: toPlainRecord<unknown>(job.platformData) ?? null,
+    ...(pages ? { pages } : {}),
     createdAt: job.createdAt.toISOString(),
     completedAt: job.completedAt?.toISOString(),
   };

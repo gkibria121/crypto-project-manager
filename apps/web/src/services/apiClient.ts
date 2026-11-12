@@ -5,8 +5,10 @@ import {
   authUserSchema,
   checklistItemConfigSchema,
   cryptoProjectSchema,
+  projectScrapedDataResponseSchema,
   promptTemplateSchema,
   scrapeJobSchema,
+  scraperProviderStatusSchema,
   syncJobStateSchema,
   syncProjectsResponseSchema,
   syncProviderStatusSchema,
@@ -24,14 +26,18 @@ import {
   type LoginDto,
   type NewProjectFormValues,
   type ProjectBusinessStatus,
+  type ProjectScrapedDataResponse,
   type PromptTemplate,
   type RegisterDto,
   type ScrapeJob,
+  type ScraperProviderStatus,
+  type SpecializedScraperProvider,
   type SyncJobState,
   type SyncProjectsDto,
   type SyncProjectsResponse,
   type SyncProviderStatus,
   type SystemHealthStatus,
+  type TriggerScrapeDto,
   type UpdateProjectFormValues,
   type UserRole,
 } from "@/types/project";
@@ -489,21 +495,77 @@ export const apiClient = {
   scrapeContext(params: {
     projectId: string;
     contextId: string;
+    config?: TriggerScrapeDto;
   }): Promise<{ project: CryptoProject; job: ScrapeJob }> {
     return requestJson(
       `/projects/${encodeURIComponent(params.projectId)}/contexts/${encodeURIComponent(params.contextId)}/scrape`,
-      { method: "POST" },
+      {
+        method: "POST",
+        body: JSON.stringify(params.config ?? {}),
+      },
       scrapeContextResultSchema
     );
   },
 
   scrapeAllContexts(params: {
     projectId: string;
+    config?: TriggerScrapeDto;
   }): Promise<{ project: CryptoProject; jobs: ScrapeJob[] }> {
     return requestJson(
       `/projects/${encodeURIComponent(params.projectId)}/scrape-all`,
-      { method: "POST" },
+      {
+        method: "POST",
+        body: JSON.stringify(params.config ?? {}),
+      },
       scrapeAllResultSchema
+    );
+  },
+
+  fetchProjectScrapedData(params: {
+    projectId: string;
+    contextId?: string | null;
+    jobId?: string | null;
+  }): Promise<ProjectScrapedDataResponse> {
+    const search = new URLSearchParams();
+    if (params.contextId) search.set("contextId", params.contextId);
+    if (params.jobId) search.set("jobId", params.jobId);
+    const qs = search.toString();
+    return requestJson(
+      `/projects/${encodeURIComponent(params.projectId)}/scraped-data${qs ? `?${qs}` : ""}`,
+      { method: "GET" },
+      projectScrapedDataResponseSchema
+    );
+  },
+
+  fetchScraperProviders(): Promise<ScraperProviderStatus[]> {
+    return requestJson(
+      "/scraper/providers",
+      { method: "GET" },
+      z.array(scraperProviderStatusSchema)
+    );
+  },
+
+  saveScraperProviderKey(params: {
+    provider: SpecializedScraperProvider;
+    apiKey: string;
+  }): Promise<ScraperProviderStatus[]> {
+    return requestJson(
+      `/scraper/providers/${encodeURIComponent(params.provider)}`,
+      {
+        method: "PUT",
+        body: JSON.stringify({ apiKey: params.apiKey }),
+      },
+      z.array(scraperProviderStatusSchema)
+    );
+  },
+
+  deleteScraperProviderKey(
+    provider: SpecializedScraperProvider
+  ): Promise<ScraperProviderStatus[]> {
+    return requestJson(
+      `/scraper/providers/${encodeURIComponent(provider)}`,
+      { method: "DELETE" },
+      z.array(scraperProviderStatusSchema)
     );
   },
 

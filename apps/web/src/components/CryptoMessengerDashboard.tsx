@@ -11,6 +11,7 @@ import {
   type ProjectBusinessStatus,
   type ProjectContextItem,
   type PromptTemplate,
+  type ScrapeConfig,
 } from "@/types/project";
 import {
   useAddContextMutation,
@@ -24,6 +25,7 @@ import {
   useDeleteContextMutation,
   useDeleteProjectMutation,
   useDeletePromptTemplateMutation,
+  useDeleteScraperProviderKeyMutation,
   useDeleteUserMutation,
   useLoginMutation,
   useLogoutMutation,
@@ -34,10 +36,12 @@ import {
   useResetConversationMutation,
   useSaveChecklistItemMutation,
   useSavePromptTemplateMutation,
+  useSaveScraperProviderKeyMutation,
   useScanAllChecklistItemsMutation,
   useScanSingleChecklistItemMutation,
   useScrapeAllContextsMutation,
   useScrapeContextMutation,
+  useScraperProvidersQuery,
   useSendMessageMutation,
   useSystemHealthQuery,
   useToggleAllContextsMutation,
@@ -60,6 +64,8 @@ import {
   GlobalSettingsDialog,
   NewProjectDialog,
   ProjectChecklistDialog,
+  ScrapeConfigDialog,
+  ScrapedDataDialog,
   TeamRbacDialog,
   UpdateProjectLogoDialog,
 } from "@/components/modals";
@@ -76,6 +82,8 @@ export function CryptoMessengerDashboard() {
     usePromptTemplatesQuery(isAuthenticated);
   const { data: checklistItems = [] } =
     useChecklistItemsQuery(isAuthenticated);
+  const { data: scraperProviders = [] } =
+    useScraperProvidersQuery(isAuthenticated);
   const { data: healthStatus } = useSystemHealthQuery();
   const { data: usersList = [] } = useUsersQuery(
     isAuthenticated && canReadUsers
@@ -100,6 +108,12 @@ export function CryptoMessengerDashboard() {
   const [scrapingContextId, setScrapingContextId] = useState<string | null>(
     null
   );
+  const [scrapeConfigTarget, setScrapeConfigTarget] =
+    useState<ProjectContextItem | null>(null);
+  const [scrapedDataContextId, setScrapedDataContextId] = useState<
+    string | null
+  >(null);
+  const [isScrapedDataModalOpen, setIsScrapedDataModalOpen] = useState(false);
 
   const {
     addContextDialogRef,
@@ -109,6 +123,8 @@ export function CryptoMessengerDashboard() {
     checklistDialogRef,
     globalSettingsDialogRef,
     teamRbacDialogRef,
+    scrapeConfigDialogRef,
+    scrapedDataDialogRef,
     openAddContextModal,
     openNewProjectModal,
     openEditProjectModal,
@@ -116,6 +132,8 @@ export function CryptoMessengerDashboard() {
     openChecklistModal,
     openGlobalSettingsModal,
     openTeamRbacModal,
+    openScrapeConfigModal,
+    openScrapedDataModal,
   } = useDashboardDialogs();
 
   const loginMutation = useLoginMutation();
@@ -140,6 +158,9 @@ export function CryptoMessengerDashboard() {
   const deleteContextMutation = useDeleteContextMutation();
   const scrapeContextMutation = useScrapeContextMutation();
   const scrapeAllContextsMutation = useScrapeAllContextsMutation();
+  const saveScraperProviderKeyMutation = useSaveScraperProviderKeyMutation();
+  const deleteScraperProviderKeyMutation =
+    useDeleteScraperProviderKeyMutation();
   const toggleChecklistItemMutation = useToggleChecklistItemMutation();
   const scanAllChecklistItemsMutation = useScanAllChecklistItemsMutation();
   const scanSingleChecklistItemMutation = useScanSingleChecklistItemMutation();
@@ -342,22 +363,35 @@ export function CryptoMessengerDashboard() {
     });
   };
 
-  const handleScrapeContext = async (contextId: string) => {
-    setScrapingContextId(contextId);
-    try {
-      await scrapeContextMutation.mutateAsync({
-        projectId: activeProject.id,
-        contextId,
-      });
-    } finally {
-      setScrapingContextId(null);
-    }
+  const handleOpenScrapeConfig = (ctx: ProjectContextItem | null) => {
+    setScrapeConfigTarget(ctx);
+    openScrapeConfigModal();
   };
 
-  const handleScrapeAllContexts = () => {
-    scrapeAllContextsMutation.mutate({
-      projectId: activeProject.id,
-    });
+  const handleOpenScrapedData = (ctx: ProjectContextItem | null) => {
+    setScrapedDataContextId(ctx?.id ?? null);
+    setIsScrapedDataModalOpen(true);
+    openScrapedDataModal();
+  };
+
+  const handleRunConfiguredScrape = async (config: ScrapeConfig) => {
+    if (scrapeConfigTarget) {
+      setScrapingContextId(scrapeConfigTarget.id);
+      try {
+        await scrapeContextMutation.mutateAsync({
+          projectId: activeProject.id,
+          contextId: scrapeConfigTarget.id,
+          config,
+        });
+      } finally {
+        setScrapingContextId(null);
+      }
+    } else {
+      await scrapeAllContextsMutation.mutateAsync({
+        projectId: activeProject.id,
+        config,
+      });
+    }
   };
 
   const handleAddContext = (values: AddContextFormValues) => {
@@ -451,6 +485,7 @@ export function CryptoMessengerDashboard() {
       <ContextInspector
         project={activeProject}
         currentUser={currentUser}
+        providerStatuses={scraperProviders}
         onUpdateBusinessStatus={(status) =>
           handleUpdateBusinessStatus(activeProject.id, status)
         }
@@ -458,8 +493,9 @@ export function CryptoMessengerDashboard() {
         onToggleContext={handleToggleContext}
         onToggleAllContexts={handleToggleAllContexts}
         onDeleteContext={handleDeleteContext}
-        onScrapeContext={handleScrapeContext}
-        onScrapeAllContexts={handleScrapeAllContexts}
+        onScrapeContext={(ctx) => handleOpenScrapeConfig(ctx)}
+        onScrapeAllContexts={() => handleOpenScrapeConfig(null)}
+        onViewScrapedData={handleOpenScrapedData}
         scrapingContextId={scrapingContextId}
         isScrapingAll={scrapeAllContextsMutation.isPending}
         onReferenceInPrompt={handleReferenceInPrompt}
@@ -517,6 +553,43 @@ export function CryptoMessengerDashboard() {
         checklistItems={checklistItems}
         onSaveChecklistItem={(item) => saveChecklistItemMutation.mutate(item)}
         onDeleteChecklistItem={(id) => deleteChecklistItemMutation.mutate(id)}
+        scraperProviders={scraperProviders}
+        canEditScraperKeys={hasPermission(currentUser, "settings:write")}
+        onSaveScraperProviderKey={(params) =>
+          saveScraperProviderKeyMutation.mutateAsync(params)
+        }
+        onDeleteScraperProviderKey={(provider) =>
+          deleteScraperProviderKeyMutation.mutateAsync(provider)
+        }
+      />
+
+      <ScrapeConfigDialog
+        dialogRef={scrapeConfigDialogRef}
+        project={activeProject}
+        targetContext={scrapeConfigTarget}
+        providerStatuses={scraperProviders}
+        canWriteSettings={hasPermission(currentUser, "settings:write")}
+        isScraping={
+          scrapeContextMutation.isPending ||
+          scrapeAllContextsMutation.isPending
+        }
+        onSaveProviderKey={(params) =>
+          saveScraperProviderKeyMutation.mutateAsync(params)
+        }
+        onStartScrape={handleRunConfiguredScrape}
+        onOpenGlobalSettings={openGlobalSettingsModal}
+      />
+
+      <ScrapedDataDialog
+        dialogRef={scrapedDataDialogRef}
+        project={activeProject}
+        initialContextId={scrapedDataContextId}
+        isOpen={isScrapedDataModalOpen}
+        onClose={() => setIsScrapedDataModalOpen(false)}
+        canTriggerScraper={hasPermission(currentUser, "scraper:trigger")}
+        canWriteSettings={hasPermission(currentUser, "settings:write")}
+        onOpenScrapeConfig={handleOpenScrapeConfig}
+        onOpenGlobalSettings={openGlobalSettingsModal}
       />
 
       <TeamRbacDialog

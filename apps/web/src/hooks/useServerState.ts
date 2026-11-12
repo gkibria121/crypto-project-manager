@@ -21,8 +21,11 @@ import type {
   ProjectBusinessStatus,
   PromptTemplate,
   RegisterDto,
+  ScraperProviderStatus,
+  SpecializedScraperProvider,
   SyncProjectsDto,
   SyncProjectsResponse,
+  TriggerScrapeDto,
   UpdateProjectFormValues,
   UserRole,
 } from "@/types/project";
@@ -42,6 +45,11 @@ export const queryKeys = {
     all: ["projects"] as const,
     detail: (id: string) => ["projects", id] as const,
     syncProviders: ["projects", "sync-providers"] as const,
+    scrapedData: (projectId: string, contextId?: string | null) =>
+      ["projects", projectId, "scraped-data", contextId ?? "all"] as const,
+  },
+  scraper: {
+    providers: ["scraper", "providers"] as const,
   },
   promptTemplates: {
     all: ["prompt-templates"] as const,
@@ -133,6 +141,30 @@ export function useChecklistItemsQuery(enabled = true) {
     queryKey: queryKeys.checklistItems.all,
     queryFn: () => apiClient.fetchChecklistItems(),
     enabled,
+  });
+}
+
+export function useScraperProvidersQuery(enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.scraper.providers,
+    queryFn: () => apiClient.fetchScraperProviders(),
+    enabled,
+  });
+}
+
+export function useProjectScrapedDataQuery(
+  projectId: string | null | undefined,
+  contextId?: string | null,
+  enabled = true
+) {
+  return useQuery({
+    queryKey: queryKeys.projects.scrapedData(projectId ?? "", contextId),
+    queryFn: () =>
+      apiClient.fetchProjectScrapedData({
+        projectId: projectId ?? "",
+        contextId: contextId ?? undefined,
+      }),
+    enabled: Boolean(projectId) && enabled,
   });
 }
 
@@ -686,10 +718,16 @@ export function useScrapeContextMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (params: { projectId: string; contextId: string }) =>
-      apiClient.scrapeContext(params),
+    mutationFn: (params: {
+      projectId: string;
+      contextId: string;
+      config?: TriggerScrapeDto;
+    }) => apiClient.scrapeContext(params),
     onSuccess: ({ project }) => {
       syncUpdatedProjectInCache(queryClient, project);
+      void queryClient.invalidateQueries({
+        queryKey: ["projects", project.id, "scraped-data"],
+      });
     },
   });
 }
@@ -698,10 +736,51 @@ export function useScrapeAllContextsMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (params: { projectId: string }) =>
+    mutationFn: (params: { projectId: string; config?: TriggerScrapeDto }) =>
       apiClient.scrapeAllContexts(params),
     onSuccess: ({ project }) => {
       syncUpdatedProjectInCache(queryClient, project);
+      void queryClient.invalidateQueries({
+        queryKey: ["projects", project.id, "scraped-data"],
+      });
+    },
+  });
+}
+
+export function useSaveScraperProviderKeyMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (params: {
+      provider: SpecializedScraperProvider;
+      apiKey: string;
+    }) => apiClient.saveScraperProviderKey(params),
+    onSuccess: (statuses) => {
+      queryClient.setQueryData<ScraperProviderStatus[]>(
+        queryKeys.scraper.providers,
+        statuses
+      );
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.users.auditLogs,
+      });
+    },
+  });
+}
+
+export function useDeleteScraperProviderKeyMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (provider: SpecializedScraperProvider) =>
+      apiClient.deleteScraperProviderKey(provider),
+    onSuccess: (statuses) => {
+      queryClient.setQueryData<ScraperProviderStatus[]>(
+        queryKeys.scraper.providers,
+        statuses
+      );
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.users.auditLogs,
+      });
     },
   });
 }

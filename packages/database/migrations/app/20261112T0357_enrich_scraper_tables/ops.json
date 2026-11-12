@@ -1,0 +1,1128 @@
+[
+  {
+    "id": "dropCheckConstraint.project_contexts.project_contexts_scrape_status_check_5ae745cd",
+    "label": "Drop check constraint \"project_contexts_scrape_status_check_5ae745cd\" on \"project_contexts\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "checkConstraint",
+        "name": "project_contexts_scrape_status_check_5ae745cd",
+        "table": "project_contexts"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"project_contexts_scrape_status_check_5ae745cd\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "project_contexts_scrape_status_check_5ae745cd",
+          "public",
+          "\"public\".\"project_contexts\""
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "constraint \"project_contexts_scrape_status_check_5ae745cd\" on \"project_contexts\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop check constraint \"project_contexts_scrape_status_check_5ae745cd\"",
+        "sql": "ALTER TABLE \"public\".\"project_contexts\" DROP CONSTRAINT \"project_contexts_scrape_status_check_5ae745cd\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"project_contexts_scrape_status_check_5ae745cd\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "project_contexts_scrape_status_check_5ae745cd",
+          "public",
+          "\"public\".\"project_contexts\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "constraint \"project_contexts_scrape_status_check_5ae745cd\" on \"project_contexts\""
+        }
+      }
+    ]
+  },
+  {
+    "id": "dropCheckConstraint.scrape_jobs.scrape_jobs_status_check_819d5415",
+    "label": "Drop check constraint \"scrape_jobs_status_check_819d5415\" on \"scrape_jobs\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "checkConstraint",
+        "name": "scrape_jobs_status_check_819d5415",
+        "table": "scrape_jobs"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"scrape_jobs_status_check_819d5415\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "scrape_jobs_status_check_819d5415",
+          "public",
+          "\"public\".\"scrape_jobs\""
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "constraint \"scrape_jobs_status_check_819d5415\" on \"scrape_jobs\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop check constraint \"scrape_jobs_status_check_819d5415\"",
+        "sql": "ALTER TABLE \"public\".\"scrape_jobs\" DROP CONSTRAINT \"scrape_jobs_status_check_819d5415\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"scrape_jobs_status_check_819d5415\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "scrape_jobs_status_check_819d5415",
+          "public",
+          "\"public\".\"scrape_jobs\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "constraint \"scrape_jobs_status_check_819d5415\" on \"scrape_jobs\""
+        }
+      }
+    ]
+  },
+  {
+    "id": "table.scraped_pages",
+    "label": "Create table \"scraped_pages\"",
+    "summary": "Creates table \"scraped_pages\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "scraped_pages"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"scraped_pages\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"scraped_pages\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "table \"scraped_pages\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"scraped_pages\"",
+        "sql": "CREATE TABLE \"public\".\"scraped_pages\" (\n  \"canonical_url\" text,\n  \"contacts\" text[] DEFAULT ('{}'::text[]) NOT NULL,\n  \"content_type\" text,\n  \"context_id\" text NOT NULL,\n  \"depth\" int4 DEFAULT 1 NOT NULL,\n  \"description\" text,\n  \"duration_ms\" int4,\n  \"error_message\" text,\n  \"headings\" json,\n  \"http_status\" int4,\n  \"id\" text NOT NULL,\n  \"language\" text,\n  \"links\" json,\n  \"meta_tags\" json,\n  \"parent_url\" text,\n  \"platform_data\" json,\n  \"project_id\" text NOT NULL,\n  \"render_mode\" text DEFAULT 'playwright_js' NOT NULL,\n  \"scrape_job_id\" text NOT NULL,\n  \"scraped_at\" timestamptz(3) DEFAULT (now()) NOT NULL,\n  \"signals\" text[] DEFAULT ('{}'::text[]) NOT NULL,\n  \"social_links\" json,\n  \"structured_data\" json,\n  \"text_content\" text,\n  \"title\" text,\n  \"url\" text NOT NULL,\n  \"word_count\" int4 DEFAULT 0 NOT NULL,\n  PRIMARY KEY (\"id\"),\n  CONSTRAINT \"scraped_pages_contacts_elem_not_null_b7b8d745\" CHECK (array_position(\"contacts\", NULL) IS NULL),\n  CONSTRAINT \"scraped_pages_signals_elem_not_null_bd417bea\" CHECK (array_position(\"signals\", NULL) IS NULL)\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"scraped_pages\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": [
+          "\"public\".\"scraped_pages\"",
+          "r",
+          "p"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "table \"scraped_pages\""
+        }
+      }
+    ]
+  },
+  {
+    "id": "table.scraper_provider_configs",
+    "label": "Create table \"scraper_provider_configs\"",
+    "summary": "Creates table \"scraper_provider_configs\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "scraper_provider_configs"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"scraper_provider_configs\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"scraper_provider_configs\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "table \"scraper_provider_configs\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"scraper_provider_configs\"",
+        "sql": "CREATE TABLE \"public\".\"scraper_provider_configs\" (\n  \"api_key\" text,\n  \"api_secret\" text,\n  \"created_at\" timestamptz(3) DEFAULT (now()) NOT NULL,\n  \"extra_config\" json,\n  \"is_enabled\" bool DEFAULT true NOT NULL,\n  \"provider\" text NOT NULL,\n  \"updated_at\" timestamptz(3) DEFAULT (now()) NOT NULL,\n  \"updated_by\" text,\n  PRIMARY KEY (\"provider\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"scraper_provider_configs\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": [
+          "\"public\".\"scraper_provider_configs\"",
+          "r",
+          "p"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "table \"scraper_provider_configs\""
+        }
+      }
+    ]
+  },
+  {
+    "id": "column.public.scrape_jobs.config",
+    "label": "Add column \"config\" to \"scrape_jobs\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "config",
+        "table": "scrape_jobs"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"config\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "scrape_jobs",
+          "config"
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "column \"config\" on \"scrape_jobs\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"config\"",
+        "sql": "ALTER TABLE \"public\".\"scrape_jobs\" ADD COLUMN \"config\" json"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"config\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "scrape_jobs",
+          "config"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "column \"config\" on \"scrape_jobs\""
+        }
+      },
+      {
+        "description": "verify column \"config\" has type \"json\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "scrape_jobs",
+          "config",
+          "json"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.scrape_jobs.levels_scraped",
+    "label": "Add column \"levels_scraped\" to \"scrape_jobs\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "levels_scraped",
+        "table": "scrape_jobs"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"levels_scraped\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "scrape_jobs",
+          "levels_scraped"
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "column \"levels_scraped\" on \"scrape_jobs\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"levels_scraped\"",
+        "sql": "ALTER TABLE \"public\".\"scrape_jobs\" ADD COLUMN \"levels_scraped\" int4 DEFAULT 0 NOT NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"levels_scraped\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "scrape_jobs",
+          "levels_scraped"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "column \"levels_scraped\" on \"scrape_jobs\""
+        }
+      },
+      {
+        "description": "verify column \"levels_scraped\" has type \"integer\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "scrape_jobs",
+          "levels_scraped",
+          "integer"
+        ]
+      },
+      {
+        "description": "verify column \"levels_scraped\" is NOT NULL",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3 AND \"is_nullable\" = $4)) AS \"result\"",
+        "params": [
+          "public",
+          "scrape_jobs",
+          "levels_scraped",
+          "NO"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.scrape_jobs.pages_scraped",
+    "label": "Add column \"pages_scraped\" to \"scrape_jobs\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "pages_scraped",
+        "table": "scrape_jobs"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"pages_scraped\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "scrape_jobs",
+          "pages_scraped"
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "column \"pages_scraped\" on \"scrape_jobs\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"pages_scraped\"",
+        "sql": "ALTER TABLE \"public\".\"scrape_jobs\" ADD COLUMN \"pages_scraped\" int4 DEFAULT 0 NOT NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"pages_scraped\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "scrape_jobs",
+          "pages_scraped"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "column \"pages_scraped\" on \"scrape_jobs\""
+        }
+      },
+      {
+        "description": "verify column \"pages_scraped\" has type \"integer\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "scrape_jobs",
+          "pages_scraped",
+          "integer"
+        ]
+      },
+      {
+        "description": "verify column \"pages_scraped\" is NOT NULL",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3 AND \"is_nullable\" = $4)) AS \"result\"",
+        "params": [
+          "public",
+          "scrape_jobs",
+          "pages_scraped",
+          "NO"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.scrape_jobs.platform_data",
+    "label": "Add column \"platform_data\" to \"scrape_jobs\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "platform_data",
+        "table": "scrape_jobs"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"platform_data\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "scrape_jobs",
+          "platform_data"
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "column \"platform_data\" on \"scrape_jobs\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"platform_data\"",
+        "sql": "ALTER TABLE \"public\".\"scrape_jobs\" ADD COLUMN \"platform_data\" json"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"platform_data\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "scrape_jobs",
+          "platform_data"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "column \"platform_data\" on \"scrape_jobs\""
+        }
+      },
+      {
+        "description": "verify column \"platform_data\" has type \"json\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "scrape_jobs",
+          "platform_data",
+          "json"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.scrape_jobs.provider_used",
+    "label": "Add column \"provider_used\" to \"scrape_jobs\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "provider_used",
+        "table": "scrape_jobs"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"provider_used\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "scrape_jobs",
+          "provider_used"
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "column \"provider_used\" on \"scrape_jobs\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"provider_used\"",
+        "sql": "ALTER TABLE \"public\".\"scrape_jobs\" ADD COLUMN \"provider_used\" text"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"provider_used\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "scrape_jobs",
+          "provider_used"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "column \"provider_used\" on \"scrape_jobs\""
+        }
+      },
+      {
+        "description": "verify column \"provider_used\" has type \"text\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "scrape_jobs",
+          "provider_used",
+          "text"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.scrape_jobs.requires_api_key",
+    "label": "Add column \"requires_api_key\" to \"scrape_jobs\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "requires_api_key",
+        "table": "scrape_jobs"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"requires_api_key\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "scrape_jobs",
+          "requires_api_key"
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "column \"requires_api_key\" on \"scrape_jobs\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"requires_api_key\"",
+        "sql": "ALTER TABLE \"public\".\"scrape_jobs\" ADD COLUMN \"requires_api_key\" bool DEFAULT false NOT NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"requires_api_key\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "scrape_jobs",
+          "requires_api_key"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "column \"requires_api_key\" on \"scrape_jobs\""
+        }
+      },
+      {
+        "description": "verify column \"requires_api_key\" has type \"boolean\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "scrape_jobs",
+          "requires_api_key",
+          "boolean"
+        ]
+      },
+      {
+        "description": "verify column \"requires_api_key\" is NOT NULL",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3 AND \"is_nullable\" = $4)) AS \"result\"",
+        "params": [
+          "public",
+          "scrape_jobs",
+          "requires_api_key",
+          "NO"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "checkConstraint.project_contexts.project_contexts_scrape_status_check_05985b9d",
+    "label": "Add check constraint \"project_contexts_scrape_status_check_05985b9d\" on \"project_contexts\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "checkConstraint",
+        "name": "project_contexts_scrape_status_check_05985b9d",
+        "table": "project_contexts"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"project_contexts_scrape_status_check_05985b9d\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "project_contexts_scrape_status_check_05985b9d",
+          "public",
+          "\"public\".\"project_contexts\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "constraint \"project_contexts_scrape_status_check_05985b9d\" on \"project_contexts\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add check constraint \"project_contexts_scrape_status_check_05985b9d\"",
+        "sql": "ALTER TABLE \"public\".\"project_contexts\" ADD CONSTRAINT \"project_contexts_scrape_status_check_05985b9d\" CHECK (\"scrape_status\" IN ('pending', 'running', 'completed', 'unreachable', 'failed', 'api_key_required'))"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify check constraint \"project_contexts_scrape_status_check_05985b9d\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4)) AS \"result\"",
+        "params": [
+          "project_contexts_scrape_status_check_05985b9d",
+          "public",
+          "\"public\".\"project_contexts\"",
+          "c"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "checkConstraint.scrape_jobs.scrape_jobs_status_check_67d5b9aa",
+    "label": "Add check constraint \"scrape_jobs_status_check_67d5b9aa\" on \"scrape_jobs\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "checkConstraint",
+        "name": "scrape_jobs_status_check_67d5b9aa",
+        "table": "scrape_jobs"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"scrape_jobs_status_check_67d5b9aa\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "scrape_jobs_status_check_67d5b9aa",
+          "public",
+          "\"public\".\"scrape_jobs\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "constraint \"scrape_jobs_status_check_67d5b9aa\" on \"scrape_jobs\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add check constraint \"scrape_jobs_status_check_67d5b9aa\"",
+        "sql": "ALTER TABLE \"public\".\"scrape_jobs\" ADD CONSTRAINT \"scrape_jobs_status_check_67d5b9aa\" CHECK (\"status\" IN ('pending', 'running', 'completed', 'unreachable', 'failed', 'api_key_required'))"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify check constraint \"scrape_jobs_status_check_67d5b9aa\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4)) AS \"result\"",
+        "params": [
+          "scrape_jobs_status_check_67d5b9aa",
+          "public",
+          "\"public\".\"scrape_jobs\"",
+          "c"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.scraped_pages.scraped_pages_context_id_idx_0d3b2250",
+    "label": "Create index \"scraped_pages_context_id_idx_0d3b2250\" on \"scraped_pages\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "scraped_pages_context_id_idx_0d3b2250",
+        "table": "scraped_pages"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"scraped_pages_context_id_idx_0d3b2250\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"scraped_pages_context_id_idx_0d3b2250\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "index \"scraped_pages_context_id_idx_0d3b2250\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"scraped_pages_context_id_idx_0d3b2250\"",
+        "sql": "CREATE INDEX \"scraped_pages_context_id_idx_0d3b2250\" ON \"public\".\"scraped_pages\" (\"context_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"scraped_pages_context_id_idx_0d3b2250\" exists on \"scraped_pages\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"scraped_pages_context_id_idx_0d3b2250\"",
+          "i",
+          "I",
+          "\"public\".\"scraped_pages\"",
+          "btree",
+          "[\"context_id\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.scraped_pages.scraped_pages_context_id_scraped_at_idx_2803cdad",
+    "label": "Create index \"scraped_pages_context_id_scraped_at_idx_2803cdad\" on \"scraped_pages\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "scraped_pages_context_id_scraped_at_idx_2803cdad",
+        "table": "scraped_pages"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"scraped_pages_context_id_scraped_at_idx_2803cdad\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"scraped_pages_context_id_scraped_at_idx_2803cdad\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "index \"scraped_pages_context_id_scraped_at_idx_2803cdad\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"scraped_pages_context_id_scraped_at_idx_2803cdad\"",
+        "sql": "CREATE INDEX \"scraped_pages_context_id_scraped_at_idx_2803cdad\" ON \"public\".\"scraped_pages\" (\"context_id\", \"scraped_at\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"scraped_pages_context_id_scraped_at_idx_2803cdad\" exists on \"scraped_pages\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"scraped_pages_context_id_scraped_at_idx_2803cdad\"",
+          "i",
+          "I",
+          "\"public\".\"scraped_pages\"",
+          "btree",
+          "[\"context_id\",\"scraped_at\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.scraped_pages.scraped_pages_project_id_idx_6ad92603",
+    "label": "Create index \"scraped_pages_project_id_idx_6ad92603\" on \"scraped_pages\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "scraped_pages_project_id_idx_6ad92603",
+        "table": "scraped_pages"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"scraped_pages_project_id_idx_6ad92603\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"scraped_pages_project_id_idx_6ad92603\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "index \"scraped_pages_project_id_idx_6ad92603\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"scraped_pages_project_id_idx_6ad92603\"",
+        "sql": "CREATE INDEX \"scraped_pages_project_id_idx_6ad92603\" ON \"public\".\"scraped_pages\" (\"project_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"scraped_pages_project_id_idx_6ad92603\" exists on \"scraped_pages\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"scraped_pages_project_id_idx_6ad92603\"",
+          "i",
+          "I",
+          "\"public\".\"scraped_pages\"",
+          "btree",
+          "[\"project_id\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.scraped_pages.scraped_pages_project_id_scraped_at_idx_33362faa",
+    "label": "Create index \"scraped_pages_project_id_scraped_at_idx_33362faa\" on \"scraped_pages\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "scraped_pages_project_id_scraped_at_idx_33362faa",
+        "table": "scraped_pages"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"scraped_pages_project_id_scraped_at_idx_33362faa\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"scraped_pages_project_id_scraped_at_idx_33362faa\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "index \"scraped_pages_project_id_scraped_at_idx_33362faa\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"scraped_pages_project_id_scraped_at_idx_33362faa\"",
+        "sql": "CREATE INDEX \"scraped_pages_project_id_scraped_at_idx_33362faa\" ON \"public\".\"scraped_pages\" (\"project_id\", \"scraped_at\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"scraped_pages_project_id_scraped_at_idx_33362faa\" exists on \"scraped_pages\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"scraped_pages_project_id_scraped_at_idx_33362faa\"",
+          "i",
+          "I",
+          "\"public\".\"scraped_pages\"",
+          "btree",
+          "[\"project_id\",\"scraped_at\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.scraped_pages.scraped_pages_scrape_job_id_depth_idx_42001e3b",
+    "label": "Create index \"scraped_pages_scrape_job_id_depth_idx_42001e3b\" on \"scraped_pages\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "scraped_pages_scrape_job_id_depth_idx_42001e3b",
+        "table": "scraped_pages"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"scraped_pages_scrape_job_id_depth_idx_42001e3b\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"scraped_pages_scrape_job_id_depth_idx_42001e3b\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "index \"scraped_pages_scrape_job_id_depth_idx_42001e3b\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"scraped_pages_scrape_job_id_depth_idx_42001e3b\"",
+        "sql": "CREATE INDEX \"scraped_pages_scrape_job_id_depth_idx_42001e3b\" ON \"public\".\"scraped_pages\" (\"scrape_job_id\", \"depth\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"scraped_pages_scrape_job_id_depth_idx_42001e3b\" exists on \"scraped_pages\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"scraped_pages_scrape_job_id_depth_idx_42001e3b\"",
+          "i",
+          "I",
+          "\"public\".\"scraped_pages\"",
+          "btree",
+          "[\"scrape_job_id\",\"depth\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.scraped_pages.scraped_pages_scrape_job_id_idx_eacb5c9f",
+    "label": "Create index \"scraped_pages_scrape_job_id_idx_eacb5c9f\" on \"scraped_pages\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "scraped_pages_scrape_job_id_idx_eacb5c9f",
+        "table": "scraped_pages"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"scraped_pages_scrape_job_id_idx_eacb5c9f\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"scraped_pages_scrape_job_id_idx_eacb5c9f\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "index \"scraped_pages_scrape_job_id_idx_eacb5c9f\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"scraped_pages_scrape_job_id_idx_eacb5c9f\"",
+        "sql": "CREATE INDEX \"scraped_pages_scrape_job_id_idx_eacb5c9f\" ON \"public\".\"scraped_pages\" (\"scrape_job_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"scraped_pages_scrape_job_id_idx_eacb5c9f\" exists on \"scraped_pages\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"scraped_pages_scrape_job_id_idx_eacb5c9f\"",
+          "i",
+          "I",
+          "\"public\".\"scraped_pages\"",
+          "btree",
+          "[\"scrape_job_id\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.scraped_pages.scraped_pages_project_id_fkey",
+    "label": "Add foreign key \"scraped_pages_project_id_fkey\" on \"scraped_pages\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "scraped_pages_project_id_fkey",
+        "table": "scraped_pages"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"scraped_pages_project_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "scraped_pages_project_id_fkey",
+          "public",
+          "\"public\".\"scraped_pages\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "FK \"scraped_pages_project_id_fkey\" on \"scraped_pages\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"scraped_pages_project_id_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"scraped_pages\"\nADD CONSTRAINT \"scraped_pages_project_id_fkey\"\nFOREIGN KEY (\"project_id\")\nREFERENCES \"public\".\"projects\" (\"id\")\nON DELETE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"scraped_pages_project_id_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "scraped_pages_project_id_fkey",
+          "public",
+          "\"public\".\"scraped_pages\"",
+          "f",
+          "[\"project_id\"]",
+          "\"public\".\"projects\"",
+          "[\"id\"]",
+          "c",
+          "a"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.scraped_pages.scraped_pages_context_id_fkey",
+    "label": "Add foreign key \"scraped_pages_context_id_fkey\" on \"scraped_pages\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "scraped_pages_context_id_fkey",
+        "table": "scraped_pages"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"scraped_pages_context_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "scraped_pages_context_id_fkey",
+          "public",
+          "\"public\".\"scraped_pages\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "FK \"scraped_pages_context_id_fkey\" on \"scraped_pages\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"scraped_pages_context_id_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"scraped_pages\"\nADD CONSTRAINT \"scraped_pages_context_id_fkey\"\nFOREIGN KEY (\"context_id\")\nREFERENCES \"public\".\"project_contexts\" (\"id\")\nON DELETE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"scraped_pages_context_id_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "scraped_pages_context_id_fkey",
+          "public",
+          "\"public\".\"scraped_pages\"",
+          "f",
+          "[\"context_id\"]",
+          "\"public\".\"project_contexts\"",
+          "[\"id\"]",
+          "c",
+          "a"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.scraped_pages.scraped_pages_scrape_job_id_fkey",
+    "label": "Add foreign key \"scraped_pages_scrape_job_id_fkey\" on \"scraped_pages\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "scraped_pages_scrape_job_id_fkey",
+        "table": "scraped_pages"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"scraped_pages_scrape_job_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "scraped_pages_scrape_job_id_fkey",
+          "public",
+          "\"public\".\"scraped_pages\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "FK \"scraped_pages_scrape_job_id_fkey\" on \"scraped_pages\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"scraped_pages_scrape_job_id_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"scraped_pages\"\nADD CONSTRAINT \"scraped_pages_scrape_job_id_fkey\"\nFOREIGN KEY (\"scrape_job_id\")\nREFERENCES \"public\".\"scrape_jobs\" (\"id\")\nON DELETE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"scraped_pages_scrape_job_id_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "scraped_pages_scrape_job_id_fkey",
+          "public",
+          "\"public\".\"scraped_pages\"",
+          "f",
+          "[\"scrape_job_id\"]",
+          "\"public\".\"scrape_jobs\"",
+          "[\"id\"]",
+          "c",
+          "a"
+        ]
+      }
+    ]
+  }
+]

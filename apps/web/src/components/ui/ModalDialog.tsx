@@ -9,6 +9,7 @@ interface ModalDialogProps {
   title: React.ReactNode;
   subtitle?: React.ReactNode;
   maxWidthClass?: string;
+  onClose?: () => void;
   children: React.ReactNode;
 }
 
@@ -17,6 +18,7 @@ export function ModalDialog({
   title,
   subtitle,
   maxWidthClass = "max-w-md",
+  onClose,
   children,
 }: ModalDialogProps) {
   const titleId = useId();
@@ -25,6 +27,7 @@ export function ModalDialog({
   return (
     <dialog
       ref={dialogRef}
+      onClose={onClose}
       aria-labelledby={titleId}
       {...({ closedby: "any" } as React.DialogHTMLAttributes<HTMLDialogElement>)}
       className={`m-auto w-[calc(100%-1.25rem)] sm:w-full ${maxWidthClass} max-h-[90dvh] overflow-y-auto scroller rounded-2xl bg-white dark:bg-[#202c33] text-[#050505] dark:text-[#e9edef] border border-[#e4e6eb] dark:border-[#2a3942] p-0 shadow-xl`}

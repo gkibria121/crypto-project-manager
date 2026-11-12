@@ -197,6 +197,23 @@ textarea[aria-invalid="true"] {
   outline-offset: -1.5px;
 }
 
+/* Accessible Tablist Active Indicator per modern-web-guidance (tabs, WCAG 1.4.1) */
+.accessible-tab {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.accessible-tab[aria-selected="true"] {
+  color: var(--accent-color);
+}
+
+.accessible-tab[aria-selected="true"]::after {
+  content: "";
+  position: absolute;
+  inset: auto 0.25rem 0;
+  border-block-end: 2.5px solid var(--accent-color);
+}
+
 /* Primary site navigation active page indicator per modern-web-guidance (navbar, WCAG 1.4.1) */
 .site-nav-link {
   position: relative;
