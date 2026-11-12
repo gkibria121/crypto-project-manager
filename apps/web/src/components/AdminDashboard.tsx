@@ -12,6 +12,7 @@ import {
   ArrowRight,
   ArrowUpRight,
   Bot,
+  Building2,
   Check,
   CheckCircle2,
   Clock,
@@ -75,6 +76,7 @@ import {
 } from "@/types/project";
 import {
   useActivateAiProviderMutation,
+  useAgencyProfileQuery,
   useAiProvidersQuery,
   useAuditLogsQuery,
   useBulkDeleteProjectsMutation,
@@ -101,6 +103,7 @@ import {
   usePromptTemplatesQuery,
   useRefreshMcpServerMutation,
   useRegisterMutation,
+  useSaveAgencyProfileMutation,
   useSaveAiProviderConfigMutation,
   useSaveChecklistItemMutation,
   useSavePromptTemplateMutation,
@@ -117,6 +120,7 @@ import {
   useUpdateUserStatusMutation,
   useUsersQuery,
 } from "@/hooks";
+import { AgencyAboutUsPanel } from "@/components/AgencyAboutUsPanel";
 import { AiProviderKeysPanel } from "@/components/AiProviderKeysPanel";
 import { AuthScreen } from "@/components/AuthScreen";
 import { McpServersPanel } from "@/components/McpServersPanel";
@@ -139,6 +143,7 @@ import {
 
 type AdminSectionId =
   | "overview"
+  | "about-us"
   | "users"
   | "projects"
   | "rbac"
@@ -158,6 +163,11 @@ const SECTION_META: Record<
     title: "Admin Overview",
     subtitle:
       "Executive metrics, pending user activations, system health, and recent workspace activity.",
+  },
+  "about-us": {
+    title: "About Us & Agency Identity",
+    subtitle:
+      "Manage your agency company profile, office address, and representative details automatically used in every AI chat.",
   },
   users: {
     title: "Users & Approvals",
@@ -216,6 +226,7 @@ export function AdminDashboard() {
     isAuthenticated && isAdmin
   );
   const aiProvidersQuery = useAiProvidersQuery(isAuthenticated && isAdmin);
+  const agencyProfileQuery = useAgencyProfileQuery(isAuthenticated && isAdmin);
   const mcpServersQuery = useMcpServersQuery(isAuthenticated && isAdmin);
 
   const users = usersQuery.data ?? [];
@@ -226,6 +237,7 @@ export function AdminDashboard() {
   const syncProviders = syncProvidersQuery.data ?? [];
   const scraperProviders = scraperProvidersQuery.data ?? [];
   const aiConfig = aiProvidersQuery.data;
+  const agencyProfile = agencyProfileQuery.data;
   const mcpOverview = mcpServersQuery.data;
 
   const loginMutation = useLoginMutation();
@@ -264,6 +276,7 @@ export function AdminDashboard() {
   const saveAiProviderConfigMutation = useSaveAiProviderConfigMutation();
   const activateAiProviderMutation = useActivateAiProviderMutation();
   const deleteAiProviderKeyMutation = useDeleteAiProviderKeyMutation();
+  const saveAgencyProfileMutation = useSaveAgencyProfileMutation();
   const createMcpServerMutation = useCreateMcpServerMutation();
   const updateMcpServerMutation = useUpdateMcpServerMutation();
   const refreshMcpServerMutation = useRefreshMcpServerMutation();
@@ -274,6 +287,7 @@ export function AdminDashboard() {
   const searchParams = useSearchParams();
   const initialSectionParam = searchParams.get("section");
   const validInitialSection: AdminSectionId =
+    initialSectionParam === "about-us" ||
     initialSectionParam === "users" ||
     initialSectionParam === "projects" ||
     initialSectionParam === "rbac" ||
@@ -967,6 +981,14 @@ export function AdminDashboard() {
       icon: LayoutDashboard,
       badge: inactiveUsers.length > 0 ? `${inactiveUsers.length} new` : undefined,
       badgeTone: "amber",
+    },
+    {
+      id: "about-us",
+      label: "About Us",
+      description: "Agency & representative info",
+      icon: Building2,
+      badge: agencyProfile?.companyName ? "Saved" : "Setup",
+      badgeTone: agencyProfile?.companyName ? "neutral" : "amber",
     },
     {
       id: "users",
@@ -1824,6 +1846,43 @@ export function AdminDashboard() {
                   </section>
                 </div>
               </div>
+            )}
+
+            {/* ========================================================= */}
+            {/* VIEW 1B: ABOUT US / AGENCY IDENTITY                       */}
+            {/* ========================================================= */}
+            {activeSection === "about-us" && (
+              <section
+                aria-labelledby="admin-about-us-heading"
+                className="rounded-2xl bg-white dark:bg-[#202c33] border border-[#e4e6eb] dark:border-[#2a3942] p-4 sm:p-5 shadow-2xs space-y-4"
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-[#0084ff]/12 text-[#0084ff] flex items-center justify-center shrink-0">
+                    <Building2 className="w-4 h-4" aria-hidden="true" />
+                  </div>
+                  <div>
+                    <h2
+                      id="admin-about-us-heading"
+                      className="text-base font-bold"
+                    >
+                      About Us — Agency & Representative Profile
+                    </h2>
+                    <p className="text-xs text-[#65676b] dark:text-[#8696a0]">
+                      Update your agency company details, office address, and
+                      representative information. Every project chat will
+                      automatically know and use these details.
+                    </p>
+                  </div>
+                </div>
+
+                <AgencyAboutUsPanel
+                  profile={agencyProfile}
+                  canEdit={hasPermission(currentUser, "settings:write")}
+                  onSaveProfile={(dto) =>
+                    saveAgencyProfileMutation.mutateAsync(dto)
+                  }
+                />
+              </section>
             )}
 
             {/* ========================================================= */}

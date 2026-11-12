@@ -814,6 +814,82 @@ export const chatMentionSuggestionSchema = z.object({
 });
 
 /**
+ * Agency / About Us Profile Schemas
+ */
+export const agencySocialLinksSchema = z.object({
+  linkedin: z.string().trim().max(500).default(""),
+  x: z.string().trim().max(500).default(""),
+  telegram: z.string().trim().max(500).default(""),
+  discord: z.string().trim().max(500).default(""),
+});
+
+export const agencyProfileSchema = z.object({
+  companyName: z.string().trim().max(200).default(""),
+  tagline: z.string().trim().max(300).default(""),
+  aboutUs: z.string().trim().max(4000).default(""),
+  services: z.string().trim().max(2000).default(""),
+  website: z.string().trim().max(500).default(""),
+  email: z.string().trim().max(200).default(""),
+  phone: z.string().trim().max(80).default(""),
+  address: z.string().trim().max(500).default(""),
+  city: z.string().trim().max(120).default(""),
+  country: z.string().trim().max(120).default(""),
+  representativeName: z.string().trim().max(200).default(""),
+  representativeTitle: z.string().trim().max(200).default(""),
+  representativeEmail: z.string().trim().max(200).default(""),
+  representativePhone: z.string().trim().max(80).default(""),
+  socialLinks: agencySocialLinksSchema.default({
+    linkedin: "",
+    x: "",
+    telegram: "",
+    discord: "",
+  }),
+  notes: z.string().trim().max(4000).default(""),
+  updatedBy: z.string().nullable().optional(),
+  updatedAt: z.string().nullable().optional(),
+});
+
+export const updateAgencyProfileDtoSchema = z.object({
+  companyName: z.string().trim().max(200).default(""),
+  tagline: z.string().trim().max(300).default(""),
+  aboutUs: z.string().trim().max(4000).default(""),
+  services: z.string().trim().max(2000).default(""),
+  website: z.string().trim().max(500).default(""),
+  email: z
+    .string()
+    .trim()
+    .max(200)
+    .refine(
+      (v) => v === "" || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v),
+      "Please enter a valid company email address"
+    )
+    .default(""),
+  phone: z.string().trim().max(80).default(""),
+  address: z.string().trim().max(500).default(""),
+  city: z.string().trim().max(120).default(""),
+  country: z.string().trim().max(120).default(""),
+  representativeName: z.string().trim().max(200).default(""),
+  representativeTitle: z.string().trim().max(200).default(""),
+  representativeEmail: z
+    .string()
+    .trim()
+    .max(200)
+    .refine(
+      (v) => v === "" || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v),
+      "Please enter a valid representative email address"
+    )
+    .default(""),
+  representativePhone: z.string().trim().max(80).default(""),
+  socialLinks: agencySocialLinksSchema.default({
+    linkedin: "",
+    x: "",
+    telegram: "",
+    discord: "",
+  }),
+  notes: z.string().trim().max(4000).default(""),
+});
+
+/**
  * Inferred TypeScript Types
  */
 export type ContextType = z.infer<typeof contextTypeSchema>;
@@ -910,3 +986,6 @@ export type CreateMcpServerDto = z.infer<typeof createMcpServerDtoSchema>;
 export type UpdateMcpServerDto = z.infer<typeof updateMcpServerDtoSchema>;
 export type CallMcpToolDto = z.infer<typeof callMcpToolDtoSchema>;
 export type ChatMentionSuggestion = z.infer<typeof chatMentionSuggestionSchema>;
+export type AgencySocialLinks = z.infer<typeof agencySocialLinksSchema>;
+export type AgencyProfile = z.infer<typeof agencyProfileSchema>;
+export type UpdateAgencyProfileDto = z.infer<typeof updateAgencyProfileDtoSchema>;

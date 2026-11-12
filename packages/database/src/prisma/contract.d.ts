@@ -23,9 +23,9 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'68047f13351ee0dc4a823d256f31689f4b5acfc934e4baf1fe144fee7a8577fa'>;
+  StorageHashBase<'3c7491912e1ca387c292446052c8a807c7a4bf99ac6f64fde1ded95fb6306a95'>;
 export type ExecutionHash =
-  ExecutionHashBase<'4ab06c33287725e72d61d55f456d779c016f4cf8c7cf8273854d07276428cc6c'>;
+  ExecutionHashBase<'f911d51e67bb3c7454ade5de9018384358a748b83b79be46a4e377794b854ca4'>;
 export type ProfileHash =
   ProfileHashBase<'3916f444a8a17ad749191acf9e08dad97d1a327b88c2f1d45d12f240296aa8b2'>;
 
@@ -447,6 +447,29 @@ export type StorageColumnInputTypes = ColumnTypesFromStorage<
 >;
 
 export namespace Models {
+  export type public_AgencyProfile = {
+    aboutUs: FieldOutputTypes['public']['AgencyProfile']['aboutUs'];
+    address: FieldOutputTypes['public']['AgencyProfile']['address'];
+    city: FieldOutputTypes['public']['AgencyProfile']['city'];
+    companyName: FieldOutputTypes['public']['AgencyProfile']['companyName'];
+    country: FieldOutputTypes['public']['AgencyProfile']['country'];
+    createdAt: FieldOutputTypes['public']['AgencyProfile']['createdAt'];
+    email: FieldOutputTypes['public']['AgencyProfile']['email'];
+    id: FieldOutputTypes['public']['AgencyProfile']['id'];
+    notes: FieldOutputTypes['public']['AgencyProfile']['notes'];
+    phone: FieldOutputTypes['public']['AgencyProfile']['phone'];
+    representativeEmail: FieldOutputTypes['public']['AgencyProfile']['representativeEmail'];
+    representativeName: FieldOutputTypes['public']['AgencyProfile']['representativeName'];
+    representativePhone: FieldOutputTypes['public']['AgencyProfile']['representativePhone'];
+    representativeTitle: FieldOutputTypes['public']['AgencyProfile']['representativeTitle'];
+    services: FieldOutputTypes['public']['AgencyProfile']['services'];
+    socialLinks: FieldOutputTypes['public']['AgencyProfile']['socialLinks'];
+    tagline: FieldOutputTypes['public']['AgencyProfile']['tagline'];
+    updatedAt: FieldOutputTypes['public']['AgencyProfile']['updatedAt'];
+    updatedBy: FieldOutputTypes['public']['AgencyProfile']['updatedBy'];
+    website: FieldOutputTypes['public']['AgencyProfile']['website'];
+    readonly [RelationKeys]?: never;
+  };
   export type public_AiProviderConfig = {
     apiKey: FieldOutputTypes['public']['AiProviderConfig']['apiKey'];
     createdAt: FieldOutputTypes['public']['AiProviderConfig']['createdAt'];
@@ -694,6 +717,7 @@ export namespace Models {
 
 export declare const models: {
   public: {
+    AgencyProfile: Models.public_AgencyProfile;
     AiProviderConfig: Models.public_AiProviderConfig;
     AuditLog: Models.public_AuditLog;
     AuthSession: Models.public_AuthSession;
@@ -729,6 +753,146 @@ type ContractBase = Omit<
         readonly kind: 'postgres-schema';
         readonly entries: {
           readonly table: {
+            readonly agency_profiles: {
+              columns: {
+                readonly about_us: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly address: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly city: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly company_name: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/text@1', ''>;
+                  };
+                  readonly many: false;
+                };
+                readonly country: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly created_at: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: false;
+                  readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+                readonly email: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly id: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly notes: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly phone: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly representative_email: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly representative_name: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/text@1', ''>;
+                  };
+                  readonly many: false;
+                };
+                readonly representative_phone: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly representative_title: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly services: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly social_links: {
+                  readonly dataType: 'pg/json';
+                  readonly codecId: 'pg/json@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly tagline: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly updated_at: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: false;
+                  readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+                readonly updated_by: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly website: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+              };
+              primaryKey: { readonly columns: readonly ['id'] };
+              uniques: readonly [];
+              indexes: readonly [];
+              foreignKeys: readonly [];
+            };
             readonly ai_provider_configs: {
               columns: {
                 readonly api_key: {
@@ -2550,6 +2714,10 @@ type ContractBase = Omit<
   readonly target: 'postgres';
   readonly targetFamily: 'sql';
   readonly roots: {
+    readonly agency_profiles: {
+      readonly namespace: 'public' & NamespaceId;
+      readonly model: 'AgencyProfile';
+    };
     readonly ai_provider_configs: {
       readonly namespace: 'public' & NamespaceId;
       readonly model: 'AiProviderConfig';
@@ -2602,6 +2770,125 @@ type ContractBase = Omit<
     readonly namespaces: {
       readonly public: {
         readonly models: {
+          readonly AgencyProfile: {
+            readonly fields: {
+              readonly aboutUs: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly address: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly city: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly companyName: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly country: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly createdAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly email: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly id: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly notes: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly phone: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly representativeEmail: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly representativeName: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly representativePhone: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly representativeTitle: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly services: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly socialLinks: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/json@1' };
+              };
+              readonly tagline: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly updatedAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly updatedBy: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly website: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+            };
+            readonly relations: Record<string, never>;
+            readonly storage: {
+              readonly table: 'agency_profiles';
+              readonly namespaceId: 'public';
+              readonly fields: {
+                readonly aboutUs: { readonly column: 'about_us' };
+                readonly address: { readonly column: 'address' };
+                readonly city: { readonly column: 'city' };
+                readonly companyName: { readonly column: 'company_name' };
+                readonly country: { readonly column: 'country' };
+                readonly createdAt: { readonly column: 'created_at' };
+                readonly email: { readonly column: 'email' };
+                readonly id: { readonly column: 'id' };
+                readonly notes: { readonly column: 'notes' };
+                readonly phone: { readonly column: 'phone' };
+                readonly representativeEmail: { readonly column: 'representative_email' };
+                readonly representativeName: { readonly column: 'representative_name' };
+                readonly representativePhone: { readonly column: 'representative_phone' };
+                readonly representativeTitle: { readonly column: 'representative_title' };
+                readonly services: { readonly column: 'services' };
+                readonly socialLinks: { readonly column: 'social_links' };
+                readonly tagline: { readonly column: 'tagline' };
+                readonly updatedAt: { readonly column: 'updated_at' };
+                readonly updatedBy: { readonly column: 'updated_by' };
+                readonly website: { readonly column: 'website' };
+              };
+            };
+          };
           readonly AiProviderConfig: {
             readonly fields: {
               readonly apiKey: {
@@ -4161,6 +4448,35 @@ type ContractBase = Omit<
     readonly executionHash: ExecutionHash;
     readonly mutations: {
       readonly defaults: readonly [
+        {
+          readonly onCreate: {
+            readonly id: 'timestampNow';
+            readonly kind: 'generator';
+            readonly params: { readonly precision: 3 };
+          };
+          readonly ref: {
+            readonly entry: 'agency_profiles';
+            readonly field: 'created_at';
+            readonly namespace: 'public';
+          };
+        },
+        {
+          readonly onCreate: {
+            readonly id: 'timestampNow';
+            readonly kind: 'generator';
+            readonly params: { readonly precision: 3 };
+          };
+          readonly onUpdate: {
+            readonly id: 'timestampNow';
+            readonly kind: 'generator';
+            readonly params: { readonly precision: 3 };
+          };
+          readonly ref: {
+            readonly entry: 'agency_profiles';
+            readonly field: 'updated_at';
+            readonly namespace: 'public';
+          };
+        },
         {
           readonly onCreate: {
             readonly id: 'timestampNow';

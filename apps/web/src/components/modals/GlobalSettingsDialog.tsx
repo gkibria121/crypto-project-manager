@@ -7,6 +7,7 @@ import { Plus, Trash2 } from "lucide-react";
 import {
   checklistItemFormSchema,
   promptTemplateFormSchema,
+  type AgencyProfile,
   type AiConfigurationSummary,
   type AiProvider,
   type ChecklistItemConfig,
@@ -17,8 +18,10 @@ import {
   type PromptTemplateFormValues,
   type ScraperProviderStatus,
   type SpecializedScraperProvider,
+  type UpdateAgencyProfileDto,
   type UpdateAiProviderConfigDto,
 } from "@/types/project";
+import { AgencyAboutUsPanel } from "@/components/AgencyAboutUsPanel";
 import { AiProviderKeysPanel } from "@/components/AiProviderKeysPanel";
 import { McpServersPanel } from "@/components/McpServersPanel";
 import { ScraperProviderKeysPanel } from "@/components/ScraperProviderKeysPanel";
@@ -30,6 +33,7 @@ import {
 import { usePagination } from "@/hooks/usePagination";
 
 export type GlobalSettingsTab =
+  | "about-us"
   | "ai-providers"
   | "mcp-servers"
   | "prompts"
@@ -40,6 +44,8 @@ interface GlobalSettingsDialogProps {
   dialogRef: RefObject<HTMLDialogElement | null>;
   activeTab?: GlobalSettingsTab;
   onTabChange?: (tab: GlobalSettingsTab) => void;
+  agencyProfile?: AgencyProfile;
+  onSaveAgencyProfile?: (dto: UpdateAgencyProfileDto) => Promise<unknown>;
   promptTemplates: PromptTemplate[];
   onSavePromptTemplate: (template: PromptTemplate) => void;
   onDeletePromptTemplate: (id: string) => void;
@@ -75,6 +81,8 @@ export function GlobalSettingsDialog({
   dialogRef,
   activeTab: controlledTab,
   onTabChange,
+  agencyProfile,
+  onSaveAgencyProfile,
   promptTemplates,
   onSavePromptTemplate,
   onDeletePromptTemplate,
@@ -170,6 +178,15 @@ export function GlobalSettingsDialog({
         <button
           type="button"
           role="tab"
+          aria-selected={activeTab === "about-us"}
+          onClick={() => setActiveTab("about-us")}
+          className="accessible-tab px-3 py-2 text-xs font-semibold text-[#65676b] dark:text-[#8696a0] hover:text-[#050505] dark:hover:text-[#e9edef] transition cursor-pointer whitespace-nowrap"
+        >
+          About Us {agencyProfile?.companyName ? "✓" : ""}
+        </button>
+        <button
+          type="button"
+          role="tab"
           aria-selected={activeTab === "ai-providers"}
           onClick={() => setActiveTab("ai-providers")}
           className="accessible-tab px-3 py-2 text-xs font-semibold text-[#65676b] dark:text-[#8696a0] hover:text-[#050505] dark:hover:text-[#e9edef] transition cursor-pointer whitespace-nowrap"
@@ -216,7 +233,15 @@ export function GlobalSettingsDialog({
         </button>
       </div>
 
-      {activeTab === "ai-providers" ? (
+      {activeTab === "about-us" ? (
+        <div className="mt-4 max-h-[60vh] overflow-y-auto scroller pr-1">
+          <AgencyAboutUsPanel
+            profile={agencyProfile}
+            canEdit={canEditScraperKeys}
+            onSaveProfile={onSaveAgencyProfile ?? (async () => undefined)}
+          />
+        </div>
+      ) : activeTab === "ai-providers" ? (
         <div className="mt-4 max-h-[60vh] overflow-y-auto scroller pr-1">
           <AiProviderKeysPanel
             aiConfig={aiConfig}

@@ -4,6 +4,10 @@ import { z } from "zod";
 import type { PrismaService } from "../prisma/prisma.service.js";
 import { findFullProjectOrThrow } from "../projects/project.mapper.js";
 import type { ScraperService } from "../scraper/scraper.service.js";
+import {
+  DEFAULT_AGENCY_PROFILE_ID,
+  mapAgencyProfileRowToDomain,
+} from "../settings/agency-profile.helper.js";
 import { mapTagToContextType, slugifyContextTag } from "./mcp-mentions.helper.js";
 
 export interface PulseOsMcpDeps {
@@ -647,6 +651,30 @@ export function createPulseOsMcpServer(deps: PulseOsMcpDeps): McpServer {
             tagline: p.tagline,
           })),
         });
+      } catch (error) {
+        return jsonToolResponse(
+          { error: error instanceof Error ? error.message : String(error) },
+          true
+        );
+      }
+    }
+  );
+
+  server.registerTool(
+    "get_agency_profile",
+    {
+      title: "Get Our Agency / About Us Profile",
+      description:
+        "Retrieve our agency's company details, services, office address, contact info, and representative name/title/contact saved in the About Us dashboard tab.",
+      inputSchema: {},
+    },
+    async () => {
+      try {
+        const table = deps.prisma.db.orm.public.AgencyProfile;
+        const row = table
+          ? await table.where({ id: DEFAULT_AGENCY_PROFILE_ID }).first()
+          : null;
+        return jsonToolResponse(mapAgencyProfileRowToDomain(row));
       } catch (error) {
         return jsonToolResponse(
           { error: error instanceof Error ? error.message : String(error) },

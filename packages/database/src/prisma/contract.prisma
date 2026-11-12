@@ -356,3 +356,27 @@ model McpServerConfig {
 
   @@map("mcp_servers")
 }
+
+model AgencyProfile {
+  id                  String   @id
+  companyName         String   @default("") @map("company_name")
+  tagline             String?
+  aboutUs             String?  @map("about_us")
+  services            String?
+  website             String?
+  email               String?
+  phone               String?
+  address             String?
+  city                String?
+  country             String?
+  representativeName  String   @default("") @map("representative_name")
+  representativeTitle String?  @map("representative_title")
+  representativeEmail String?  @map("representative_email")
+  representativePhone String?  @map("representative_phone")
+  socialLinks         Json?    @map("social_links")
+  notes               String?
+  updatedBy           String?  @map("updated_by")
+  +Timestamps
+
+  @@map("agency_profiles")
+}

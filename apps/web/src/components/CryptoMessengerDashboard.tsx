@@ -15,6 +15,7 @@ import {
 import {
   useActivateAiProviderMutation,
   useAddContextMutation,
+  useAgencyProfileQuery,
   useAiProvidersQuery,
   useAuditLogsQuery,
   useChecklistItemsQuery,
@@ -41,6 +42,7 @@ import {
   useRefreshMcpServerMutation,
   useRegisterMutation,
   useResetConversationMutation,
+  useSaveAgencyProfileMutation,
   useSaveAiProviderConfigMutation,
   useSaveChecklistItemMutation,
   useSavePromptTemplateMutation,
@@ -96,6 +98,8 @@ export function CryptoMessengerDashboard() {
     useScraperProvidersQuery(isAuthenticated);
   const aiProvidersQuery = useAiProvidersQuery(isAuthenticated);
   const aiConfig = aiProvidersQuery.data;
+  const agencyProfileQuery = useAgencyProfileQuery(isAuthenticated);
+  const agencyProfile = agencyProfileQuery.data;
   const mcpServersQuery = useMcpServersQuery(isAuthenticated);
   const mcpOverview = mcpServersQuery.data;
   const { data: healthStatus } = useSystemHealthQuery();
@@ -188,6 +192,7 @@ export function CryptoMessengerDashboard() {
   const saveAiProviderConfigMutation = useSaveAiProviderConfigMutation();
   const activateAiProviderMutation = useActivateAiProviderMutation();
   const deleteAiProviderKeyMutation = useDeleteAiProviderKeyMutation();
+  const saveAgencyProfileMutation = useSaveAgencyProfileMutation();
   const createMcpServerMutation = useCreateMcpServerMutation();
   const updateMcpServerMutation = useUpdateMcpServerMutation();
   const refreshMcpServerMutation = useRefreshMcpServerMutation();
@@ -610,6 +615,8 @@ export function CryptoMessengerDashboard() {
         dialogRef={globalSettingsDialogRef}
         activeTab={globalSettingsTab}
         onTabChange={setGlobalSettingsTab}
+        agencyProfile={agencyProfile}
+        onSaveAgencyProfile={(dto) => saveAgencyProfileMutation.mutateAsync(dto)}
         promptTemplates={promptTemplates}
         onSavePromptTemplate={(tpl) => savePromptTemplateMutation.mutate(tpl)}
         onDeletePromptTemplate={(id) => deletePromptTemplateMutation.mutate(id)}

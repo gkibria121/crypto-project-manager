@@ -74,6 +74,9 @@ export {
   updateMcpServerDtoSchema,
   callMcpToolDtoSchema,
   chatMentionSuggestionSchema,
+  agencySocialLinksSchema,
+  agencyProfileSchema,
+  updateAgencyProfileDtoSchema,
   USER_ROLES,
   ALL_PERMISSIONS,
   ROLE_PERMISSIONS,
@@ -183,4 +186,7 @@ export {
   type UpdateMcpServerDto,
   type CallMcpToolDto,
   type ChatMentionSuggestion,
+  type AgencySocialLinks,
+  type AgencyProfile,
+  type UpdateAgencyProfileDto,
 } from "@repo/shared";

@@ -1,4 +1,5 @@
 import {
+  agencyProfileSchema,
   aiConfigurationSummarySchema,
   aiProviderModelsResponseSchema,
   auditLogItemSchema,
@@ -19,6 +20,7 @@ import {
   syncProviderStatusSchema,
   systemHealthSchema,
   type AddContextFormValues,
+  type AgencyProfile,
   type AiConfigurationSummary,
   type AiProvider,
   type AiProviderModelsResponse,
@@ -50,6 +52,7 @@ import {
   type SyncProviderStatus,
   type SystemHealthStatus,
   type TriggerScrapeDto,
+  type UpdateAgencyProfileDto,
   type UpdateAiProviderConfigDto,
   type UpdateMcpServerDto,
   type UpdateProjectFormValues,
@@ -786,6 +789,25 @@ export const apiClient = {
       `/mcp/servers/${encodeURIComponent(serverId)}`,
       { method: "DELETE" },
       mcpOverviewSchema
+    );
+  },
+
+  fetchAgencyProfile(): Promise<AgencyProfile> {
+    return requestJson(
+      "/settings/about-us",
+      { method: "GET" },
+      agencyProfileSchema
+    );
+  },
+
+  saveAgencyProfile(input: UpdateAgencyProfileDto): Promise<AgencyProfile> {
+    return requestJson(
+      "/settings/about-us",
+      {
+        method: "PUT",
+        body: JSON.stringify(input),
+      },
+      agencyProfileSchema
     );
   },
 };

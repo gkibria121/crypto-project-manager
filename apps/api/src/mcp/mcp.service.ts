@@ -560,6 +560,13 @@ export class McpService implements OnModuleInit, OnModuleDestroy {
         continue;
       }
 
+      if (tag === "about-us" || tag === "agency") {
+        const res = await this.callTool("get_agency_profile", {}, { projectId });
+        resolvedTags.push(`@${tag}`);
+        sections.push(`[MCP Backend Resolution for @${tag}]\n${res.text}`);
+        continue;
+      }
+
       if (tag === "scrape") {
         resolvedTags.push("@scrape");
         sections.push(

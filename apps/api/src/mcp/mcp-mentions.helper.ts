@@ -154,6 +154,16 @@ export function buildProjectMentionSuggestions(
   });
 
   suggestions.push({
+    tag: "@about-us",
+    label: "Our Agency (About Us)",
+    description:
+      "Our agency profile, address, services, and representative details",
+    category: "company",
+    availableCount: 1,
+    isReady: true,
+  });
+
+  suggestions.push({
     tag: "@scrape",
     label: "Scrape Links (MCP Tool)",
     description: `Trigger Python scraper via MCP tools (${tools.length} tools ready)`,

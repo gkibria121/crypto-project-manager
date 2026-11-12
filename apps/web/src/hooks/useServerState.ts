@@ -10,6 +10,7 @@ import { formatCurrentTimestamp } from "@/lib/ai-engine";
 import { apiClient } from "@/services/apiClient";
 import type {
   AddContextFormValues,
+  AgencyProfile,
   AiConfigurationSummary,
   AiProvider,
   AuthUser,
@@ -30,6 +31,7 @@ import type {
   SyncProjectsDto,
   SyncProjectsResponse,
   TriggerScrapeDto,
+  UpdateAgencyProfileDto,
   UpdateAiProviderConfigDto,
   UpdateMcpServerDto,
   UpdateProjectFormValues,
@@ -67,6 +69,9 @@ export const queryKeys = {
   },
   checklistItems: {
     all: ["checklist-items"] as const,
+  },
+  aboutUs: {
+    profile: ["settings", "about-us"] as const,
   },
   mcp: {
     servers: ["mcp", "servers"] as const,
@@ -180,6 +185,14 @@ export function useMcpServersQuery(enabled = true) {
   return useQuery({
     queryKey: queryKeys.mcp.servers,
     queryFn: () => apiClient.fetchMcpServers(),
+    enabled,
+  });
+}
+
+export function useAgencyProfileQuery(enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.aboutUs.profile,
+    queryFn: () => apiClient.fetchAgencyProfile(),
     enabled,
   });
 }
@@ -1157,6 +1170,24 @@ export function useDeleteMcpServerMutation() {
     mutationFn: (serverId: string) => apiClient.deleteMcpServer(serverId),
     onSuccess: (overview) => {
       queryClient.setQueryData<McpOverview>(queryKeys.mcp.servers, overview);
+    },
+  });
+}
+
+export function useSaveAgencyProfileMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: UpdateAgencyProfileDto) =>
+      apiClient.saveAgencyProfile(input),
+    onSuccess: (profile) => {
+      queryClient.setQueryData<AgencyProfile>(
+        queryKeys.aboutUs.profile,
+        profile
+      );
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.users.auditLogs,
+      });
     },
   });
 }

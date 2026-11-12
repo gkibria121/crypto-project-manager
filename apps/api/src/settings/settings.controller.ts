@@ -13,10 +13,12 @@ import {
   aiProviderSchema,
   checklistItemConfigSchema,
   promptTemplateSchema,
+  updateAgencyProfileDtoSchema,
   updateAiProviderConfigDtoSchema,
   type ActivateAiProviderDto,
   type ChecklistItemConfig,
   type PromptTemplate,
+  type UpdateAgencyProfileDto,
   type UpdateAiProviderConfigDto,
 } from "@repo/shared";
 import {
@@ -83,6 +85,30 @@ export class SettingsController {
   @ApiOperation({ summary: "Delete a global checklist item" })
   deleteChecklistItem(@Param("id") id: string) {
     return this.settingsService.deleteChecklistItem(id);
+  }
+
+  @Get("about-us")
+  @RequirePermissions("settings:read")
+  @ApiOperation({
+    summary:
+      "Fetch our agency profile (company details, address, and representative info)",
+  })
+  getAgencyProfile() {
+    return this.settingsService.getAgencyProfile();
+  }
+
+  @Put("about-us")
+  @RequirePermissions("settings:write")
+  @ApiOperation({
+    summary:
+      "Save or update our agency profile (company details, address, and representative info)",
+  })
+  saveAgencyProfile(
+    @Body(new ZodValidationPipe(updateAgencyProfileDtoSchema))
+    body: UpdateAgencyProfileDto,
+    @CurrentUser() user: AuthenticatedUser | undefined
+  ) {
+    return this.settingsService.saveAgencyProfile(body, user);
   }
 
   @Get("ai-providers")

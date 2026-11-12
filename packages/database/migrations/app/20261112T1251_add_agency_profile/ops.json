@@ -1,0 +1,51 @@
+[
+  {
+    "id": "table.agency_profiles",
+    "label": "Create table \"agency_profiles\"",
+    "summary": "Creates table \"agency_profiles\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "agency_profiles"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"agency_profiles\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"agency_profiles\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "table \"agency_profiles\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"agency_profiles\"",
+        "sql": "CREATE TABLE \"public\".\"agency_profiles\" (\n  \"about_us\" text,\n  \"address\" text,\n  \"city\" text,\n  \"company_name\" text DEFAULT '' NOT NULL,\n  \"country\" text,\n  \"created_at\" timestamptz(3) DEFAULT (now()) NOT NULL,\n  \"email\" text,\n  \"id\" text NOT NULL,\n  \"notes\" text,\n  \"phone\" text,\n  \"representative_email\" text,\n  \"representative_name\" text DEFAULT '' NOT NULL,\n  \"representative_phone\" text,\n  \"representative_title\" text,\n  \"services\" text,\n  \"social_links\" json,\n  \"tagline\" text,\n  \"updated_at\" timestamptz(3) DEFAULT (now()) NOT NULL,\n  \"updated_by\" text,\n  \"website\" text,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"agency_profiles\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": [
+          "\"public\".\"agency_profiles\"",
+          "r",
+          "p"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "table \"agency_profiles\""
+        }
+      }
+    ]
+  }
+]

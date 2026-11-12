@@ -22,6 +22,11 @@ import { McpService } from "../mcp/mcp.service.js";
 import { PrismaService } from "../prisma/prisma.service.js";
 import { computeActivatedProjectPatch } from "../projects/project-lifecycle.helper.js";
 import { findFullProjectOrThrow } from "../projects/project.mapper.js";
+import {
+  DEFAULT_AGENCY_PROFILE_ID,
+  formatAgencyProfileSystemPromptSection,
+  mapAgencyProfileRowToDomain,
+} from "../settings/agency-profile.helper.js";
 import { AiProvidersService } from "../settings/ai-providers.service.js";
 import {
   buildMcpSystemPromptSection,
@@ -219,13 +224,18 @@ export class ChatService {
       ? appliedTemplate.systemPrompt.trim()
       : DEFAULT_SYSTEM_PROMPT;
 
+    const agencySection = await this.loadAgencyProfilePromptSection();
     const mcpSystemSection = buildMcpSystemPromptSection(
       mcpOverview.servers,
       mcpTools
     );
-    const systemPrompt = mcpSystemSection
-      ? `${baseSystemPrompt}\n\n${mcpSystemSection}`
-      : baseSystemPrompt;
+    const systemPrompt = [
+      baseSystemPrompt,
+      agencySection,
+      mcpSystemSection,
+    ]
+      .filter(Boolean)
+      .join("\n\n");
 
     const completion = await this.callProvider(
       credential.provider,
@@ -310,6 +320,18 @@ export class ChatService {
     });
 
     return findFullProjectOrThrow(this.prisma, projectId);
+  }
+
+  private async loadAgencyProfilePromptSection(): Promise<string> {
+    try {
+      const table = this.prisma.db.orm.public.AgencyProfile;
+      if (!table) return "";
+      const row = await table.where({ id: DEFAULT_AGENCY_PROFILE_ID }).first();
+      const profile = mapAgencyProfileRowToDomain(row);
+      return formatAgencyProfileSystemPromptSection(profile);
+    } catch {
+      return "";
+    }
   }
 
   private async executeMcpToolCall(

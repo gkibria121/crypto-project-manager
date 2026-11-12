@@ -74,6 +74,9 @@ export {
   updateMcpServerDtoSchema,
   callMcpToolDtoSchema,
   chatMentionSuggestionSchema,
+  agencySocialLinksSchema,
+  agencyProfileSchema,
+  updateAgencyProfileDtoSchema,
   type ContextType,
   type ProjectStage,
   type ProjectBusinessStatus,
@@ -149,6 +152,9 @@ export {
   type UpdateMcpServerDto,
   type CallMcpToolDto,
   type ChatMentionSuggestion,
+  type AgencySocialLinks,
+  type AgencyProfile,
+  type UpdateAgencyProfileDto,
 } from "./schemas/project.schema";
 
 export {

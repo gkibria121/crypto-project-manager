@@ -1,6 +1,16 @@
 import { Injectable } from "@nestjs/common";
-import type { ChecklistItemConfig, PromptTemplate } from "@repo/shared";
+import type {
+  AgencyProfile,
+  ChecklistItemConfig,
+  PromptTemplate,
+  UpdateAgencyProfileDto,
+} from "@repo/shared";
+import type { AuthenticatedUser } from "../auth/auth.decorators.js";
 import { PrismaService } from "../prisma/prisma.service.js";
+import {
+  DEFAULT_AGENCY_PROFILE_ID,
+  mapAgencyProfileRowToDomain,
+} from "./agency-profile.helper.js";
 
 @Injectable()
 export class SettingsService {
@@ -82,5 +92,80 @@ export class SettingsService {
   async deleteChecklistItem(id: string): Promise<ChecklistItemConfig[]> {
     await this.prisma.db.orm.public.ChecklistItem.where({ id }).deleteAll();
     return this.listChecklistItems();
+  }
+
+  async getAgencyProfile(): Promise<AgencyProfile> {
+    const row = await this.prisma.db.orm.public.AgencyProfile.where({
+      id: DEFAULT_AGENCY_PROFILE_ID,
+    }).first();
+    return mapAgencyProfileRowToDomain(row);
+  }
+
+  async saveAgencyProfile(
+    dto: UpdateAgencyProfileDto,
+    actor?: AuthenticatedUser
+  ): Promise<AgencyProfile> {
+    const saved = await this.prisma.db.transaction(async (tx) => {
+      const row = await tx.orm.public.AgencyProfile.upsert({
+        create: {
+          id: DEFAULT_AGENCY_PROFILE_ID,
+          companyName: dto.companyName,
+          tagline: dto.tagline || null,
+          aboutUs: dto.aboutUs || null,
+          services: dto.services || null,
+          website: dto.website || null,
+          email: dto.email || null,
+          phone: dto.phone || null,
+          address: dto.address || null,
+          city: dto.city || null,
+          country: dto.country || null,
+          representativeName: dto.representativeName,
+          representativeTitle: dto.representativeTitle || null,
+          representativeEmail: dto.representativeEmail || null,
+          representativePhone: dto.representativePhone || null,
+          socialLinks: dto.socialLinks as never,
+          notes: dto.notes || null,
+          updatedBy: actor?.email ?? null,
+        },
+        update: {
+          companyName: dto.companyName,
+          tagline: dto.tagline || null,
+          aboutUs: dto.aboutUs || null,
+          services: dto.services || null,
+          website: dto.website || null,
+          email: dto.email || null,
+          phone: dto.phone || null,
+          address: dto.address || null,
+          city: dto.city || null,
+          country: dto.country || null,
+          representativeName: dto.representativeName,
+          representativeTitle: dto.representativeTitle || null,
+          representativeEmail: dto.representativeEmail || null,
+          representativePhone: dto.representativePhone || null,
+          socialLinks: dto.socialLinks as never,
+          notes: dto.notes || null,
+          updatedBy: actor?.email ?? null,
+        },
+      });
+
+      if (actor) {
+        await tx.orm.public.AuditLog.create({
+          actorId: actor.id,
+          actorEmail: actor.email,
+          actorRole: actor.role,
+          action: "AGENCY_PROFILE_UPDATED",
+          resource: "agency_profiles",
+          resourceId: DEFAULT_AGENCY_PROFILE_ID,
+          details: {
+            companyName: dto.companyName,
+            representativeName: dto.representativeName,
+          },
+        });
+      }
+
+      return row;
+    });
+
+    return mapAgencyProfileRowToDomain(saved);
   }
 }

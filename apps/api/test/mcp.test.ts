@@ -8,6 +8,7 @@ import { ChatService } from "../src/chat/chat.service.js";
 import { sanitizeJsonSchemaForGemini } from "../src/chat/mcp-tool-adapter.helper.js";
 import { ScraperService } from "../src/scraper/scraper.service.js";
 import { AiProvidersService } from "../src/settings/ai-providers.service.js";
+import { SettingsService } from "../src/settings/settings.service.js";
 
 describe("MCP Server, @Tag Resolution, and Chatbot Tool-Calling Integration", () => {
   const now = new Date("2026-11-12T12:00:00.000Z");
@@ -18,6 +19,7 @@ describe("MCP Server, @Tag Resolution, and Chatbot Tool-Calling Integration", ()
     const scrapeJobsStore: Array<Record<string, unknown>> = [];
     const scrapedPagesStore: Array<Record<string, unknown>> = [];
     const mcpServersStore: Array<Record<string, unknown>> = [];
+    const agencyProfileStore: Array<Record<string, unknown>> = [];
 
     const projectRecord: Record<string, unknown> = {
       id: "proj-mcp-1",
@@ -141,6 +143,31 @@ describe("MCP Server, @Tag Resolution, and Chatbot Tool-Calling Integration", ()
         McpServerConfig: {
           all: async () => [...mcpServersStore],
           orderBy: () => ({ all: async () => [...mcpServersStore] }),
+        },
+        AgencyProfile: {
+          where: ({ id }: { id: string }) => ({
+            first: async () =>
+              agencyProfileStore.find((r) => r["id"] === id) ?? null,
+          }),
+          upsert: async (args: {
+            create: Record<string, unknown>;
+            update: Record<string, unknown>;
+          }) => {
+            const existing = agencyProfileStore.find(
+              (r) => r["id"] === args.create["id"]
+            );
+            if (existing) {
+              Object.assign(existing, args.update, { updatedAt: new Date() });
+              return existing;
+            }
+            const created = {
+              ...args.create,
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            };
+            agencyProfileStore.push(created);
+            return created;
+          },
         },
         ChecklistItem: {
           orderBy: () => ({ all: async () => [...checklistItemsStore] }),
@@ -306,6 +333,7 @@ describe("MCP Server, @Tag Resolution, and Chatbot Tool-Calling Integration", ()
       prismaMock as never,
       configMock as never
     );
+    const settingsService = new SettingsService(prismaMock as never);
     const chatService = new ChatService(
       prismaMock as never,
       aiProvidersService,
@@ -315,6 +343,7 @@ describe("MCP Server, @Tag Resolution, and Chatbot Tool-Calling Integration", ()
     return {
       mcpService,
       aiProvidersService,
+      settingsService,
       chatService,
       chatMessagesStore,
       scrapedPagesStore,
@@ -355,7 +384,7 @@ describe("MCP Server, @Tag Resolution, and Chatbot Tool-Calling Integration", ()
     expect(overview.servers).toHaveLength(1);
     expect(overview.servers[0]?.id).toBe("pulseos-builtin");
     expect(overview.servers[0]?.status).toBe("connected");
-    expect(overview.totalTools).toBe(7);
+    expect(overview.totalTools).toBe(8);
 
     const toolNames = overview.servers[0]?.tools.map((t) => t.name) ?? [];
     expect(toolNames).toContain("get_company_context");
@@ -363,6 +392,7 @@ describe("MCP Server, @Tag Resolution, and Chatbot Tool-Calling Integration", ()
     expect(toolNames).toContain("scrape_context_link");
     expect(toolNames).toContain("scrape_url");
     expect(toolNames).toContain("get_scraped_data");
+    expect(toolNames).toContain("get_agency_profile");
 
     const mentions = await mcpService.getChatMentionSuggestions("proj-mcp-1");
     expect(mentions.some((m) => m.tag === "@context")).toBe(true);
@@ -528,6 +558,104 @@ describe("MCP Server, @Tag Resolution, and Chatbot Tool-Calling Integration", ()
       expect(aiMsg?.resolvedTags).toContain("@website");
       expect(aiMsg?.usedContextIds).toContain("ctx-li-1");
       expect(aiMsg?.usedContextIds).toContain("ctx-web-1");
+    } finally {
+      globalThis.fetch = originalFetch;
+      await mcpService.onModuleDestroy();
+    }
+  });
+
+  it("persists About Us agency & representative profile and automatically injects it into every chat", async () => {
+    const { mcpService, aiProvidersService, settingsService, chatService } =
+      createHarness();
+    await mcpService.onModuleInit();
+    await aiProvidersService.saveProviderConfig("google", {
+      apiKey: "AIzaSyTestAgencyKey1234",
+      selectedModel: "gemini-2.5-flash",
+    });
+
+    const initial = await settingsService.getAgencyProfile();
+    expect(initial.companyName).toBe("");
+
+    const saved = await settingsService.saveAgencyProfile(
+      {
+        companyName: "NovaChain Growth Partners",
+        tagline: "Web3 BD & AI Automation Agency",
+        aboutUs: "We help protocols scale liquidity and AI integrations.",
+        services: "KOL outreach, Market Maker intros, MCP servers",
+        website: "https://novachain.agency",
+        email: "hello@novachain.agency",
+        phone: "+1-555-0199",
+        address: "548 Market St, Suite 4200",
+        city: "San Francisco, CA",
+        country: "USA",
+        representativeName: "Elena Rostova",
+        representativeTitle: "Managing Partner",
+        representativeEmail: "elena@novachain.agency",
+        representativePhone: "+1-555-0188",
+        socialLinks: {
+          linkedin: "https://linkedin.com/company/novachain-growth",
+          x: "https://x.com/novachain_bd",
+          telegram: "",
+          discord: "",
+        },
+        notes: "Always offer a 15-minute intro call.",
+      },
+      {
+        id: "usr-1",
+        email: "elena@novachain.agency",
+        name: "Elena Rostova",
+        role: "admin",
+        title: "Managing Partner",
+        avatarColor: "bg-[#1d4ed8]",
+        isActive: true,
+        permissions: [],
+      }
+    );
+
+    expect(saved.companyName).toBe("NovaChain Growth Partners");
+    expect(saved.representativeName).toBe("Elena Rostova");
+
+    const originalFetch = globalThis.fetch;
+    let capturedSystemPrompt = "";
+    globalThis.fetch = (async (
+      _input: string | URL | Request,
+      init?: RequestInit
+    ) => {
+      const body = init?.body
+        ? (JSON.parse(String(init.body)) as Record<string, unknown>)
+        : {};
+      capturedSystemPrompt = JSON.stringify(body["systemInstruction"]);
+      return new Response(
+        JSON.stringify({
+          candidates: [
+            {
+              content: {
+                role: "model",
+                parts: [
+                  {
+                    text: "Hi, I am Elena Rostova from NovaChain Growth Partners!",
+                  },
+                ],
+              },
+            },
+          ],
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      );
+    }) as typeof fetch;
+
+    try {
+      await chatService.sendMessage("proj-mcp-1", {
+        content: "Write a short intro email from me.",
+      });
+
+      expect(capturedSystemPrompt).toContain("NovaChain Growth Partners");
+      expect(capturedSystemPrompt).toContain("Elena Rostova");
+      expect(capturedSystemPrompt).toContain("Managing Partner");
+      expect(capturedSystemPrompt).toContain("548 Market St, Suite 4200");
+      expect(capturedSystemPrompt).toContain("San Francisco, CA");
+      expect(capturedSystemPrompt).toContain("elena@novachain.agency");
+      expect(capturedSystemPrompt).toContain("15-minute intro call");
     } finally {
       globalThis.fetch = originalFetch;
       await mcpService.onModuleDestroy();
