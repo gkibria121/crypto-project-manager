@@ -225,13 +225,15 @@ export const newProjectFormSchema = z.object({
     .max(12, "Ticker must be 12 characters or fewer"),
   chain: z.string().trim().min(1, "Chain is required"),
   stage: projectStageSchema,
-  businessStatus: projectBusinessStatusSchema.refine(
-    (status) => status !== "active",
-    {
-      message:
-        "New projects cannot be added directly to the Active state. They start in New and become Active automatically when interacted with.",
+  businessStatus: projectBusinessStatusSchema.superRefine((status, ctx) => {
+    if (status === "active") {
+      ctx.addIssue({
+        code: "custom",
+        message:
+          "New projects cannot be added directly to the Active state. They start in New and become Active automatically when interacted with.",
+      });
     }
-  ),
+  }),
   tagline: z.string().trim(),
   logoUrl: z.string().trim(),
   website: z.string().trim(),

@@ -41,6 +41,7 @@ export function NewProjectDialog({
 }: NewProjectDialogProps) {
   const newLogoFileId = useId();
   const newLogoUrlId = useId();
+  const statusHintId = useId();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -279,25 +280,34 @@ export function NewProjectDialog({
             )}
           </FormField>
 
-          <FormField
-            label="Initial Status"
-            hint="Starts in New; becomes Active automatically on chat, scrape, or admin action."
-            error={errors.businessStatus}
-          >
-            {(a11yProps) => (
-              <select
-                {...a11yProps}
-                {...register("businessStatus")}
-                className="w-full px-3 py-2 text-xs rounded-lg bg-[#f0f2f5] dark:bg-[#2a3942] outline-none"
-              >
-                {CREATABLE_BUSINESS_STATUS_ORDER.map((statusKey) => (
-                  <option key={statusKey} value={statusKey}>
-                    {BUSINESS_STATUS_META[statusKey].label}
-                  </option>
-                ))}
-              </select>
-            )}
-          </FormField>
+          <div>
+            <FormField label="Initial Status" error={errors.businessStatus}>
+              {(a11yProps) => (
+                <select
+                  {...a11yProps}
+                  aria-describedby={
+                    a11yProps["aria-describedby"]
+                      ? `${a11yProps["aria-describedby"]} ${statusHintId}`
+                      : statusHintId
+                  }
+                  {...register("businessStatus")}
+                  className="w-full px-3 py-2 text-xs rounded-lg bg-[#f0f2f5] dark:bg-[#2a3942] outline-none"
+                >
+                  {CREATABLE_BUSINESS_STATUS_ORDER.map((statusKey) => (
+                    <option key={statusKey} value={statusKey}>
+                      {BUSINESS_STATUS_META[statusKey].label}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </FormField>
+            <p
+              id={statusHintId}
+              className="mt-1 text-[10px] text-[#65676b] dark:text-[#8696a0]"
+            >
+              Starts in New; becomes Active automatically on interaction.
+            </p>
+          </div>
         </div>
 
         <FormField label="Description / Notes" error={errors.tagline}>
