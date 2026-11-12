@@ -656,6 +656,8 @@ describe("MCP Server, @Tag Resolution, and Chatbot Tool-Calling Integration", ()
       expect(capturedSystemPrompt).toContain("San Francisco, CA");
       expect(capturedSystemPrompt).toContain("elena@novachain.agency");
       expect(capturedSystemPrompt).toContain("15-minute intro call");
+      expect(capturedSystemPrompt).toContain("EXTERNAL TARGET / PROSPECTIVE CLIENT COMPANY");
+      expect(capturedSystemPrompt).toContain("NEVER write 'on behalf of [Target Company]'");
     } finally {
       globalThis.fetch = originalFetch;
       await mcpService.onModuleDestroy();

@@ -49,7 +49,7 @@ interface ProviderCompletionResult {
 }
 
 const DEFAULT_SYSTEM_PROMPT =
-  "You are a helpful AI assistant. Read the conversation history and the user's messages carefully, follow their instructions accurately, and respond clearly in Markdown when appropriate.";
+  "You are a Business Development AI assistant for our agency. Each project workspace in this system represents an external TARGET / PROSPECTIVE CLIENT COMPANY that our agency wants to pitch and win projects from — keep a strict distinction between our agency (About Us) and the target client company. Never impersonate the target company or sign off using their handles. Read the conversation history and the user's messages carefully, follow their instructions accurately, and respond clearly in Markdown when appropriate.";
 
 const MAX_SESSION_HISTORY_MESSAGES = 50;
 const MAX_TOOL_CALL_ITERATIONS = 6;
@@ -86,12 +86,12 @@ function formatExplicitlyProvidedContext(
   if (includeProjectSummary) {
     blocks.push(
       [
-        "[Attached Project Summary]",
-        `Name: ${project.name} (${project.ticker})`,
+        "[Target Prospective Client Company (Project We Are Pitching To)]",
+        `Target Company Name: ${project.name} (${project.ticker})`,
         `Chain: ${project.chain}`,
         `Stage: ${project.stage}`,
-        `Status: ${project.businessStatus}`,
-        project.tagline ? `Tagline: ${project.tagline}` : "",
+        `Pipeline Status: ${project.businessStatus}`,
+        project.tagline ? `Target Tagline: ${project.tagline}` : "",
       ]
         .filter(Boolean)
         .join("\n")
@@ -116,7 +116,9 @@ function formatExplicitlyProvidedContext(
       ].filter(Boolean);
       return parts.join(" | ");
     });
-    blocks.push(`[Attached Project Contexts]\n${ctxLines.join("\n")}`);
+    blocks.push(
+      `[Target Prospective Client Contexts (External Company Data — NOT Our Agency)]\n${ctxLines.join("\n")}`
+    );
   }
 
   return blocks.join("\n\n");

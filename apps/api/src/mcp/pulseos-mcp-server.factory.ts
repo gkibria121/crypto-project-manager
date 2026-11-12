@@ -103,6 +103,8 @@ export function createPulseOsMcpServer(deps: PulseOsMcpDeps): McpServer {
         });
 
         return jsonToolResponse({
+          relationship:
+            "TARGET / PROSPECTIVE CLIENT COMPANY that our agency wants to pitch and win projects from (NOT our agency). Keep target company links/handles separate from our About Us agency signature.",
           project: {
             id: project.id,
             name: project.name,
@@ -154,7 +156,9 @@ export function createPulseOsMcpServer(deps: PulseOsMcpDeps): McpServer {
         if (cleanTag === "context" || cleanTag === "company") {
           return jsonToolResponse({
             tag: `@${cleanTag}`,
-            resolvedType: "company_context",
+            resolvedType: "target_client_company_context",
+            relationship:
+              "TARGET / PROSPECTIVE CLIENT COMPANY that our agency is pitching to win business from (NOT our agency).",
             project: {
               id: project.id,
               name: project.name,

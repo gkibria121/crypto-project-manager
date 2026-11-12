@@ -94,39 +94,45 @@ export function formatAgencyProfileSystemPromptSection(
     .map(([key, val]) => `${key}: ${val.trim()}`);
 
   const lines = [
-    "[Our Agency / About Us — Sender & Company Identity]",
-    "You represent the user's agency described below. Always use these real agency and representative details when introducing us, signing off outreach DMs/emails/proposals, or answering questions about who we are:",
+    "=== SENDER IDENTITY: OUR AGENCY / ABOUT US (WHO WE ARE) ===",
+    "IMPORTANT BUSINESS POSITION & ROLE SEPARATION:",
+    "- WE ARE AN AGENCY / SERVICE PROVIDER pitching our services TO external companies to win projects, retainers, and collaborations FROM them.",
+    "- Every project workspace in this app (e.g., IRISnet, Aetheris, etc.) is an EXTERNAL TARGET / PROSPECTIVE CLIENT COMPANY — NOT our own company.",
+    "- NEVER write 'on behalf of [Target Company]' and NEVER use 'we' or 'our' to refer to the target company's product, token, or team.",
+    "- Address the target company in the 2nd/3rd person (e.g., 'Hi [Target Company] team', 'your ecosystem', 'your recent launch') and present OUR agency in the 1st person ('we', 'our agency', 'I').",
+    "- In signatures and contact blocks, ONLY use OUR agency's website, email, phone, address, and social handles below. NEVER attach the target company's Telegram/X/website handles to our signature.",
+    "",
     profile.companyName.trim()
-      ? `Agency / Company Name: ${profile.companyName.trim()}`
+      ? `Our Agency / Company Name: ${profile.companyName.trim()}`
       : "",
-    profile.tagline.trim() ? `Tagline: ${profile.tagline.trim()}` : "",
-    profile.aboutUs.trim() ? `About Us: ${profile.aboutUs.trim()}` : "",
+    profile.tagline.trim() ? `Our Agency Tagline: ${profile.tagline.trim()}` : "",
+    profile.aboutUs.trim() ? `About Our Agency: ${profile.aboutUs.trim()}` : "",
     profile.services.trim()
-      ? `Core Services & Capabilities: ${profile.services.trim()}`
+      ? `Services Our Agency Sells: ${profile.services.trim()}`
       : "",
-    profile.website.trim() ? `Agency Website: ${profile.website.trim()}` : "",
-    profile.email.trim() ? `Company Email: ${profile.email.trim()}` : "",
-    profile.phone.trim() ? `Company Phone: ${profile.phone.trim()}` : "",
+    profile.website.trim() ? `Our Agency Website: ${profile.website.trim()}` : "",
+    profile.email.trim() ? `Our Agency Email: ${profile.email.trim()}` : "",
+    profile.phone.trim() ? `Our Agency Phone: ${profile.phone.trim()}` : "",
     locationParts.length > 0
-      ? `Office Address: ${locationParts.join(", ")}`
+      ? `Our Office Address: ${locationParts.join(", ")}`
       : "",
     socialEntries.length > 0
-      ? `Agency Socials: ${socialEntries.join(" | ")}`
+      ? `Our Agency Socials: ${socialEntries.join(" | ")}`
       : "",
     profile.representativeName.trim()
-      ? `Representative Name: ${profile.representativeName.trim()}`
+      ? `Our Representative Name: ${profile.representativeName.trim()}`
       : "",
     profile.representativeTitle.trim()
-      ? `Representative Role / Title: ${profile.representativeTitle.trim()}`
+      ? `Our Representative Role / Title: ${profile.representativeTitle.trim()}`
       : "",
     profile.representativeEmail.trim()
-      ? `Representative Email: ${profile.representativeEmail.trim()}`
+      ? `Our Representative Email: ${profile.representativeEmail.trim()}`
       : "",
     profile.representativePhone.trim()
-      ? `Representative Phone: ${profile.representativePhone.trim()}`
+      ? `Our Representative Phone: ${profile.representativePhone.trim()}`
       : "",
     profile.notes.trim()
-      ? `Brand Voice & Outreach Notes: ${profile.notes.trim()}`
+      ? `Our Brand Voice & Pitch Notes: ${profile.notes.trim()}`
       : "",
   ].filter(Boolean);
 

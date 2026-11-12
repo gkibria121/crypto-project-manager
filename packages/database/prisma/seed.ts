@@ -12,41 +12,41 @@ const ZKFLOW_LOGO_URL = `data:image/svg+xml;utf8,${encodeURIComponent(
 const INITIAL_PROMPT_TEMPLATES = [
   {
     id: "tpl-linkedin-to-x",
-    label: "Adapt this LinkedIn post into a 4-tweet X thread",
+    label: "Draft a sample 4-tweet X thread (pitch demo)",
     description:
-      "Converts institutional LinkedIn positioning into a high-conviction 4-tweet X thread.",
+      "Creates a sample 4-tweet X thread from the target company's LinkedIn positioning as a value-add demo from our agency.",
     systemPrompt:
-      "You are a senior crypto growth strategist. Convert the project's institutional LinkedIn positioning and active contexts into a high-conviction 4-tweet X (Twitter) thread. Tweet 1: Sharp metric or narrative hook. Tweet 2: Core technical/product proof. Tweet 3: Token or ecosystem value accrual. Tweet 4: Direct CTA link without generic hashtags.",
+      "You are a senior growth strategist at our agency. Using the target client company's LinkedIn/website positioning and active contexts, draft a high-conviction 4-tweet X thread as a sample deliverable our agency can show them to win their business. Clearly frame it as a sample pitch created by our agency for the target company—never pretend to be the target company.",
     isDefault: true,
     sortOrder: 0,
   },
   {
     id: "tpl-mm-cold-dm",
-    label: "Write a cold DM for institutional market makers",
+    label: "Write a cold outreach pitch to this company",
     description:
-      "Drafts concise institutional liquidity partner outreach grounded in active contexts.",
+      "Drafts a concise cold outreach DM from our agency representative to this prospective client company to win a project.",
     systemPrompt:
-      "You are an institutional Web3 BD lead. Write a concise, high-signal cold DM for institutional market makers, liquid token funds, and OTC desks using the project's active contexts. Emphasize liquidity depth, chain architecture, and partnership terms.",
+      "You are a senior Business Development lead at our agency. Write a concise, high-signal cold outreach DM FROM our agency representative TO this target company's founders, growth, or BD team to win a project or retainer from them. Reference real details from the target company's active contexts to prove research, pitch how our agency's services can help them, and sign off strictly with OUR agency and representative details (never 'on behalf of' the target company and never using the target company's handles).",
     isDefault: false,
     sortOrder: 1,
   },
   {
     id: "tpl-founder-quote",
-    label: "Generate executive founder quote",
+    label: "Draft a partnership & scope proposal email",
     description:
-      "Produces authoritative executive quotes for press releases and partner announcements.",
+      "Produces a tailored agency partnership & scope proposal email addressed to the target company.",
     systemPrompt:
-      "You are an executive communications director for a Web3 protocol. Draft a punchy, authoritative founder quote suitable for press releases, LinkedIn announcements, and co-marketing posts grounded in the project's active contexts.",
+      "You are a Business Development director at our agency. Draft an authoritative, tailored partnership and scope proposal email FROM our agency representative TO the target company's leadership, referencing their active contexts and explaining how our agency can deliver measurable growth or technical integration for them.",
     isDefault: false,
     sortOrder: 2,
   },
   {
     id: "tpl-kol-outreach",
-    label: "Create Tier-1 KOL outreach DM",
+    label: "Write a value-first follow-up DM",
     description:
-      "Writes non-spammy Tier-1 crypto researcher & KOL pitch DMs.",
+      "Writes a non-spammy follow-up DM from our agency to the target company's decision-makers.",
     systemPrompt:
-      "Draft a personalized, non-spammy X/Telegram DM to pitch Tier-1 crypto researchers and KOLs on covering our upcoming milestone.",
+      "Draft a personalized, non-spammy value-first X/Telegram/LinkedIn DM FROM our agency representative TO the target company's team, highlighting a specific growth or product opportunity we noticed in their contexts and proposing a brief intro call.",
     isDefault: false,
     sortOrder: 3,
   },

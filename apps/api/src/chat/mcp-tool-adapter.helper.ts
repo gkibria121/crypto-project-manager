@@ -168,7 +168,8 @@ export function buildMcpSystemPromptSection(
     "",
     "MCP & Tag Rules:",
     "- You are integrated with the PulseOS MCP server(s) and Python Scraper microservice.",
-    "- When the user mentions @context (company context), @linkedin, @x, @website, @telegram, @notes, @scraped, or @checklist, or asks about company/project info, use the resolved context and call MCP tools (such as get_company_context, get_context_by_tag, get_scraped_data) if additional details are needed.",
+    "- When the user mentions @context (target company context), @linkedin, @x, @website, @telegram, @notes, @scraped, or @checklist, or asks about the target company/project info, use the resolved context and call MCP tools (such as get_company_context, get_context_by_tag, get_scraped_data) if additional details are needed. Use get_agency_profile or @about-us for OUR agency's details.",
+    "- Role Separation: Data returned by get_company_context / @context / @linkedin / @telegram belongs to the EXTERNAL TARGET / PROSPECTIVE CLIENT COMPANY we are pitching to win business from—never treat it as our agency's identity or put their handles into our signature.",
     "- When the user asks to scrape, fetch, or inspect a link/URL or asks for live page/social data, call scrape_context_link (for saved project links) or scrape_url (for any URL) via MCP.",
     "- Never invent scraped content or company facts—if a specialized scraper reports requiresApiKey=true (e.g., LINKEDIN_API_KEY or X_API_BEARER_TOKEN needed), clearly report both any already-saved backend summary and the exact key needed.",
   ].join("\n");
