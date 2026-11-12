@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
+import { AuthModule } from "./auth/auth.module.js";
 import { ChatModule } from "./chat/chat.module.js";
 import { ChecklistModule } from "./checklist/checklist.module.js";
 import { validateEnv } from "./config/env.js";
@@ -9,6 +10,7 @@ import { PrismaModule } from "./prisma/prisma.module.js";
 import { ProjectsModule } from "./projects/projects.module.js";
 import { ScraperModule } from "./scraper/scraper.module.js";
 import { SettingsModule } from "./settings/settings.module.js";
+import { UsersModule } from "./users/users.module.js";
 
 @Module({
   imports: [
@@ -18,6 +20,8 @@ import { SettingsModule } from "./settings/settings.module.js";
       envFilePath: [".env", "../../.env"],
     }),
     PrismaModule,
+    AuthModule,
+    UsersModule,
     HealthModule,
     ProjectsModule,
     ContextsModule,

@@ -1,17 +1,30 @@
 import {
+  auditLogItemSchema,
+  authRegisterResponseSchema,
+  authSessionResponseSchema,
+  authUserSchema,
   checklistItemConfigSchema,
   cryptoProjectSchema,
   promptTemplateSchema,
   scrapeJobSchema,
   systemHealthSchema,
   type AddContextFormValues,
+  type AuditLogItem,
+  type AuthRegisterResponse,
+  type AuthSessionResponse,
+  type AuthUser,
   type ChecklistItemConfig,
+  type CreateUserDto,
   type CryptoProject,
+  type LoginDto,
   type NewProjectFormValues,
   type ProjectBusinessStatus,
   type PromptTemplate,
+  type RegisterDto,
   type ScrapeJob,
   type SystemHealthStatus,
+  type UpdateProjectFormValues,
+  type UserRole,
 } from "@/types/project";
 import { z } from "zod";
 
@@ -34,6 +47,7 @@ async function requestJson<T>(
 ): Promise<T> {
   const response = await fetch(`${API_BASE}${path}`, {
     ...options,
+    credentials: "include",
     headers: {
       "Content-Type": "application/json",
       ...options.headers,
@@ -85,6 +99,111 @@ export const apiClient = {
     return requestJson("/system/health", { method: "GET" }, systemHealthSchema);
   },
 
+  fetchCurrentUser(): Promise<AuthUser> {
+    return requestJson("/auth/me", { method: "GET" }, authUserSchema);
+  },
+
+  login(input: LoginDto): Promise<AuthSessionResponse> {
+    return requestJson(
+      "/auth/login",
+      {
+        method: "POST",
+        body: JSON.stringify(input),
+      },
+      authSessionResponseSchema
+    );
+  },
+
+  register(input: RegisterDto): Promise<AuthRegisterResponse> {
+    return requestJson(
+      "/auth/register",
+      {
+        method: "POST",
+        body: JSON.stringify(input),
+      },
+      authRegisterResponseSchema
+    );
+  },
+
+  logout(): Promise<{ loggedOut: boolean }> {
+    return requestJson("/auth/logout", { method: "POST" });
+  },
+
+  fetchUsers(): Promise<AuthUser[]> {
+    return requestJson("/users", { method: "GET" }, z.array(authUserSchema));
+  },
+
+  fetchAuditLogs(): Promise<AuditLogItem[]> {
+    return requestJson(
+      "/users/audit-logs",
+      { method: "GET" },
+      z.array(auditLogItemSchema)
+    );
+  },
+
+  createUser(input: CreateUserDto): Promise<AuthUser[]> {
+    return requestJson(
+      "/users",
+      {
+        method: "POST",
+        body: JSON.stringify(input),
+      },
+      z.array(authUserSchema)
+    );
+  },
+
+  updateUserRole(params: {
+    userId: string;
+    role: UserRole;
+  }): Promise<AuthUser[]> {
+    return requestJson(
+      `/users/${encodeURIComponent(params.userId)}/role`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({ role: params.role }),
+      },
+      z.array(authUserSchema)
+    );
+  },
+
+  updateUserStatus(params: {
+    userId: string;
+    isActive: boolean;
+  }): Promise<AuthUser[]> {
+    return requestJson(
+      `/users/${encodeURIComponent(params.userId)}/status`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({ isActive: params.isActive }),
+      },
+      z.array(authUserSchema)
+    );
+  },
+
+  activateUser(userId: string): Promise<AuthUser[]> {
+    return requestJson(
+      `/users/${encodeURIComponent(userId)}/activate`,
+      {
+        method: "PATCH",
+      },
+      z.array(authUserSchema)
+    );
+  },
+
+  deleteUser(userId: string): Promise<AuthUser[]> {
+    return requestJson(
+      `/users/${encodeURIComponent(userId)}`,
+      { method: "DELETE" },
+      z.array(authUserSchema)
+    );
+  },
+
+  deleteProject(projectId: string): Promise<{ deleted: boolean; id: string }> {
+    return requestJson(`/projects/${encodeURIComponent(projectId)}`, {
+      method: "DELETE",
+    });
+  },
+
   fetchProjects(): Promise<CryptoProject[]> {
     return requestJson(
       "/projects",
@@ -123,6 +242,20 @@ export const apiClient = {
       {
         method: "POST",
         body: JSON.stringify(input),
+      },
+      cryptoProjectSchema
+    );
+  },
+
+  updateProject(params: {
+    projectId: string;
+    values: UpdateProjectFormValues;
+  }): Promise<CryptoProject> {
+    return requestJson(
+      `/projects/${encodeURIComponent(params.projectId)}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(params.values),
       },
       cryptoProjectSchema
     );

@@ -26,6 +26,22 @@ async function proxyToCoreApi(
   if (requestId) {
     headers.set("x-request-id", requestId);
   }
+  const cookie = request.headers.get("cookie");
+  if (cookie) {
+    headers.set("cookie", cookie);
+  }
+  const authorization = request.headers.get("authorization");
+  if (authorization) {
+    headers.set("authorization", authorization);
+  }
+  const userAgent = request.headers.get("user-agent");
+  if (userAgent) {
+    headers.set("user-agent", userAgent);
+  }
+  const forwardedFor = request.headers.get("x-forwarded-for");
+  if (forwardedFor) {
+    headers.set("x-forwarded-for", forwardedFor);
+  }
 
   const hasBody = !["GET", "HEAD"].includes(request.method.toUpperCase());
   const body = hasBody ? await request.arrayBuffer() : undefined;
@@ -49,6 +65,27 @@ async function proxyToCoreApi(
     if (upstreamRequestId) {
       responseHeaders.set("x-request-id", upstreamRequestId);
     }
+    const setCookies =
+      typeof upstreamResponse.headers.getSetCookie === "function"
+        ? upstreamResponse.headers.getSetCookie()
+        : [];
+    if (setCookies.length > 0) {
+      for (const cookieHeader of setCookies) {
+        responseHeaders.append("set-cookie", cookieHeader);
+      }
+    } else {
+      const singleSetCookie = upstreamResponse.headers.get("set-cookie");
+      if (singleSetCookie) {
+        responseHeaders.set("set-cookie", singleSetCookie);
+      }
+    }
+    const clearSiteData = upstreamResponse.headers.get("clear-site-data");
+    if (clearSiteData) {
+      responseHeaders.set("clear-site-data", clearSiteData);
+    }
+    responseHeaders.set("x-content-type-options", "nosniff");
+    responseHeaders.set("x-frame-options", "DENY");
+    responseHeaders.set("referrer-policy", "strict-origin-when-cross-origin");
 
     return new NextResponse(responseText, {
       status: upstreamResponse.status,

@@ -11,9 +11,11 @@ import {
   X,
 } from "lucide-react";
 import {
+  type AuthUser,
   BUSINESS_STATUS_META,
   BUSINESS_STATUS_ORDER,
   type CryptoProject,
+  hasPermission,
   type ProjectBusinessStatus,
   type ProjectContextItem,
 } from "@/types/project";
@@ -22,7 +24,9 @@ import { ContextTypeIcon, FilterChip } from "@/components/ui";
 
 interface ContextInspectorProps {
   project: CryptoProject;
+  currentUser: AuthUser;
   onUpdateBusinessStatus: (status: ProjectBusinessStatus) => void;
+  onDeleteProject?: () => void;
   onToggleContext: (contextId: string) => void;
   onToggleAllContexts: (enable: boolean) => void;
   onDeleteContext: (contextId: string) => void;
@@ -40,7 +44,9 @@ interface ContextInspectorProps {
 
 export function ContextInspector({
   project,
+  currentUser,
   onUpdateBusinessStatus,
+  onDeleteProject,
   onToggleContext,
   onToggleAllContexts,
   onDeleteContext,
@@ -55,6 +61,12 @@ export function ContextInspector({
   isMobileOpen = false,
   onCloseMobile,
 }: ContextInspectorProps) {
+  const canUpdateProject = hasPermission(currentUser, "projects:update");
+  const canDeleteProject = hasPermission(currentUser, "projects:delete");
+  const canWriteContexts = hasPermission(currentUser, "contexts:write");
+  const canTriggerScraper = hasPermission(currentUser, "scraper:trigger");
+  const canWriteChat = hasPermission(currentUser, "chat:write");
+
   const [filterTab, setFilterTab] = useState<"all" | "links" | "messages">(
     "all"
   );
@@ -101,17 +113,19 @@ export function ContextInspector({
         <ProjectAvatar
           project={project}
           size="xl"
-          onEditClick={onOpenEditLogoModal}
+          onEditClick={canUpdateProject ? onOpenEditLogoModal : undefined}
           decorative={false}
         />
 
-        <button
-          type="button"
-          onClick={onOpenEditLogoModal}
-          className="mt-2 text-xs font-medium text-[#0084ff] hover:underline cursor-pointer"
-        >
-          {project.logoUrl ? "Change photo" : "Add photo"}
-        </button>
+        {canUpdateProject && (
+          <button
+            type="button"
+            onClick={onOpenEditLogoModal}
+            className="mt-2 text-xs font-medium text-[#0084ff] hover:underline cursor-pointer"
+          >
+            {project.logoUrl ? "Change photo" : "Add photo"}
+          </button>
+        )}
 
         <h2 className="mt-1.5 font-bold text-base text-[#050505] dark:text-[#e9edef]">
           {project.name}
@@ -138,9 +152,10 @@ export function ContextInspector({
                 <button
                   key={statusKey}
                   type="button"
+                  disabled={!canUpdateProject}
                   onClick={() => onUpdateBusinessStatus(statusKey)}
                   title={meta.description}
-                  className={`flex items-center justify-center gap-1.5 py-2 sm:py-1.5 px-2 rounded-lg text-[11px] font-medium transition cursor-pointer ${
+                  className={`flex items-center justify-center gap-1.5 py-2 sm:py-1.5 px-2 rounded-lg text-[11px] font-medium transition cursor-pointer disabled:opacity-65 disabled:cursor-default ${
                     isSelected
                       ? "bg-[#e7f3ff] text-[#0084ff] dark:bg-[#0084ff]/20 dark:text-[#4599ff] font-semibold"
                       : "bg-[#f0f2f5] dark:bg-[#202c33] text-[#65676b] dark:text-[#8696a0] hover:bg-[#e4e6eb] dark:hover:bg-[#2a3942]"
@@ -154,6 +169,19 @@ export function ContextInspector({
               );
             })}
           </div>
+
+          {canDeleteProject && onDeleteProject && (
+            <div className="mt-3 pt-2.5 border-t border-[#e4e6eb] dark:border-[#222d34] flex justify-end">
+              <button
+                type="button"
+                onClick={onDeleteProject}
+                className="inline-flex items-center gap-1 text-[11px] font-medium text-rose-600 dark:text-rose-400 hover:underline cursor-pointer"
+              >
+                <Trash2 className="w-3 h-3" />
+                <span>Delete Project Workspace</span>
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -165,35 +193,41 @@ export function ContextInspector({
           </h3>
 
           <div className="flex items-center gap-2.5 shrink-0">
-            {onScrapeAllContexts && project.contexts.length > 0 && (
-              <button
-                type="button"
-                onClick={onScrapeAllContexts}
-                disabled={isScrapingAll}
-                title="Enrich all project contexts using the Python scraper"
-                className="inline-flex items-center gap-1 text-xs font-medium text-[#00a884] hover:underline disabled:opacity-50 transition cursor-pointer"
-              >
-                <RefreshCw
-                  className={`w-3 h-3 ${isScrapingAll ? "animate-spin" : ""}`}
-                />
-                <span>{isScrapingAll ? "Scraping..." : "Scrape all"}</span>
-              </button>
+            {canTriggerScraper &&
+              onScrapeAllContexts &&
+              project.contexts.length > 0 && (
+                <button
+                  type="button"
+                  onClick={onScrapeAllContexts}
+                  disabled={isScrapingAll}
+                  title="Enrich all project contexts using the Python scraper"
+                  className="inline-flex items-center gap-1 text-xs font-medium text-[#00a884] hover:underline disabled:opacity-50 transition cursor-pointer"
+                >
+                  <RefreshCw
+                    className={`w-3 h-3 ${isScrapingAll ? "animate-spin" : ""}`}
+                  />
+                  <span>{isScrapingAll ? "Scraping..." : "Scrape all"}</span>
+                </button>
+              )}
+            {canWriteContexts && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => onToggleAllContexts(!allEnabled)}
+                  className="text-xs font-medium text-[#65676b] dark:text-[#8696a0] hover:text-[#050505] dark:hover:text-white transition cursor-pointer"
+                >
+                  {allEnabled ? "Mute all" : "Enable all"}
+                </button>
+                <button
+                  type="button"
+                  onClick={onOpenAddContextModal}
+                  className="inline-flex items-center gap-1 text-xs font-semibold text-[#0084ff] hover:underline cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Add</span>
+                </button>
+              </>
             )}
-            <button
-              type="button"
-              onClick={() => onToggleAllContexts(!allEnabled)}
-              className="text-xs font-medium text-[#65676b] dark:text-[#8696a0] hover:text-[#050505] dark:hover:text-white transition cursor-pointer"
-            >
-              {allEnabled ? "Mute all" : "Enable all"}
-            </button>
-            <button
-              type="button"
-              onClick={onOpenAddContextModal}
-              className="inline-flex items-center gap-1 text-xs font-semibold text-[#0084ff] hover:underline cursor-pointer"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Add</span>
-            </button>
           </div>
         </div>
 
@@ -225,14 +259,16 @@ export function ContextInspector({
             <p className="text-xs text-[#65676b] dark:text-[#8696a0]">
               No items in this view.
             </p>
-            <button
-              type="button"
-              onClick={onOpenAddContextModal}
-              className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-[#0084ff] hover:underline cursor-pointer"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              Add link or note
-            </button>
+            {canWriteContexts && (
+              <button
+                type="button"
+                onClick={onOpenAddContextModal}
+                className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-[#0084ff] hover:underline cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                Add link or note
+              </button>
+            )}
           </div>
         ) : (
           filteredContexts.map((ctx) => (
@@ -255,12 +291,17 @@ export function ContextInspector({
                       {ctx.title}
                     </h4>
 
-                    <label className="inline-flex items-center gap-1.5 text-[11px] text-[#65676b] dark:text-[#8696a0] cursor-pointer shrink-0">
+                    <label
+                      className={`inline-flex items-center gap-1.5 text-[11px] text-[#65676b] dark:text-[#8696a0] shrink-0 ${
+                        canWriteContexts ? "cursor-pointer" : "cursor-default"
+                      }`}
+                    >
                       <input
                         type="checkbox"
                         checked={ctx.isActive}
+                        disabled={!canWriteContexts}
                         onChange={() => onToggleContext(ctx.id)}
-                        className="checkbox-native rounded cursor-pointer"
+                        className="checkbox-native rounded cursor-pointer disabled:cursor-default"
                       />
                       <span>{ctx.isActive ? "Active" : "Off"}</span>
                     </label>
@@ -337,51 +378,59 @@ export function ContextInspector({
                     </div>
                   )}
 
-                  <div className="flex items-center justify-between mt-2">
-                    <div className="flex items-center gap-3">
-                      <button
-                        type="button"
-                        onClick={() => onReferenceInPrompt(ctx)}
-                        className="inline-flex items-center gap-1 py-1 text-[11px] font-medium text-[#0084ff] hover:underline cursor-pointer"
-                      >
-                        <CornerDownLeft className="w-3 h-3" />
-                        <span>Use in chat</span>
-                      </button>
+                  {(canWriteChat || canTriggerScraper || canWriteContexts) && (
+                    <div className="flex items-center justify-between mt-2">
+                      <div className="flex items-center gap-3">
+                        {canWriteChat && (
+                          <button
+                            type="button"
+                            onClick={() => onReferenceInPrompt(ctx)}
+                            className="inline-flex items-center gap-1 py-1 text-[11px] font-medium text-[#0084ff] hover:underline cursor-pointer"
+                          >
+                            <CornerDownLeft className="w-3 h-3" />
+                            <span>Use in chat</span>
+                          </button>
+                        )}
 
-                      {onScrapeContext && (
+                        {canTriggerScraper && onScrapeContext && (
+                          <button
+                            type="button"
+                            onClick={() => onScrapeContext(ctx.id)}
+                            disabled={
+                              isScrapingAll || scrapingContextId === ctx.id
+                            }
+                            title="Scrape and enrich context with Python scraper"
+                            className="inline-flex items-center gap-1 py-1 text-[11px] font-medium text-[#00a884] hover:underline disabled:opacity-50 cursor-pointer"
+                          >
+                            <RefreshCw
+                              className={`w-3 h-3 ${
+                                scrapingContextId === ctx.id
+                                  ? "animate-spin"
+                                  : ""
+                              }`}
+                            />
+                            <span>
+                              {scrapingContextId === ctx.id
+                                ? "Scraping..."
+                                : "Scrape"}
+                            </span>
+                          </button>
+                        )}
+                      </div>
+
+                      {canWriteContexts && (
                         <button
                           type="button"
-                          onClick={() => onScrapeContext(ctx.id)}
-                          disabled={
-                            isScrapingAll || scrapingContextId === ctx.id
-                          }
-                          title="Scrape and enrich context with Python scraper"
-                          className="inline-flex items-center gap-1 py-1 text-[11px] font-medium text-[#00a884] hover:underline disabled:opacity-50 cursor-pointer"
+                          onClick={() => onDeleteContext(ctx.id)}
+                          title="Delete context"
+                          aria-label={`Delete ${ctx.title}`}
+                          className="p-1.5 rounded text-[#65676b] hover:text-rose-600 dark:text-[#8696a0] dark:hover:text-rose-400 transition cursor-pointer"
                         >
-                          <RefreshCw
-                            className={`w-3 h-3 ${
-                              scrapingContextId === ctx.id ? "animate-spin" : ""
-                            }`}
-                          />
-                          <span>
-                            {scrapingContextId === ctx.id
-                              ? "Scraping..."
-                              : "Scrape"}
-                          </span>
+                          <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       )}
                     </div>
-
-                    <button
-                      type="button"
-                      onClick={() => onDeleteContext(ctx.id)}
-                      title="Delete context"
-                      aria-label={`Delete ${ctx.title}`}
-                      className="p-1.5 rounded text-[#65676b] hover:text-rose-600 dark:text-[#8696a0] dark:hover:text-rose-400 transition cursor-pointer"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
+                  )}
                 </div>
               </div>
             </div>

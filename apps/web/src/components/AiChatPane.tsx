@@ -9,20 +9,24 @@ import {
   Copy,
   Info,
   ListChecks,
+  Lock,
   Plus,
   RotateCcw,
   Send,
   Settings,
 } from "lucide-react";
 import {
+  type AuthUser,
   BUSINESS_STATUS_META,
   BUSINESS_STATUS_ORDER,
   chatComposerFormSchema,
   type ChatComposerFormValues,
   type ChecklistItemConfig,
   type CryptoProject,
+  hasPermission,
   type ProjectBusinessStatus,
   type PromptTemplate,
+  USER_ROLE_META,
 } from "@/types/project";
 import { ProjectAvatar } from "@/components/ProjectAvatar";
 import {
@@ -34,6 +38,7 @@ import { useImeSafeSubmit } from "@/hooks/useImeSafeSubmit";
 
 interface AiChatPaneProps {
   project: CryptoProject;
+  currentUser: AuthUser;
   promptTemplates: PromptTemplate[];
   checklistItems: ChecklistItemConfig[];
   draftPrompt: string;
@@ -55,6 +60,7 @@ interface AiChatPaneProps {
 
 export function AiChatPane({
   project,
+  currentUser,
   promptTemplates,
   checklistItems,
   draftPrompt,
@@ -73,6 +79,11 @@ export function AiChatPane({
   onBackToProjects,
   totalUnreadCount = 0,
 }: AiChatPaneProps) {
+  const canUpdateProject = hasPermission(currentUser, "projects:update");
+  const canWriteChat = hasPermission(currentUser, "chat:write");
+  const canWriteContexts = hasPermission(currentUser, "contexts:write");
+  const canWriteSettings = hasPermission(currentUser, "settings:write");
+
   const chatInputId = useId();
   const statusSelectId = useId();
   const formRef = useRef<HTMLFormElement>(null);
@@ -158,7 +169,7 @@ export function AiChatPane({
             project={project}
             size="md"
             showOnlineDot
-            onEditClick={onOpenEditLogoModal}
+            onEditClick={canUpdateProject ? onOpenEditLogoModal : undefined}
           />
 
           <div className="min-w-0 flex-1">
@@ -186,12 +197,13 @@ export function AiChatPane({
                 id={statusSelectId}
                 name="project-business-status"
                 value={project.businessStatus}
+                disabled={!canUpdateProject}
                 onChange={(e) =>
                   onUpdateBusinessStatus(
                     e.target.value as ProjectBusinessStatus
                   )
                 }
-                className="status-auto-select bg-transparent font-medium text-xs text-[#050505] dark:text-[#e9edef] outline-none cursor-pointer"
+                className="status-auto-select bg-transparent font-medium text-xs text-[#050505] dark:text-[#e9edef] outline-none cursor-pointer disabled:cursor-default"
               >
                 {BUSINESS_STATUS_ORDER.map((statusKey) => (
                   <option
@@ -228,25 +240,29 @@ export function AiChatPane({
             </span>
           </button>
 
-          <button
-            type="button"
-            onClick={onOpenGlobalSettings}
-            title="Edit system prompts & global checklist"
-            aria-label="Edit system prompts and global checklist"
-            className="w-9 h-9 rounded-full text-[#65676b] dark:text-[#8696a0] hover:bg-[#f0f2f5] dark:hover:bg-[#2a3942] flex items-center justify-center transition cursor-pointer"
-          >
-            <Settings className="w-4 h-4" />
-          </button>
+          {canWriteSettings && (
+            <button
+              type="button"
+              onClick={onOpenGlobalSettings}
+              title="Edit system prompts & global checklist"
+              aria-label="Edit system prompts and global checklist"
+              className="w-9 h-9 rounded-full text-[#65676b] dark:text-[#8696a0] hover:bg-[#f0f2f5] dark:hover:bg-[#2a3942] flex items-center justify-center transition cursor-pointer"
+            >
+              <Settings className="w-4 h-4" />
+            </button>
+          )}
 
-          <button
-            type="button"
-            onClick={onResetConversation}
-            title="Clear chat"
-            aria-label="Clear chat"
-            className="w-9 h-9 rounded-full text-[#65676b] dark:text-[#8696a0] hover:bg-[#f0f2f5] dark:hover:bg-[#2a3942] flex items-center justify-center transition cursor-pointer"
-          >
-            <RotateCcw className="w-4 h-4" />
-          </button>
+          {canWriteChat && (
+            <button
+              type="button"
+              onClick={onResetConversation}
+              title="Clear chat"
+              aria-label="Clear chat"
+              className="w-9 h-9 rounded-full text-[#65676b] dark:text-[#8696a0] hover:bg-[#f0f2f5] dark:hover:bg-[#2a3942] flex items-center justify-center transition cursor-pointer"
+            >
+              <RotateCcw className="w-4 h-4" />
+            </button>
+          )}
 
           <button
             type="button"
@@ -357,7 +373,7 @@ export function AiChatPane({
                 </div>
 
                 {/* Global Editable System Prompt Chips (Shown on the latest AI message) */}
-                {!isAdmin && index === project.messages.length - 1 && (
+                {!isAdmin && canWriteChat && index === project.messages.length - 1 && (
                   <div className="chip-wrap-balance items-center gap-1.5 mt-2">
                     {promptTemplates.map((tpl) => (
                       <button
@@ -370,14 +386,16 @@ export function AiChatPane({
                         {tpl.label}
                       </button>
                     ))}
-                    <button
-                      type="button"
-                      onClick={onOpenGlobalSettings}
-                      className="inline-flex items-center gap-1 px-2.5 py-1.5 sm:py-1 rounded-full text-[11px] font-medium text-[#65676b] hover:text-[#050505] dark:text-[#8696a0] dark:hover:text-[#e9edef] transition cursor-pointer"
-                    >
-                      <Settings className="w-3 h-3" />
-                      <span>Edit prompts</span>
-                    </button>
+                    {canWriteSettings && (
+                      <button
+                        type="button"
+                        onClick={onOpenGlobalSettings}
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 sm:py-1 rounded-full text-[11px] font-medium text-[#65676b] hover:text-[#050505] dark:text-[#8696a0] dark:hover:text-[#e9edef] transition cursor-pointer"
+                      >
+                        <Settings className="w-3 h-3" />
+                        <span>Edit prompts</span>
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -399,45 +417,60 @@ export function AiChatPane({
 
       {/* Single-Row Messenger / WhatsApp Composer Footer */}
       <div className="px-2.5 sm:px-3 pt-2 pb-[max(0.625rem,env(safe-area-inset-bottom))] bg-white dark:bg-[#202c33] border-t border-[#e4e6eb] dark:border-[#222d34] shrink-0">
-        <form
-          ref={formRef}
-          onSubmit={handleFormSubmit}
-          noValidate
-          className="flex items-end gap-1.5 sm:gap-2"
-        >
-          <button
-            type="button"
-            onClick={onOpenAddContextModal}
-            title="Add project context or link"
-            aria-label="Add project context or link"
-            className="w-10 h-10 sm:w-9 sm:h-9 rounded-full text-[#0084ff] hover:bg-[#f0f2f5] dark:hover:bg-[#2a3942] flex items-center justify-center shrink-0 transition cursor-pointer"
+        {canWriteChat ? (
+          <form
+            ref={formRef}
+            onSubmit={handleFormSubmit}
+            noValidate
+            className="flex items-end gap-1.5 sm:gap-2"
           >
-            <Plus className="w-5 h-5" />
-          </button>
+            {canWriteContexts && (
+              <button
+                type="button"
+                onClick={onOpenAddContextModal}
+                title="Add project context or link"
+                aria-label="Add project context or link"
+                className="w-10 h-10 sm:w-9 sm:h-9 rounded-full text-[#0084ff] hover:bg-[#f0f2f5] dark:hover:bg-[#2a3942] flex items-center justify-center shrink-0 transition cursor-pointer"
+              >
+                <Plus className="w-5 h-5" />
+              </button>
+            )}
 
-          <div className="flex-1 min-w-0 rounded-3xl bg-[#f0f2f5] dark:bg-[#2a3942] px-3.5 sm:px-4 py-2 flex items-center">
-            <label htmlFor={chatInputId} className="sr-only">
-              Type a message
-            </label>
-            <textarea
-              id={chatInputId}
-              {...contentRegister}
-              onCompositionEnd={onCompositionEnd}
-              onKeyDown={onKeyDown}
-              placeholder={`Message ${project.name} (${activeContexts.length} contexts active)...`}
-              className="chat-auto-textarea bg-transparent text-base sm:text-[14px] text-[#050505] dark:text-[#e9edef] placeholder:text-[#65676b] dark:placeholder:text-[#8696a0] outline-none resize-none"
-            />
+            <div className="flex-1 min-w-0 rounded-3xl bg-[#f0f2f5] dark:bg-[#2a3942] px-3.5 sm:px-4 py-2 flex items-center">
+              <label htmlFor={chatInputId} className="sr-only">
+                Type a message
+              </label>
+              <textarea
+                id={chatInputId}
+                {...contentRegister}
+                onCompositionEnd={onCompositionEnd}
+                onKeyDown={onKeyDown}
+                placeholder={`Message ${project.name} (${activeContexts.length} contexts active)...`}
+                className="chat-auto-textarea bg-transparent text-base sm:text-[14px] text-[#050505] dark:text-[#e9edef] placeholder:text-[#65676b] dark:placeholder:text-[#8696a0] outline-none resize-none"
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={!watchedContent.trim()}
+              aria-label="Send message"
+              className="w-10 h-10 sm:w-9 sm:h-9 rounded-full bg-[#0084ff] hover:bg-[#0073e6] disabled:opacity-40 disabled:pointer-events-none text-white flex items-center justify-center shrink-0 transition cursor-pointer"
+            >
+              <Send className="w-4 h-4" />
+            </button>
+          </form>
+        ) : (
+          <div className="py-2 px-3 rounded-xl bg-[#f0f2f5] dark:bg-[#2a3942] text-xs text-[#65676b] dark:text-[#8696a0] flex items-center justify-center gap-2">
+            <Lock className="w-3.5 h-3.5 shrink-0" />
+            <span>
+              Your role (
+              <strong className="font-semibold text-[#050505] dark:text-[#e9edef]">
+                {USER_ROLE_META[currentUser.role].label}
+              </strong>
+              ) has read-only access to AI chat and campaign streams.
+            </span>
           </div>
-
-          <button
-            type="submit"
-            disabled={!watchedContent.trim()}
-            aria-label="Send message"
-            className="w-10 h-10 sm:w-9 sm:h-9 rounded-full bg-[#0084ff] hover:bg-[#0073e6] disabled:opacity-40 disabled:pointer-events-none text-white flex items-center justify-center shrink-0 transition cursor-pointer"
-          >
-            <Send className="w-4 h-4" />
-          </button>
-        </form>
+        )}
       </div>
     </main>
   );

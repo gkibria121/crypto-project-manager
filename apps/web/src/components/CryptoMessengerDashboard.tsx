@@ -1,26 +1,36 @@
 "use client";
 
 import React, { useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Plus, RefreshCw } from "lucide-react";
-import type {
-  AddContextFormValues,
-  ChecklistItemConfig,
-  NewProjectFormValues,
-  ProjectBusinessStatus,
-  ProjectContextItem,
-  PromptTemplate,
+import {
+  type AddContextFormValues,
+  type ChecklistItemConfig,
+  hasPermission,
+  type NewProjectFormValues,
+  type ProjectBusinessStatus,
+  type ProjectContextItem,
+  type PromptTemplate,
 } from "@/types/project";
 import {
   useAddContextMutation,
+  useAuditLogsQuery,
   useChecklistItemsQuery,
   useCreateProjectMutation,
+  useCreateUserMutation,
+  useCurrentUserQuery,
   useDashboardDialogs,
   useDeleteChecklistItemMutation,
   useDeleteContextMutation,
+  useDeleteProjectMutation,
   useDeletePromptTemplateMutation,
+  useDeleteUserMutation,
+  useLoginMutation,
+  useLogoutMutation,
   useMarkProjectReadMutation,
   useProjectsQuery,
   usePromptTemplatesQuery,
+  useRegisterMutation,
   useResetConversationMutation,
   useSaveChecklistItemMutation,
   useSavePromptTemplateMutation,
@@ -35,7 +45,11 @@ import {
   useToggleContextMutation,
   useUpdateBusinessStatusMutation,
   useUpdateProjectLogoMutation,
+  useUpdateUserRoleMutation,
+  useUpdateUserStatusMutation,
+  useUsersQuery,
 } from "@/hooks";
+import { AuthScreen } from "@/components/AuthScreen";
 import { ProjectSidebar } from "@/components/ProjectSidebar";
 import { AiChatPane } from "@/components/AiChatPane";
 import { ContextInspector } from "@/components/ContextInspector";
@@ -44,18 +58,37 @@ import {
   GlobalSettingsDialog,
   NewProjectDialog,
   ProjectChecklistDialog,
+  TeamRbacDialog,
   UpdateProjectLogoDialog,
 } from "@/components/modals";
 
 export function CryptoMessengerDashboard() {
-  const projectsQuery = useProjectsQuery();
-  const { data: promptTemplates = [] } = usePromptTemplatesQuery();
-  const { data: checklistItems = [] } = useChecklistItemsQuery();
+  const currentUserQuery = useCurrentUserQuery();
+  const currentUser = currentUserQuery.data ?? null;
+  const isAuthenticated = Boolean(currentUser);
+  const canReadUsers = hasPermission(currentUser, "users:read");
+  const canCreateProject = hasPermission(currentUser, "projects:create");
+
+  const projectsQuery = useProjectsQuery(isAuthenticated);
+  const { data: promptTemplates = [] } =
+    usePromptTemplatesQuery(isAuthenticated);
+  const { data: checklistItems = [] } =
+    useChecklistItemsQuery(isAuthenticated);
   const { data: healthStatus } = useSystemHealthQuery();
+  const { data: usersList = [] } = useUsersQuery(
+    isAuthenticated && canReadUsers
+  );
+  const { data: auditLogs = [] } = useAuditLogsQuery(
+    isAuthenticated && canReadUsers
+  );
 
   const projects = projectsQuery.data ?? [];
+  const searchParams = useSearchParams();
+  const initialProjectFromUrl = searchParams.get("projectId") ?? "";
 
-  const [selectedProjectId, setSelectedProjectId] = useState<string>("");
+  const [selectedProjectId, setSelectedProjectId] = useState<string>(
+    initialProjectFromUrl
+  );
   const [draftPrompt, setDraftPrompt] = useState("");
   const [mobileActivePane, setMobileActivePane] = useState<"sidebar" | "chat">(
     "chat"
@@ -72,15 +105,26 @@ export function CryptoMessengerDashboard() {
     editLogoDialogRef,
     checklistDialogRef,
     globalSettingsDialogRef,
+    teamRbacDialogRef,
     openAddContextModal,
     openNewProjectModal,
     openEditLogoModal,
     openChecklistModal,
     openGlobalSettingsModal,
+    openTeamRbacModal,
   } = useDashboardDialogs();
+
+  const loginMutation = useLoginMutation();
+  const registerMutation = useRegisterMutation();
+  const logoutMutation = useLogoutMutation();
+  const createUserMutation = useCreateUserMutation();
+  const updateUserRoleMutation = useUpdateUserRoleMutation();
+  const updateUserStatusMutation = useUpdateUserStatusMutation();
+  const deleteUserMutation = useDeleteUserMutation();
 
   const markProjectReadMutation = useMarkProjectReadMutation();
   const createProjectMutation = useCreateProjectMutation();
+  const deleteProjectMutation = useDeleteProjectMutation();
   const updateBusinessStatusMutation = useUpdateBusinessStatusMutation();
   const updateProjectLogoMutation = useUpdateProjectLogoMutation();
   const sendMessageMutation = useSendMessageMutation();
@@ -106,6 +150,45 @@ export function CryptoMessengerDashboard() {
     (acc, proj) => acc + (proj.unreadInsights ?? 0),
     0
   );
+
+  if (currentUserQuery.isLoading) {
+    return (
+      <div className="h-dvh w-full flex bg-white dark:bg-[#111b21] text-[#050505] dark:text-[#e9edef]">
+        <div className="w-full md:w-76 lg:w-88 border-r border-[#e4e6eb] dark:border-[#222d34] p-4 space-y-3">
+          <div className="h-7 w-28 rounded-lg bg-[#f0f2f5] dark:bg-[#202c33] animate-pulse" />
+          <div className="h-10 w-full rounded-full bg-[#f0f2f5] dark:bg-[#202c33] animate-pulse" />
+          <div className="space-y-2 pt-2">
+            {[1, 2, 3, 4].map((row) => (
+              <div
+                key={row}
+                className="h-16 w-full rounded-xl bg-[#f0f2f5] dark:bg-[#202c33] animate-pulse"
+              />
+            ))}
+          </div>
+        </div>
+        <div className="hidden md:flex flex-1 items-center justify-center bg-[#f0f2f5] dark:bg-[#0b141a]">
+          <div className="text-sm text-[#65676b] dark:text-[#8696a0]">
+            Verifying PulseOS session & RBAC permissions...
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!currentUser) {
+    return (
+      <AuthScreen
+        healthStatus={healthStatus}
+        isSubmitting={loginMutation.isPending || registerMutation.isPending}
+        onLogin={async (dto) => {
+          await loginMutation.mutateAsync(dto);
+        }}
+        onRegister={async (dto) => {
+          return registerMutation.mutateAsync(dto);
+        }}
+      />
+    );
+  }
 
   if (projectsQuery.isLoading) {
     return (
@@ -163,14 +246,16 @@ export function CryptoMessengerDashboard() {
             Create your first Web3 project workspace to begin orchestrating
             contexts and AI campaigns.
           </p>
-          <button
-            type="button"
-            onClick={openNewProjectModal}
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold bg-[#0084ff] hover:bg-[#0073e6] text-white transition cursor-pointer"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>New Project</span>
-          </button>
+          {canCreateProject && (
+            <button
+              type="button"
+              onClick={openNewProjectModal}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold bg-[#0084ff] hover:bg-[#0073e6] text-white transition cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>New Project</span>
+            </button>
+          )}
         </div>
         <NewProjectDialog
           dialogRef={newProjectDialogRef}
@@ -296,6 +381,10 @@ export function CryptoMessengerDashboard() {
     setMobileActivePane("chat");
   };
 
+  const handleDeleteProject = () => {
+    deleteProjectMutation.mutate(activeProject.id);
+  };
+
   const handleUpdateProjectLogo = (logoUrl: string | undefined) => {
     updateProjectLogoMutation.mutate({
       projectId: activeProject.id,
@@ -320,13 +409,18 @@ export function CryptoMessengerDashboard() {
         onUpdateBusinessStatus={handleUpdateBusinessStatus}
         onOpenNewProjectModal={openNewProjectModal}
         onOpenGlobalSettings={openGlobalSettingsModal}
+        onOpenTeamRbacModal={openTeamRbacModal}
+        onLogout={() => logoutMutation.mutate()}
+        currentUser={currentUser}
         healthStatus={healthStatus}
+        pendingUsersCount={usersList.filter((u) => !u.isActive).length}
         isMobileHidden={mobileActivePane !== "sidebar"}
       />
 
       {/* Center Section: AI Chat */}
       <AiChatPane
         project={activeProject}
+        currentUser={currentUser}
         promptTemplates={promptTemplates}
         checklistItems={checklistItems}
         draftPrompt={draftPrompt}
@@ -351,9 +445,11 @@ export function CryptoMessengerDashboard() {
       {/* Right Sidebar / Mobile & Tablet Drawer: Project Contexts */}
       <ContextInspector
         project={activeProject}
+        currentUser={currentUser}
         onUpdateBusinessStatus={(status) =>
           handleUpdateBusinessStatus(activeProject.id, status)
         }
+        onDeleteProject={handleDeleteProject}
         onToggleContext={handleToggleContext}
         onToggleAllContexts={handleToggleAllContexts}
         onDeleteContext={handleDeleteContext}
@@ -395,6 +491,8 @@ export function CryptoMessengerDashboard() {
         onScanAllChecklistItems={handleScanAllChecklistItems}
         onScanSingleItemInChat={handleScanSingleItemInChat}
         onOpenGlobalSettings={openGlobalSettingsModal}
+        canWriteChecklist={hasPermission(currentUser, "checklist:write")}
+        canWriteSettings={hasPermission(currentUser, "settings:write")}
       />
 
       <GlobalSettingsDialog
@@ -405,6 +503,25 @@ export function CryptoMessengerDashboard() {
         checklistItems={checklistItems}
         onSaveChecklistItem={(item) => saveChecklistItemMutation.mutate(item)}
         onDeleteChecklistItem={(id) => deleteChecklistItemMutation.mutate(id)}
+      />
+
+      <TeamRbacDialog
+        dialogRef={teamRbacDialogRef}
+        currentUser={currentUser}
+        users={usersList}
+        auditLogs={auditLogs}
+        onCreateUser={async (dto) => {
+          await createUserMutation.mutateAsync(dto);
+        }}
+        onUpdateUserRole={async (params) => {
+          await updateUserRoleMutation.mutateAsync(params);
+        }}
+        onUpdateUserStatus={async (params) => {
+          await updateUserStatusMutation.mutateAsync(params);
+        }}
+        onDeleteUser={async (userId) => {
+          await deleteUserMutation.mutateAsync(userId);
+        }}
       />
     </div>
   );

@@ -95,6 +95,8 @@ services:
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
       SCRAPER_SERVICE_URL: http://scraper:8000
       SCRAPER_API_KEY: ${SCRAPER_API_KEY:-pulseos-internal-scraper-key}
+      JWT_SECRET: ${JWT_SECRET:-pulseos-jwt-secret-key-2026-default-secure}
+      SESSION_TTL_SECONDS: ${SESSION_TTL_SECONDS:-604800}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
     ports:

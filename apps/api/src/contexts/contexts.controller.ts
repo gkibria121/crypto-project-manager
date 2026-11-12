@@ -1,15 +1,18 @@
 import { Body, Controller, Delete, Param, Patch, Post } from "@nestjs/common";
-import { ApiOperation, ApiTags } from "@nestjs/swagger";
+import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import {
   addContextFormSchema,
   toggleAllContextsDtoSchema,
   type AddContextFormValues,
   type ToggleAllContextsDto,
 } from "@repo/shared";
+import { RequirePermissions } from "../auth/auth.decorators.js";
 import { ZodValidationPipe } from "../common/pipes/zod-validation.pipe.js";
 import { ContextsService } from "./contexts.service.js";
 
 @ApiTags("contexts")
+@ApiBearerAuth()
+@RequirePermissions("contexts:write")
 @Controller("projects/:projectId/contexts")
 export class ContextsController {
   constructor(private readonly contextsService: ContextsService) {}

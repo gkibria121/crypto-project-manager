@@ -10,16 +10,29 @@ import { formatCurrentTimestamp } from "@/lib/ai-engine";
 import { apiClient } from "@/services/apiClient";
 import type {
   AddContextFormValues,
+  AuthUser,
   ChecklistItemConfig,
+  CreateUserDto,
   CryptoProject,
+  LoginDto,
   NewProjectFormValues,
   ProjectBusinessStatus,
   PromptTemplate,
+  RegisterDto,
+  UpdateProjectFormValues,
+  UserRole,
 } from "@/types/project";
 
 export const queryKeys = {
   health: {
     all: ["system-health"] as const,
+  },
+  auth: {
+    me: ["auth", "me"] as const,
+  },
+  users: {
+    all: ["users"] as const,
+    auditLogs: ["users", "audit-logs"] as const,
   },
   projects: {
     all: ["projects"] as const,
@@ -61,24 +74,175 @@ export function useSystemHealthQuery() {
   });
 }
 
-export function useProjectsQuery() {
+export function useCurrentUserQuery() {
+  return useQuery({
+    queryKey: queryKeys.auth.me,
+    queryFn: () => apiClient.fetchCurrentUser(),
+    retry: false,
+    staleTime: 60_000,
+  });
+}
+
+export function useUsersQuery(enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.users.all,
+    queryFn: () => apiClient.fetchUsers(),
+    enabled,
+  });
+}
+
+export function useAuditLogsQuery(enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.users.auditLogs,
+    queryFn: () => apiClient.fetchAuditLogs(),
+    enabled,
+  });
+}
+
+export function useProjectsQuery(enabled = true) {
   return useQuery({
     queryKey: queryKeys.projects.all,
     queryFn: () => apiClient.fetchProjects(),
+    enabled,
   });
 }
 
-export function usePromptTemplatesQuery() {
+export function usePromptTemplatesQuery(enabled = true) {
   return useQuery({
     queryKey: queryKeys.promptTemplates.all,
     queryFn: () => apiClient.fetchPromptTemplates(),
+    enabled,
   });
 }
 
-export function useChecklistItemsQuery() {
+export function useChecklistItemsQuery(enabled = true) {
   return useQuery({
     queryKey: queryKeys.checklistItems.all,
     queryFn: () => apiClient.fetchChecklistItems(),
+    enabled,
+  });
+}
+
+/**
+ * Auth & RBAC Mutations
+ */
+export function useLoginMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: LoginDto) => apiClient.login(input),
+    onSuccess: (session) => {
+      queryClient.setQueryData(queryKeys.auth.me, session.user);
+      void queryClient.invalidateQueries({ queryKey: queryKeys.projects.all });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.promptTemplates.all,
+      });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.checklistItems.all,
+      });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
+    },
+  });
+}
+
+export function useRegisterMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: RegisterDto) => apiClient.register(input),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.users.auditLogs,
+      });
+    },
+  });
+}
+
+export function useLogoutMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => apiClient.logout(),
+    onSuccess: () => {
+      queryClient.setQueryData(queryKeys.auth.me, null);
+      queryClient.removeQueries({ queryKey: queryKeys.projects.all });
+      queryClient.removeQueries({ queryKey: queryKeys.users.all });
+      queryClient.removeQueries({ queryKey: queryKeys.users.auditLogs });
+    },
+  });
+}
+
+export function useCreateUserMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: CreateUserDto) => apiClient.createUser(input),
+    onSuccess: (users) => {
+      queryClient.setQueryData<AuthUser[]>(queryKeys.users.all, users);
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.users.auditLogs,
+      });
+    },
+  });
+}
+
+export function useUpdateUserRoleMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (params: { userId: string; role: UserRole }) =>
+      apiClient.updateUserRole(params),
+    onSuccess: (users) => {
+      queryClient.setQueryData<AuthUser[]>(queryKeys.users.all, users);
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.users.auditLogs,
+      });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.auth.me });
+    },
+  });
+}
+
+export function useUpdateUserStatusMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (params: { userId: string; isActive: boolean }) =>
+      apiClient.updateUserStatus(params),
+    onSuccess: (users) => {
+      queryClient.setQueryData<AuthUser[]>(queryKeys.users.all, users);
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.users.auditLogs,
+      });
+    },
+  });
+}
+
+export function useDeleteUserMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (userId: string) => apiClient.deleteUser(userId),
+    onSuccess: (users) => {
+      queryClient.setQueryData<AuthUser[]>(queryKeys.users.all, users);
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.users.auditLogs,
+      });
+    },
+  });
+}
+
+export function useDeleteProjectMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (projectId: string) => apiClient.deleteProject(projectId),
+    onSuccess: ({ id }) => {
+      queryClient.setQueryData<CryptoProject[]>(
+        queryKeys.projects.all,
+        (prev = []) => prev.filter((p) => p.id !== id)
+      );
+    },
   });
 }
 
@@ -128,6 +292,20 @@ export function useCreateProjectMutation() {
       apiClient.createProject(values),
     onSuccess: (createdProject) => {
       syncUpdatedProjectInCache(queryClient, createdProject);
+    },
+  });
+}
+
+export function useUpdateProjectMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (params: {
+      projectId: string;
+      values: UpdateProjectFormValues;
+    }) => apiClient.updateProject(params),
+    onSuccess: (updatedProject) => {
+      syncUpdatedProjectInCache(queryClient, updatedProject);
     },
   });
 }

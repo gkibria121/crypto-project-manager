@@ -13,6 +13,8 @@ interface ProjectChecklistDialogProps {
   onScanAllChecklistItems: () => void;
   onScanSingleItemInChat: (item: ChecklistItemConfig) => void;
   onOpenGlobalSettings: () => void;
+  canWriteChecklist?: boolean;
+  canWriteSettings?: boolean;
 }
 
 export function ProjectChecklistDialog({
@@ -23,6 +25,8 @@ export function ProjectChecklistDialog({
   onScanAllChecklistItems,
   onScanSingleItemInChat,
   onOpenGlobalSettings,
+  canWriteChecklist = true,
+  canWriteSettings = true,
 }: ProjectChecklistDialogProps) {
   const completedCount = checklistItems.filter(
     (item) => project.checklistState?.[item.id]?.checked
@@ -42,14 +46,16 @@ export function ProjectChecklistDialog({
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
-          <button
-            type="button"
-            onClick={onScanAllChecklistItems}
-            className="w-full sm:w-auto justify-center inline-flex items-center gap-1.5 px-3 py-2 sm:py-1.5 rounded-lg text-xs font-semibold bg-[#0084ff] hover:bg-[#0073e6] text-white transition cursor-pointer"
-          >
-            <CheckCheck className="w-3.5 h-3.5" />
-            <span>Scan All Prompts</span>
-          </button>
+          {canWriteChecklist && (
+            <button
+              type="button"
+              onClick={onScanAllChecklistItems}
+              className="w-full sm:w-auto justify-center inline-flex items-center gap-1.5 px-3 py-2 sm:py-1.5 rounded-lg text-xs font-semibold bg-[#0084ff] hover:bg-[#0073e6] text-white transition cursor-pointer"
+            >
+              <CheckCheck className="w-3.5 h-3.5" />
+              <span>Scan All Prompts</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -72,8 +78,9 @@ export function ProjectChecklistDialog({
                   <input
                     type="checkbox"
                     checked={isChecked}
+                    disabled={!canWriteChecklist}
                     onChange={() => onToggleChecklistItem(item.id)}
-                    className="checkbox-native mt-0.5 shrink-0"
+                    className="checkbox-native mt-0.5 shrink-0 disabled:opacity-50"
                   />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
@@ -103,18 +110,20 @@ export function ProjectChecklistDialog({
                   </div>
                 </label>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    dialogRef.current?.close();
-                    onScanSingleItemInChat(item);
-                  }}
-                  title="Ask this checklist prompt in chat"
-                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-[#0084ff] hover:bg-[#e7f3ff] dark:hover:bg-[#0084ff]/20 shrink-0 mt-1 transition cursor-pointer"
-                >
-                  <Play className="w-3 h-3" />
-                  <span>Ask AI</span>
-                </button>
+                {canWriteChecklist && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      dialogRef.current?.close();
+                      onScanSingleItemInChat(item);
+                    }}
+                    title="Ask this checklist prompt in chat"
+                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-[#0084ff] hover:bg-[#e7f3ff] dark:hover:bg-[#0084ff]/20 shrink-0 mt-1 transition cursor-pointer"
+                  >
+                    <Play className="w-3 h-3" />
+                    <span>Ask AI</span>
+                  </button>
+                )}
               </div>
             );
           })
@@ -122,17 +131,23 @@ export function ProjectChecklistDialog({
       </div>
 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 mt-2 border-t border-[#e4e6eb] dark:border-[#2a3942]">
-        <button
-          type="button"
-          onClick={() => {
-            dialogRef.current?.close();
-            onOpenGlobalSettings();
-          }}
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#0084ff] hover:underline cursor-pointer text-left"
-        >
-          <Settings className="w-3.5 h-3.5 shrink-0" />
-          <span>Edit Checklist & System Prompts (Global Settings)</span>
-        </button>
+        {canWriteSettings ? (
+          <button
+            type="button"
+            onClick={() => {
+              dialogRef.current?.close();
+              onOpenGlobalSettings();
+            }}
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#0084ff] hover:underline cursor-pointer text-left"
+          >
+            <Settings className="w-3.5 h-3.5 shrink-0" />
+            <span>Edit Checklist & System Prompts (Global Settings)</span>
+          </button>
+        ) : (
+          <span className="text-xs text-[#65676b] dark:text-[#8696a0]">
+            Global checklist configuration is managed by Admins & Managers.
+          </span>
+        )}
 
         <button
           type="button"

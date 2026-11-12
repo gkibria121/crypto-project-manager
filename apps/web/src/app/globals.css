@@ -150,7 +150,7 @@ body {
   outline-offset: 2px;
 }
 
-.visually-hidden:where(:not(:focus-within, :active)) {
+.visually-hidden {
   position: absolute !important;
   clip-path: inset(50%) !important;
   overflow: hidden !important;
@@ -160,6 +160,23 @@ body {
   padding: 0 !important;
   border: 0 !important;
   white-space: nowrap !important;
+}
+
+.skip-link:where(:not(:focus, :active)) {
+  position: absolute !important;
+  clip-path: inset(50%) !important;
+  overflow: hidden !important;
+  width: 1px !important;
+  height: 1px !important;
+  margin: -1px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  white-space: nowrap !important;
+}
+
+input.visually-hidden:focus-visible + label {
+  outline: 2px solid var(--accent-color);
+  outline-offset: 2px;
 }
 
 dialog:modal {
@@ -178,4 +195,126 @@ input[aria-invalid="true"],
 textarea[aria-invalid="true"] {
   outline: 1.5px solid #e11d48;
   outline-offset: -1.5px;
+}
+
+/* Primary site navigation active page indicator per modern-web-guidance (navbar, WCAG 1.4.1) */
+.site-nav-link {
+  position: relative;
+}
+
+.site-nav-link[aria-current="page"] {
+  color: var(--accent-color);
+}
+
+.site-nav-link[aria-current="page"]::after {
+  content: "";
+  position: absolute;
+  inset: auto 0.5rem 0;
+  border-block-end: 3px solid var(--accent-color);
+}
+
+/* Left sidebar navigation active indicator per modern-web-guidance (navbar, WCAG 1.4.1) */
+.admin-nav-button {
+  position: relative;
+}
+
+.admin-nav-button[aria-current="page"] {
+  color: var(--accent-color);
+}
+
+.admin-nav-button[aria-current="page"]::before {
+  content: "";
+  position: absolute;
+  inset-block: 0.375rem;
+  inset-inline-start: 0;
+  inline-size: 3.5px;
+  border-radius: 9999px;
+  background-color: var(--accent-color);
+}
+
+/* Responsive data table per modern-web-guidance (responsive-table) */
+.table-wrapper {
+  overflow: auto;
+  max-inline-size: 100%;
+  max-block-size: min(560px, 75dvh);
+  container-type: inline-size;
+}
+
+.responsive-data-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.responsive-data-table thead {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 2;
+}
+
+.responsive-data-table tbody th {
+  position: sticky;
+  inset-inline-start: 0;
+  z-index: 1;
+  background: var(--background);
+}
+
+@container (width < 640px) {
+  .responsive-data-table,
+  .responsive-data-table thead,
+  .responsive-data-table tbody,
+  .responsive-data-table tr,
+  .responsive-data-table th,
+  .responsive-data-table td {
+    display: block;
+  }
+
+  .responsive-data-table thead {
+    /* MANDATORY: Hide column header from layout and screen readers. */
+    display: none;
+  }
+
+  .responsive-data-table tbody tr {
+    margin-block-end: 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 0.75rem;
+    overflow: clip;
+  }
+
+  .responsive-data-table tbody th {
+    position: sticky;
+    inset-block-start: 0;
+    z-index: 2;
+    background: var(--surface-muted);
+  }
+
+  .responsive-data-table td:nth-child(2)::before {
+    content: var(--label-2) ": ";
+    font-weight: 600;
+    color: var(--muted-foreground);
+  }
+
+  .responsive-data-table td:nth-child(3)::before {
+    content: var(--label-3) ": ";
+    font-weight: 600;
+    color: var(--muted-foreground);
+  }
+
+  .responsive-data-table td:nth-child(4)::before {
+    content: var(--label-4) ": ";
+    font-weight: 600;
+    color: var(--muted-foreground);
+  }
+
+  .responsive-data-table td:nth-child(5)::before {
+    content: var(--label-5) ": ";
+    font-weight: 600;
+    color: var(--muted-foreground);
+  }
+
+  .responsive-data-table td:nth-child(6)::before {
+    content: var(--label-6) ": ";
+    font-weight: 600;
+    color: var(--muted-foreground);
+  }
 }

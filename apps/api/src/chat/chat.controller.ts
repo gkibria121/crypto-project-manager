@@ -1,10 +1,13 @@
 import { Body, Controller, Param, Post } from "@nestjs/common";
-import { ApiOperation, ApiTags } from "@nestjs/swagger";
+import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { sendMessageDtoSchema, type SendMessageDto } from "@repo/shared";
+import { RequirePermissions } from "../auth/auth.decorators.js";
 import { ZodValidationPipe } from "../common/pipes/zod-validation.pipe.js";
 import { ChatService } from "./chat.service.js";
 
 @ApiTags("chat")
+@ApiBearerAuth()
+@RequirePermissions("chat:write")
 @Controller("projects/:projectId/chat")
 export class ChatController {
   constructor(private readonly chatService: ChatService) {}

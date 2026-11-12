@@ -1,13 +1,16 @@
 import { Controller, Get, Param, Post } from "@nestjs/common";
-import { ApiOperation, ApiTags } from "@nestjs/swagger";
+import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
+import { RequirePermissions } from "../auth/auth.decorators.js";
 import { ScraperService } from "./scraper.service.js";
 
 @ApiTags("scraper")
+@ApiBearerAuth()
 @Controller("projects/:projectId")
 export class ScraperController {
   constructor(private readonly scraperService: ScraperService) {}
 
   @Post("contexts/:contextId/scrape")
+  @RequirePermissions("scraper:trigger")
   @ApiOperation({
     summary: "Trigger Python scraper microservice for a single project context",
   })
@@ -19,6 +22,7 @@ export class ScraperController {
   }
 
   @Post("scrape-all")
+  @RequirePermissions("scraper:trigger")
   @ApiOperation({
     summary: "Batch-scrape all contexts for a project via Python scraper",
   })
@@ -27,6 +31,7 @@ export class ScraperController {
   }
 
   @Get("scrape-jobs")
+  @RequirePermissions("projects:read")
   @ApiOperation({ summary: "List recent scrape jobs for a project" })
   listScrapeJobs(@Param("projectId") projectId: string) {
     return this.scraperService.listJobsForProject(projectId);

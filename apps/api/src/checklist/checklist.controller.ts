@@ -1,13 +1,16 @@
 import { Body, Controller, Param, Patch, Post } from "@nestjs/common";
-import { ApiOperation, ApiTags } from "@nestjs/swagger";
+import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import {
   scanSingleChecklistDtoSchema,
   type ScanSingleChecklistDto,
 } from "@repo/shared";
+import { RequirePermissions } from "../auth/auth.decorators.js";
 import { ZodValidationPipe } from "../common/pipes/zod-validation.pipe.js";
 import { ChecklistService } from "./checklist.service.js";
 
 @ApiTags("checklist")
+@ApiBearerAuth()
+@RequirePermissions("checklist:write")
 @Controller("projects/:projectId/checklist")
 export class ChecklistController {
   constructor(private readonly checklistService: ChecklistService) {}

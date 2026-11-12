@@ -1,3 +1,4 @@
+import { hashPassword } from "../src/auth-crypto.js";
 import { createDbClient } from "../src/db.js";
 
 const AETHER_LOGO_URL = `data:image/svg+xml;utf8,${encodeURIComponent(
@@ -542,11 +543,80 @@ const INITIAL_PROJECTS = [
   },
 ];
 
+const INITIAL_USERS = [
+  {
+    id: "usr-admin-alex",
+    email: "alex@pulseos.xyz",
+    name: "Alex Vance",
+    passwordPlain: "PulseAdmin!2026",
+    role: "admin" as const,
+    title: "Managing Partner",
+    avatarColor: "bg-[#1d4ed8]",
+  },
+  {
+    id: "usr-manager-elena",
+    email: "elena@pulseos.xyz",
+    name: "Elena Rostova",
+    passwordPlain: "PulseManager!2026",
+    role: "manager" as const,
+    title: "Head of Web3 BD",
+    avatarColor: "bg-[#00a884]",
+  },
+  {
+    id: "usr-analyst-marcus",
+    email: "marcus@pulseos.xyz",
+    name: "Marcus Chen",
+    passwordPlain: "PulseAnalyst!2026",
+    role: "analyst" as const,
+    title: "DeFi Growth Strategist",
+    avatarColor: "bg-[#0369a1]",
+  },
+  {
+    id: "usr-viewer-sarah",
+    email: "sarah@pulseos.xyz",
+    name: "Sarah Jenkins",
+    passwordPlain: "PulseViewer!2026",
+    role: "viewer" as const,
+    title: "Compliance & Partner Auditor",
+    avatarColor: "bg-[#334155]",
+    isActive: true,
+  },
+  {
+    id: "usr-pending-jordan",
+    email: "jordan@pulseos.xyz",
+    name: "Jordan Taylor",
+    passwordPlain: "PulsePending!2026",
+    role: "analyst" as const,
+    title: "Ecosystem Strategist",
+    avatarColor: "bg-[#0f172a]",
+    isActive: false,
+  },
+];
+
 async function main() {
   console.log("Seeding PulseOS database with Prisma 8...");
   const db = createDbClient(process.env["DATABASE_URL"]);
 
   try {
+    for (const u of INITIAL_USERS) {
+      const existingUser = await db.orm.public.User.select("id")
+        .where({ email: u.email })
+        .first();
+
+      if (!existingUser) {
+        await db.orm.public.User.create({
+          id: u.id,
+          email: u.email,
+          name: u.name,
+          passwordHash: hashPassword(u.passwordPlain),
+          role: u.role,
+          title: u.title,
+          avatarColor: u.avatarColor,
+          isActive: "isActive" in u ? u.isActive : true,
+        });
+      }
+    }
+
     for (const tpl of INITIAL_PROMPT_TEMPLATES) {
       await db.orm.public.PromptTemplate.upsert({
         create: tpl,

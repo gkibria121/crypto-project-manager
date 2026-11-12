@@ -48,6 +48,31 @@ export const scrapeStatusSchema = z.enum([
 ]);
 
 /**
+ * RBAC Roles & Permissions Enums
+ */
+export const userRoleSchema = z.enum([
+  "admin",
+  "manager",
+  "analyst",
+  "viewer",
+]);
+
+export const permissionSchema = z.enum([
+  "projects:read",
+  "projects:create",
+  "projects:update",
+  "projects:delete",
+  "contexts:write",
+  "scraper:trigger",
+  "chat:write",
+  "checklist:write",
+  "settings:read",
+  "settings:write",
+  "users:read",
+  "users:write",
+]);
+
+/**
  * Scraper & Enrichment Schemas
  */
 export const scrapedMetadataSchema = z.object({
@@ -199,6 +224,32 @@ export const newProjectFormSchema = z.object({
   linkedin: z.string().trim(),
 });
 
+export const updateProjectFormSchema = z.object({
+  name: z.string().trim().min(1, "Project name is required"),
+  ticker: z
+    .string()
+    .trim()
+    .min(1, "Ticker symbol is required")
+    .max(12, "Ticker must be 12 characters or fewer"),
+  chain: z.string().trim().min(1, "Chain is required"),
+  stage: projectStageSchema,
+  businessStatus: projectBusinessStatusSchema,
+  tagline: z.string().trim(),
+  campaignBudget: z.string().trim().min(1, "Campaign budget is required"),
+  sentimentScore: z
+    .number()
+    .int()
+    .min(0, "Sentiment score must be at least 0")
+    .max(100, "Sentiment score must be 100 or lower"),
+  isPinned: z.boolean().optional(),
+  avatarBg: z.string().trim().min(1, "Avatar color is required"),
+  logoUrl: z.string().trim(),
+  website: z.string().trim(),
+  xHandle: z.string().trim(),
+  linkedin: z.string().trim(),
+  telegram: z.string().trim().optional(),
+});
+
 export const promptTemplateFormSchema = z.object({
   label: z.string().trim().min(1, "Prompt button label is required"),
   systemPrompt: z
@@ -249,6 +300,89 @@ export const systemHealthSchema = z.object({
 });
 
 /**
+ * Authentication & RBAC Schemas
+ */
+export const authUserSchema = z.object({
+  id: z.string().min(1),
+  email: z.string().email(),
+  name: z.string().min(1),
+  role: userRoleSchema,
+  title: z.string(),
+  avatarColor: z.string(),
+  isActive: z.boolean(),
+  permissions: z.array(permissionSchema),
+  lastLoginAt: z.string().nullable().optional(),
+  createdAt: z.string().optional(),
+});
+
+export const authSessionResponseSchema = z.object({
+  user: authUserSchema,
+  accessToken: z.string().min(1),
+  expiresAt: z.string(),
+});
+
+export const authRegisterResponseSchema = z.object({
+  user: authUserSchema,
+  requiresActivation: z.boolean(),
+  message: z.string(),
+});
+
+export const loginDtoSchema = z.object({
+  email: z.string().trim().email("Please enter a valid email address"),
+  password: z.string().min(1, "Password is required"),
+});
+
+export const registerDtoSchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(2, "Full name must be at least 2 characters")
+    .max(100, "Full name must be 100 characters or fewer"),
+  email: z.string().trim().email("Please enter a valid email address"),
+  password: z
+    .string()
+    .min(8, "Password must be at least 8 characters")
+    .max(128, "Password must be 128 characters or fewer"),
+  title: z.string().trim().max(80).optional(),
+});
+
+export const createUserDtoSchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(2, "Full name must be at least 2 characters")
+    .max(100, "Full name must be 100 characters or fewer"),
+  email: z.string().trim().email("Please enter a valid email address"),
+  password: z
+    .string()
+    .min(8, "Password must be at least 8 characters")
+    .max(128, "Password must be 128 characters or fewer"),
+  role: userRoleSchema,
+  title: z.string().trim().max(80).optional(),
+});
+
+export const updateUserRoleDtoSchema = z.object({
+  role: userRoleSchema,
+});
+
+export const updateUserStatusDtoSchema = z.object({
+  isActive: z.boolean(),
+});
+
+export const auditLogItemSchema = z.object({
+  id: z.string(),
+  actorId: z.string().nullable().optional(),
+  actorEmail: z.string(),
+  actorRole: userRoleSchema,
+  action: z.string(),
+  resource: z.string(),
+  resourceId: z.string().nullable().optional(),
+  details: z.record(z.string(), z.unknown()).nullable().optional(),
+  ipAddress: z.string().nullable().optional(),
+  createdAt: z.string(),
+});
+
+/**
  * Inferred TypeScript Types
  */
 export type ContextType = z.infer<typeof contextTypeSchema>;
@@ -257,6 +391,8 @@ export type ProjectBusinessStatus = z.infer<typeof projectBusinessStatusSchema>;
 export type ProjectChain = z.infer<typeof projectChainSchema>;
 export type MessageSender = z.infer<typeof messageSenderSchema>;
 export type ScrapeStatus = z.infer<typeof scrapeStatusSchema>;
+export type UserRole = z.infer<typeof userRoleSchema>;
+export type Permission = z.infer<typeof permissionSchema>;
 export type ScrapedMetadata = z.infer<typeof scrapedMetadataSchema>;
 export type ScrapeJob = z.infer<typeof scrapeJobSchema>;
 export type ScraperServiceResponse = z.infer<typeof scraperServiceResponseSchema>;
@@ -274,6 +410,7 @@ export type UpdateProjectLogoFormValues = z.infer<
   typeof updateProjectLogoFormSchema
 >;
 export type NewProjectFormValues = z.infer<typeof newProjectFormSchema>;
+export type UpdateProjectFormValues = z.infer<typeof updateProjectFormSchema>;
 export type PromptTemplateFormValues = z.infer<typeof promptTemplateFormSchema>;
 export type ChecklistItemFormValues = z.infer<typeof checklistItemFormSchema>;
 export type ChatComposerFormValues = z.infer<typeof chatComposerFormSchema>;
@@ -284,3 +421,13 @@ export type SendMessageDto = z.infer<typeof sendMessageDtoSchema>;
 export type ToggleAllContextsDto = z.infer<typeof toggleAllContextsDtoSchema>;
 export type ScanSingleChecklistDto = z.infer<typeof scanSingleChecklistDtoSchema>;
 export type SystemHealthStatus = z.infer<typeof systemHealthSchema>;
+
+export type AuthUser = z.infer<typeof authUserSchema>;
+export type AuthSessionResponse = z.infer<typeof authSessionResponseSchema>;
+export type AuthRegisterResponse = z.infer<typeof authRegisterResponseSchema>;
+export type LoginDto = z.infer<typeof loginDtoSchema>;
+export type RegisterDto = z.infer<typeof registerDtoSchema>;
+export type CreateUserDto = z.infer<typeof createUserDtoSchema>;
+export type UpdateUserRoleDto = z.infer<typeof updateUserRoleDtoSchema>;
+export type UpdateUserStatusDto = z.infer<typeof updateUserStatusDtoSchema>;
+export type AuditLogItem = z.infer<typeof auditLogItemSchema>;

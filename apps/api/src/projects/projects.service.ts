@@ -5,6 +5,7 @@ import {
   type CryptoProject,
   type NewProjectFormValues,
   type ProjectBusinessStatus,
+  type UpdateProjectFormValues,
 } from "@repo/shared";
 import { randomUUID } from "crypto";
 import { PrismaService } from "../prisma/prisma.service.js";
@@ -159,6 +160,183 @@ export class ProjectsService {
         suggestedActions: [],
         model: "pulseos-engine",
       });
+    });
+
+    return findFullProjectOrThrow(this.prisma, projectId);
+  }
+
+  async update(
+    projectId: string,
+    input: UpdateProjectFormValues
+  ): Promise<CryptoProject> {
+    const existing = await fullProjectQuery(this.prisma.db.orm)
+      .where({ id: projectId })
+      .first();
+
+    if (!existing) {
+      throw new NotFoundException(`Project "${projectId}" not found.`);
+    }
+
+    const trimmedTicker = input.ticker.trim();
+    const cleanTicker = trimmedTicker.startsWith("$")
+      ? trimmedTicker.toUpperCase()
+      : `$${trimmedTicker.toUpperCase()}`;
+
+    const normalizedLogoUrl =
+      input.logoUrl && input.logoUrl.trim().length > 0
+        ? input.logoUrl.trim()
+        : null;
+
+    const normalizedTagline =
+      input.tagline.trim() || `${input.chain} project (${input.stage})`;
+
+    const tags = [
+      input.chain.toLowerCase(),
+      input.stage.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+    ];
+
+    const archivedAt =
+      input.businessStatus === "archived"
+        ? existing.archivedAt ?? new Date()
+        : null;
+
+    const suffix = randomUUID().slice(0, 8);
+    const baseTime = Date.now();
+
+    const profileSpecs: Array<{
+      type: ContextType;
+      shortKey: string;
+      defaultTitle: string;
+      rawValue: string;
+      formatValue: (raw: string) => string;
+      formatUrl: (formattedValue: string) => string;
+      offsetMs: number;
+    }> = [
+      {
+        type: "website",
+        shortKey: "web",
+        defaultTitle: "Official Website",
+        rawValue: input.website.trim(),
+        formatValue: (raw) => raw,
+        formatUrl: (val) =>
+          val.startsWith("http://") || val.startsWith("https://")
+            ? val
+            : `https://${val}`,
+        offsetMs: 0,
+      },
+      {
+        type: "x_handle",
+        shortKey: "x",
+        defaultTitle: "Official X",
+        rawValue: input.xHandle.trim(),
+        formatValue: (raw) => (raw.startsWith("@") ? raw : `@${raw}`),
+        formatUrl: (val) => `https://x.com/${val.replace(/^@/, "")}`,
+        offsetMs: 10,
+      },
+      {
+        type: "linkedin",
+        shortKey: "li",
+        defaultTitle: "LinkedIn",
+        rawValue: input.linkedin.trim(),
+        formatValue: (raw) => raw,
+        formatUrl: (val) =>
+          val.startsWith("http://") || val.startsWith("https://")
+            ? val
+            : `https://${val}`,
+        offsetMs: 20,
+      },
+      {
+        type: "telegram",
+        shortKey: "tg",
+        defaultTitle: "Telegram Community",
+        rawValue: (input.telegram ?? "").trim(),
+        formatValue: (raw) => raw,
+        formatUrl: (val) =>
+          val.startsWith("http://") || val.startsWith("https://")
+            ? val
+            : val.startsWith("t.me/")
+              ? `https://${val}`
+              : `https://t.me/${val.replace(/^@/, "")}`,
+        offsetMs: 30,
+      },
+    ];
+
+    await this.prisma.db.transaction(async (tx) => {
+      await tx.orm.public.Project.where({ id: projectId }).update({
+        name: input.name.trim(),
+        ticker: cleanTicker,
+        chain: input.chain.trim(),
+        stage: input.stage,
+        businessStatus: input.businessStatus,
+        avatarBg: input.avatarBg.trim() || existing.avatarBg,
+        logoUrl: normalizedLogoUrl,
+        tagline: normalizedTagline,
+        campaignBudget: input.campaignBudget.trim() || existing.campaignBudget,
+        sentimentScore: input.sentimentScore,
+        isPinned: input.isPinned ?? existing.isPinned,
+        tags,
+        lastActivityTime: "Now",
+        archivedAt,
+      });
+
+      for (const spec of profileSpecs) {
+        const existingCtx = existing.contexts.find(
+          (ctx) => ctx.type === spec.type
+        );
+
+        if (spec.rawValue.length > 0) {
+          const formattedValue = spec.formatValue(spec.rawValue);
+          const formattedUrl = spec.formatUrl(formattedValue);
+
+          if (existingCtx) {
+            if (
+              existingCtx.value !== formattedValue ||
+              existingCtx.url !== formattedUrl
+            ) {
+              await tx.orm.public.ProjectContext.where({
+                id: existingCtx.id,
+              }).update({
+                value: formattedValue,
+                url: formattedUrl,
+                updatedAtLabel: "Now",
+              });
+            }
+          } else {
+            await tx.orm.public.ProjectContext.create({
+              id: `ctx-${baseTime}-${spec.shortKey}-${suffix}`,
+              projectId,
+              type: spec.type,
+              title: spec.defaultTitle,
+              value: formattedValue,
+              url: formattedUrl,
+              isActive: true,
+              updatedAtLabel: "Now",
+              createdAt: new Date(baseTime + spec.offsetMs),
+            });
+          }
+        } else if (existingCtx) {
+          await tx.orm.public.ProjectContext.where({
+            id: existingCtx.id,
+          }).delete();
+        }
+      }
+
+      const positioningNote = existing.contexts.find(
+        (ctx) =>
+          ctx.type === "message" && ctx.title === "Project Positioning"
+      );
+      if (
+        positioningNote &&
+        input.tagline.trim() &&
+        positioningNote.value !== input.tagline.trim()
+      ) {
+        await tx.orm.public.ProjectContext.where({
+          id: positioningNote.id,
+        }).update({
+          value: input.tagline.trim(),
+          updatedAtLabel: "Now",
+        });
+      }
     });
 
     return findFullProjectOrThrow(this.prisma, projectId);

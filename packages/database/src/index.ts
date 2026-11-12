@@ -5,6 +5,14 @@ export {
   type PulseDbClient,
 } from "./db.js";
 export {
+  hashPassword,
+  verifyPassword,
+  hashSessionToken,
+  signJwt,
+  verifyJwt,
+  type JwtPayload,
+} from "./auth-crypto.js";
+export {
   and,
   not,
   or,

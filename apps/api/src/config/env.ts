@@ -12,6 +12,15 @@ export const envSchema = z.object({
   SCRAPER_SERVICE_URL: z.string().url().default("http://localhost:8001"),
   SCRAPER_API_KEY: z.string().default(""),
   SCRAPER_TIMEOUT_MS: z.coerce.number().int().positive().default(15000),
+  JWT_SECRET: z
+    .string()
+    .min(16, "JWT_SECRET must be at least 16 characters")
+    .default("pulseos-jwt-secret-key-2026-default-secure"),
+  SESSION_TTL_SECONDS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(60 * 60 * 24 * 7),
   OPENAI_API_KEY: z.string().optional(),
   OPENAI_MODEL: z.string().default("gpt-4o-mini"),
 });
