@@ -21,6 +21,10 @@ const TAG_TO_CONTEXT_TYPE: Record<string, ContextType> = {
   note: "message",
   brief: "message",
   message: "message",
+  leads: "lead",
+  lead: "lead",
+  contacts: "lead",
+  contact: "lead",
 };
 
 export function slugifyContextTag(title: string): string {
@@ -110,6 +114,13 @@ export function buildProjectMentionSuggestions(
       label: "Notes & Briefs",
       type: "message",
       emptyDesc: "No admin notes saved yet",
+    },
+    {
+      tag: "@leads",
+      label: "Target Leads & Contacts",
+      type: "lead",
+      emptyDesc:
+        "No leads fetched manually yet — chatbot can auto-gather via MCP fetch_project_leads",
     },
   ];
 

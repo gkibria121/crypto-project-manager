@@ -2,6 +2,7 @@ import type {
   AiProvider,
   ContextType,
   CryptoProject,
+  LeadProvider,
   Permission,
   ProjectBusinessStatus,
   ProjectChain,
@@ -415,6 +416,78 @@ export const DEFAULT_SCRAPE_CONFIG: ScrapeConfig = {
 export const SPECIALIZED_SCRAPER_PROVIDERS: readonly SpecializedScraperProvider[] =
   ["x", "linkedin", "telegram"] as const;
 
+export const LEAD_PROVIDERS: readonly LeadProvider[] = [
+  "apollo",
+  "hunter",
+  "snov",
+  "lusha",
+  "website_scraper",
+] as const;
+
+export const LEAD_PROVIDER_META: Record<
+  LeadProvider,
+  {
+    label: string;
+    shortLabel: string;
+    description: string;
+    envVar: string;
+    docsUrl: string;
+    requiresApiKey: boolean;
+    keyPlaceholder: string;
+  }
+> = {
+  apollo: {
+    label: "Apollo.io People Search",
+    shortLabel: "Apollo",
+    description:
+      "Search decision-makers (Founders, CEO, Head of BD, Marketing) by company domain and retrieve verified emails & LinkedIn profiles.",
+    envVar: "APOLLO_API_KEY",
+    docsUrl: "https://apolloio.github.io/apollo-api-docs/",
+    requiresApiKey: true,
+    keyPlaceholder: "Enter Apollo.io API Key...",
+  },
+  hunter: {
+    label: "Hunter.io Domain Search",
+    shortLabel: "Hunter",
+    description:
+      "Discover verified company email addresses, department roles, and LinkedIn handles for a project domain.",
+    envVar: "HUNTER_API_KEY",
+    docsUrl: "https://hunter.io/api-documentation/v2",
+    requiresApiKey: true,
+    keyPlaceholder: "Enter Hunter.io API Key...",
+  },
+  snov: {
+    label: "Snov.io Domain Prospecting",
+    shortLabel: "Snov.io",
+    description:
+      "Find B2B prospect emails and roles from a target domain. Enter 'client_id:client_secret' or an OAuth access token.",
+    envVar: "SNOV_API_KEY",
+    docsUrl: "https://snov.io/api",
+    requiresApiKey: true,
+    keyPlaceholder: "client_id:client_secret or access token...",
+  },
+  lusha: {
+    label: "Lusha Contact Prospecting",
+    shortLabel: "Lusha",
+    description:
+      "Fetch leadership and BD contacts with direct work emails and phone numbers for target Web3 companies.",
+    envVar: "LUSHA_API_KEY",
+    docsUrl: "https://www.lusha.com/docs/",
+    requiresApiKey: true,
+    keyPlaceholder: "Enter Lusha API Key...",
+  },
+  website_scraper: {
+    label: "Website & Scraped Data Extractor (Built-in)",
+    shortLabel: "Web Scraper",
+    description:
+      "Gather public emails, Telegram, X, and LinkedIn contacts directly from the project's website & scraped pages (no external API key required).",
+    envVar: "",
+    docsUrl: "",
+    requiresApiKey: false,
+    keyPlaceholder: "",
+  },
+};
+
 export const AI_PROVIDERS: readonly AiProvider[] = [
   "google",
   "openai",
@@ -573,7 +646,9 @@ export function detectSpecializedProvider(
   if (contextType === "x_handle") return "x";
   if (contextType === "linkedin") return "linkedin";
   if (contextType === "telegram") return "telegram";
-  if (contextType === "message" || !rawValueOrUrl) return null;
+  if (contextType === "message" || contextType === "lead" || !rawValueOrUrl) {
+    return null;
+  }
 
   const lower = rawValueOrUrl.trim().toLowerCase();
   let host = "";

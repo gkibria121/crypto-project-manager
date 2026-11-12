@@ -5,6 +5,7 @@ import {
   Globe,
   MessageSquareText,
   SendHorizontal,
+  UserCheck,
 } from "lucide-react";
 import type { ContextType } from "@/types/project";
 
@@ -30,6 +31,8 @@ export function ContextTypeIcon({
         return <SendHorizontal className={smClass} />;
       case "message":
         return <MessageSquareText className={smClass} />;
+      case "lead":
+        return <UserCheck className={smClass} />;
     }
   }
 
@@ -44,5 +47,7 @@ export function ContextTypeIcon({
       return <SendHorizontal className="w-4 h-4 text-[#229ed9]" />;
     case "message":
       return <MessageSquareText className="w-4 h-4 text-[#00a884]" />;
+    case "lead":
+      return <UserCheck className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />;
   }
 }

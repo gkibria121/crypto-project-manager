@@ -76,3 +76,40 @@ bun run lint
 bun run test
 bun run build
 ```
+
+## MCP Server, Lead Enrichment & Agency Context
+
+PulseOS embeds a native **Model Context Protocol (MCP) Server** (`pulseos-workspace-mcp`) and supports external MCP servers configurable in **Global Settings → MCP Servers** or **Admin Dashboard → AI Providers**.
+
+- **MCP Streamable HTTP Endpoint:** `POST /api/v1/mcp`
+- **Live MCP Markdown Documentation:** `GET /api/v1/mcp/docs` (also exposed inside MCP as resource `pulseos://docs/mcp`)
+- **MCP Project Context Resource:** `pulseos://projects/{projectId}/context`
+
+### Built-in MCP Tools (9 Tools)
+
+Every AI chat session discovers active MCP tools at the start of the conversation:
+
+1. `get_company_context` — Target company overview + saved backend contexts (`website`, `x_handle`, `linkedin`, `telegram`, `message`, `lead`), including `leadsCount` and automatic reminder to call `fetch_project_leads` when leads have not been gathered manually.
+2. `get_context_by_tag` — Resolves `@tags` (`@context`, `@linkedin`, `@x`, `@website`, `@telegram`, `@notes`, `@leads`, `@about-us`, or context title slugs).
+3. `fetch_project_leads` — Automatically fetches target company decision-maker contacts (`type: "lead"`) and persists them into the right-side **Company Context** panel if no leads have been gathered manually yet (or when `forceRefresh: true`).
+4. `get_scraped_data` — Reads stored `ScrapeJob` and multi-level `ScrapedPage` rows from PostgreSQL.
+5. `scrape_context_link` — Runs the Python Scraper microservice on a saved project link and persists results.
+6. `scrape_url` — Scrapes an arbitrary external URL via the Python Scraper microservice.
+7. `list_project_checklist` — Reads due-diligence checklist states and scan notes.
+8. `search_projects` — Searches workspace target companies by name, ticker, chain, or pipeline status.
+9. `get_agency_profile` — Reads our agency's **About Us** company & representative profile.
+
+### Chat `@Tag` Resolution
+
+- `@context` — Full target company overview and saved contexts.
+- `@linkedin`, `@x`, `@website`, `@telegram`, `@notes` — Platform-specific backend contexts and scraped pages.
+- `@leads` (or `@contacts`) — Saved contact leads from the right-side panel; automatically calls `fetch_project_leads` if no leads exist yet.
+- `@scrape` / `@scraped` — Live scraping via MCP or stored multi-level scraped pages.
+- `@checklist` — Feature checklist scan results.
+- `@about-us` — Our agency & representative identity.
+
+### Agency Profile & Lead Providers
+
+- **Agency Profile (`About Us`):** Configure our company details, address, representative contact info, and social links in **Dashboard → About Us**. Automatically injected into every chat as the outreach sender, with explicit separation from the prospective client project.
+- **Fetch Leads (Context Panel):** Click **Fetch leads** in the right-side **Company Context** panel to configure encrypted provider API keys (`APOLLO_API_KEY`, `HUNTER_API_KEY`, `SNOV_API_KEY`, `LUSHA_API_KEY`) or run the built-in **Website & Social Scraper** (`website_scraper`) and save deduplicated contacts directly as `lead` items.
+

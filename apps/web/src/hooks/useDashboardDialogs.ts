@@ -14,6 +14,7 @@ export function useDashboardDialogs() {
   const teamRbacDialogRef = useRef<HTMLDialogElement | null>(null);
   const scrapeConfigDialogRef = useRef<HTMLDialogElement | null>(null);
   const scrapedDataDialogRef = useRef<HTMLDialogElement | null>(null);
+  const fetchLeadsDialogRef = useRef<HTMLDialogElement | null>(null);
 
   const openAddContextModal = useCallback(
     () => addContextDialogRef.current?.showModal(),
@@ -59,6 +60,10 @@ export function useDashboardDialogs() {
     () => scrapedDataDialogRef.current?.showModal(),
     []
   );
+  const openFetchLeadsModal = useCallback(
+    () => fetchLeadsDialogRef.current?.showModal(),
+    []
+  );
 
   return {
     addContextDialogRef,
@@ -72,6 +77,7 @@ export function useDashboardDialogs() {
     teamRbacDialogRef,
     scrapeConfigDialogRef,
     scrapedDataDialogRef,
+    fetchLeadsDialogRef,
     openAddContextModal,
     openNewProjectModal,
     openEditProjectModal,
@@ -83,5 +89,6 @@ export function useDashboardDialogs() {
     openTeamRbacModal,
     openScrapeConfigModal,
     openScrapedDataModal,
+    openFetchLeadsModal,
   };
 }

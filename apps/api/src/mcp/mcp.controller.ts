@@ -26,6 +26,7 @@ import {
   type AuthenticatedUser,
 } from "../auth/auth.decorators.js";
 import { ZodValidationPipe } from "../common/pipes/zod-validation.pipe.js";
+import { PULSEOS_MCP_DOCS_MARKDOWN } from "./mcp-docs.js";
 import { McpService } from "./mcp.service.js";
 
 @ApiTags("mcp")
@@ -59,6 +60,20 @@ export class McpController {
   @ApiOperation({ summary: "List all active MCP tools known by the system" })
   listTools() {
     return this.mcpService.getAvailableTools();
+  }
+
+  @Get("docs")
+  @RequirePermissions("projects:read")
+  @ApiOperation({
+    summary:
+      "Retrieve PulseOS MCP documentation (tools, @tags, automatic lead fetching, and resources)",
+  })
+  getMcpDocs() {
+    return {
+      uri: "pulseos://docs/mcp",
+      format: "markdown",
+      content: PULSEOS_MCP_DOCS_MARKDOWN,
+    };
   }
 
   @Post("servers")

@@ -18,6 +18,18 @@ export function normalizeContextUrl(
 ): string | undefined {
   const v = rawVal.trim();
   if (!v || rawType === "message") return undefined;
+  if (rawType === "lead") {
+    if (v.startsWith("http://") || v.startsWith("https://") || v.startsWith("mailto:")) {
+      return v;
+    }
+    if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) {
+      return `mailto:${v}`;
+    }
+    if (v.includes("linkedin.com/")) {
+      return `https://${v}`;
+    }
+    return undefined;
+  }
   if (v.startsWith("http://") || v.startsWith("https://")) return v;
   if (rawType === "x_handle") {
     return `https://x.com/${v.replace(/^@/, "")}`;

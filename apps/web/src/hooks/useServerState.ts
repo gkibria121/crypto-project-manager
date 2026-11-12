@@ -20,6 +20,9 @@ import type {
   CreateMcpServerDto,
   CreateUserDto,
   CryptoProject,
+  FetchLeadsDto,
+  LeadProvider,
+  LeadProviderStatus,
   LoginDto,
   McpOverview,
   NewProjectFormValues,
@@ -72,6 +75,9 @@ export const queryKeys = {
   },
   aboutUs: {
     profile: ["settings", "about-us"] as const,
+  },
+  leads: {
+    providers: ["leads", "providers"] as const,
   },
   mcp: {
     servers: ["mcp", "servers"] as const,
@@ -193,6 +199,14 @@ export function useAgencyProfileQuery(enabled = true) {
   return useQuery({
     queryKey: queryKeys.aboutUs.profile,
     queryFn: () => apiClient.fetchAgencyProfile(),
+    enabled,
+  });
+}
+
+export function useLeadProvidersQuery(enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.leads.providers,
+    queryFn: () => apiClient.fetchLeadProviders(),
     enabled,
   });
 }
@@ -1187,6 +1201,51 @@ export function useSaveAgencyProfileMutation() {
       );
       void queryClient.invalidateQueries({
         queryKey: queryKeys.users.auditLogs,
+      });
+    },
+  });
+}
+
+export function useSaveLeadProviderKeyMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (params: { provider: LeadProvider; apiKey: string }) =>
+      apiClient.saveLeadProviderKey(params),
+    onSuccess: (statuses) => {
+      queryClient.setQueryData<LeadProviderStatus[]>(
+        queryKeys.leads.providers,
+        statuses
+      );
+    },
+  });
+}
+
+export function useDeleteLeadProviderKeyMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (provider: LeadProvider) =>
+      apiClient.deleteLeadProviderKey(provider),
+    onSuccess: (statuses) => {
+      queryClient.setQueryData<LeadProviderStatus[]>(
+        queryKeys.leads.providers,
+        statuses
+      );
+    },
+  });
+}
+
+export function useFetchProjectLeadsMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (params: { projectId: string; dto: FetchLeadsDto }) =>
+      apiClient.fetchProjectLeads(params),
+    onSuccess: (res) => {
+      syncUpdatedProjectInCache(queryClient, res.project);
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.mcp.mentions(res.project.id),
       });
     },
   });

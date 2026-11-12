@@ -3,6 +3,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  Optional,
   type OnModuleDestroy,
   type OnModuleInit,
 } from "@nestjs/common";
@@ -27,6 +28,7 @@ import { randomUUID } from "crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { AuthenticatedUser } from "../auth/auth.decorators.js";
 import type { AppEnv } from "../config/env.js";
+import { LeadsService } from "../leads/leads.service.js";
 import { PrismaService } from "../prisma/prisma.service.js";
 import { findFullProjectOrThrow } from "../projects/project.mapper.js";
 import {
@@ -53,6 +55,7 @@ const BUILTIN_PROJECT_SCOPED_TOOLS = new Set([
   "scrape_context_link",
   "scrape_url",
   "list_project_checklist",
+  "fetch_project_leads",
 ]);
 
 interface ConnectedExternalClient {
@@ -88,7 +91,8 @@ export class McpService implements OnModuleInit, OnModuleDestroy {
   constructor(
     private readonly prisma: PrismaService,
     private readonly scraperService: ScraperService,
-    private readonly config: ConfigService<AppEnv, true>
+    private readonly config: ConfigService<AppEnv, true>,
+    @Optional() private readonly leadsService?: LeadsService
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -151,6 +155,7 @@ export class McpService implements OnModuleInit, OnModuleDestroy {
     const server = createPulseOsMcpServer({
       prisma: this.prisma,
       scraperService: this.scraperService,
+      leadsService: this.leadsService,
     });
     const client = new Client({
       name: "pulseos-chatbot-host",
@@ -578,6 +583,24 @@ export class McpService implements OnModuleInit, OnModuleDestroy {
       const mappedType = mapTagToContextType(tag);
       const slugContextId = contextSlugMap.get(tag);
       if (mappedType || slugContextId) {
+        if (mappedType === "lead") {
+          const existingLeads = project.contexts.filter(
+            (c) => c.type === "lead"
+          );
+          if (existingLeads.length === 0 && this.leadsService) {
+            const fetched = await this.callTool(
+              "fetch_project_leads",
+              { projectId, provider: "auto" },
+              { projectId }
+            );
+            fetched.contextIdsUsed.forEach((id) => usedContextIds.add(id));
+            resolvedTags.push(`@${tag}`);
+            sections.push(
+              `[MCP Auto-Fetched Leads for @${tag}]\n${fetched.text}`
+            );
+            continue;
+          }
+        }
         const res = await this.callTool(
           "get_context_by_tag",
           { projectId, tag },
@@ -788,6 +811,7 @@ export class McpService implements OnModuleInit, OnModuleDestroy {
     const server = createPulseOsMcpServer({
       prisma: this.prisma,
       scraperService: this.scraperService,
+      leadsService: this.leadsService,
     });
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: undefined,

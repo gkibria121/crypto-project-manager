@@ -12,6 +12,7 @@ enum ContextType {
   linkedin = "linkedin"
   telegram = "telegram"
   message  = "message"
+  lead     = "lead"
 }
 
 enum ProjectStage {
@@ -379,4 +380,15 @@ model AgencyProfile {
   +Timestamps
 
   @@map("agency_profiles")
+}
+
+model LeadProviderConfig {
+  provider    String   @id
+  apiKey      String?  @map("api_key")
+  extraConfig Json?    @map("extra_config")
+  isEnabled   Boolean  @default(true) @map("is_enabled")
+  updatedBy   String?  @map("updated_by")
+  +Timestamps
+
+  @@map("lead_provider_configs")
 }

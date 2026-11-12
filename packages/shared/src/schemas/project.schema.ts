@@ -9,6 +9,7 @@ export const contextTypeSchema = z.enum([
   "linkedin",
   "telegram",
   "message",
+  "lead",
 ]);
 
 export const projectStageSchema = z.enum([
@@ -890,6 +891,63 @@ export const updateAgencyProfileDtoSchema = z.object({
 });
 
 /**
+ * Lead Enrichment / Contact Finder Schemas
+ */
+export const leadProviderSchema = z.enum([
+  "apollo",
+  "hunter",
+  "snov",
+  "lusha",
+  "website_scraper",
+]);
+
+export const leadProviderStatusSchema = z.object({
+  provider: leadProviderSchema,
+  label: z.string(),
+  shortLabel: z.string(),
+  description: z.string(),
+  envVar: z.string(),
+  docsUrl: z.string(),
+  requiresApiKey: z.boolean(),
+  configured: z.boolean(),
+  source: z.enum(["workspace", "env", "builtin", "none"]),
+  maskedKey: z.string().nullable().optional(),
+  updatedAt: z.string().nullable().optional(),
+});
+
+export const updateLeadProviderKeyDtoSchema = z.object({
+  apiKey: z.string().trim().min(1, "API key is required").max(4000),
+});
+
+export const fetchLeadsDtoSchema = z.object({
+  provider: leadProviderSchema,
+  domain: z.string().trim().max(300).optional(),
+  companyName: z.string().trim().max(200).optional(),
+  roles: z.array(z.string().trim().min(1).max(80)).max(15).optional(),
+  limit: z.coerce.number().int().min(1).max(25).default(10),
+});
+
+export const leadContactItemSchema = z.object({
+  name: z.string().optional(),
+  role: z.string().optional(),
+  email: z.string().optional(),
+  phone: z.string().optional(),
+  linkedinUrl: z.string().optional(),
+  xHandle: z.string().optional(),
+  confidence: z.number().optional(),
+  sourceProvider: leadProviderSchema,
+});
+
+export const fetchLeadsResultSchema = z.object({
+  project: cryptoProjectSchema,
+  provider: leadProviderSchema,
+  addedCount: z.number().int().nonnegative(),
+  skippedCount: z.number().int().nonnegative(),
+  leads: z.array(leadContactItemSchema),
+  message: z.string(),
+});
+
+/**
  * Inferred TypeScript Types
  */
 export type ContextType = z.infer<typeof contextTypeSchema>;
@@ -989,3 +1047,9 @@ export type ChatMentionSuggestion = z.infer<typeof chatMentionSuggestionSchema>;
 export type AgencySocialLinks = z.infer<typeof agencySocialLinksSchema>;
 export type AgencyProfile = z.infer<typeof agencyProfileSchema>;
 export type UpdateAgencyProfileDto = z.infer<typeof updateAgencyProfileDtoSchema>;
+export type LeadProvider = z.infer<typeof leadProviderSchema>;
+export type LeadProviderStatus = z.infer<typeof leadProviderStatusSchema>;
+export type UpdateLeadProviderKeyDto = z.infer<typeof updateLeadProviderKeyDtoSchema>;
+export type FetchLeadsDto = z.infer<typeof fetchLeadsDtoSchema>;
+export type LeadContactItem = z.infer<typeof leadContactItemSchema>;
+export type FetchLeadsResult = z.infer<typeof fetchLeadsResultSchema>;

@@ -8,3 +8,4 @@ export * from "./GlobalSettingsDialog";
 export * from "./TeamRbacDialog";
 export * from "./ScrapeConfigDialog";
 export * from "./ScrapedDataDialog";
+export * from "./FetchLeadsDialog";

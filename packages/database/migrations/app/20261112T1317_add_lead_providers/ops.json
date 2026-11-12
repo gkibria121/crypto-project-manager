@@ -1,0 +1,245 @@
+[
+  {
+    "id": "dropCheckConstraint.project_contexts.project_contexts_type_check_d42820d8",
+    "label": "Drop check constraint \"project_contexts_type_check_d42820d8\" on \"project_contexts\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "checkConstraint",
+        "name": "project_contexts_type_check_d42820d8",
+        "table": "project_contexts"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"project_contexts_type_check_d42820d8\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "project_contexts_type_check_d42820d8",
+          "public",
+          "\"public\".\"project_contexts\""
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "constraint \"project_contexts_type_check_d42820d8\" on \"project_contexts\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop check constraint \"project_contexts_type_check_d42820d8\"",
+        "sql": "ALTER TABLE \"public\".\"project_contexts\" DROP CONSTRAINT \"project_contexts_type_check_d42820d8\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"project_contexts_type_check_d42820d8\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "project_contexts_type_check_d42820d8",
+          "public",
+          "\"public\".\"project_contexts\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "constraint \"project_contexts_type_check_d42820d8\" on \"project_contexts\""
+        }
+      }
+    ]
+  },
+  {
+    "id": "dropCheckConstraint.scrape_jobs.scrape_jobs_target_type_check_d8aa28ef",
+    "label": "Drop check constraint \"scrape_jobs_target_type_check_d8aa28ef\" on \"scrape_jobs\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "checkConstraint",
+        "name": "scrape_jobs_target_type_check_d8aa28ef",
+        "table": "scrape_jobs"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"scrape_jobs_target_type_check_d8aa28ef\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "scrape_jobs_target_type_check_d8aa28ef",
+          "public",
+          "\"public\".\"scrape_jobs\""
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "constraint \"scrape_jobs_target_type_check_d8aa28ef\" on \"scrape_jobs\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop check constraint \"scrape_jobs_target_type_check_d8aa28ef\"",
+        "sql": "ALTER TABLE \"public\".\"scrape_jobs\" DROP CONSTRAINT \"scrape_jobs_target_type_check_d8aa28ef\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"scrape_jobs_target_type_check_d8aa28ef\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "scrape_jobs_target_type_check_d8aa28ef",
+          "public",
+          "\"public\".\"scrape_jobs\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "constraint \"scrape_jobs_target_type_check_d8aa28ef\" on \"scrape_jobs\""
+        }
+      }
+    ]
+  },
+  {
+    "id": "table.lead_provider_configs",
+    "label": "Create table \"lead_provider_configs\"",
+    "summary": "Creates table \"lead_provider_configs\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "lead_provider_configs"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"lead_provider_configs\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"lead_provider_configs\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "table \"lead_provider_configs\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"lead_provider_configs\"",
+        "sql": "CREATE TABLE \"public\".\"lead_provider_configs\" (\n  \"api_key\" text,\n  \"created_at\" timestamptz(3) DEFAULT (now()) NOT NULL,\n  \"extra_config\" json,\n  \"is_enabled\" bool DEFAULT true NOT NULL,\n  \"provider\" text NOT NULL,\n  \"updated_at\" timestamptz(3) DEFAULT (now()) NOT NULL,\n  \"updated_by\" text,\n  PRIMARY KEY (\"provider\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"lead_provider_configs\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": [
+          "\"public\".\"lead_provider_configs\"",
+          "r",
+          "p"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "table \"lead_provider_configs\""
+        }
+      }
+    ]
+  },
+  {
+    "id": "checkConstraint.project_contexts.project_contexts_type_check_e7ed2cba",
+    "label": "Add check constraint \"project_contexts_type_check_e7ed2cba\" on \"project_contexts\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "checkConstraint",
+        "name": "project_contexts_type_check_e7ed2cba",
+        "table": "project_contexts"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"project_contexts_type_check_e7ed2cba\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "project_contexts_type_check_e7ed2cba",
+          "public",
+          "\"public\".\"project_contexts\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "constraint \"project_contexts_type_check_e7ed2cba\" on \"project_contexts\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add check constraint \"project_contexts_type_check_e7ed2cba\"",
+        "sql": "ALTER TABLE \"public\".\"project_contexts\" ADD CONSTRAINT \"project_contexts_type_check_e7ed2cba\" CHECK (\"type\" IN ('website', 'x_handle', 'linkedin', 'telegram', 'message', 'lead'))"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify check constraint \"project_contexts_type_check_e7ed2cba\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4)) AS \"result\"",
+        "params": [
+          "project_contexts_type_check_e7ed2cba",
+          "public",
+          "\"public\".\"project_contexts\"",
+          "c"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "checkConstraint.scrape_jobs.scrape_jobs_target_type_check_b4a0a995",
+    "label": "Add check constraint \"scrape_jobs_target_type_check_b4a0a995\" on \"scrape_jobs\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "checkConstraint",
+        "name": "scrape_jobs_target_type_check_b4a0a995",
+        "table": "scrape_jobs"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"scrape_jobs_target_type_check_b4a0a995\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "scrape_jobs_target_type_check_b4a0a995",
+          "public",
+          "\"public\".\"scrape_jobs\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "constraint \"scrape_jobs_target_type_check_b4a0a995\" on \"scrape_jobs\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add check constraint \"scrape_jobs_target_type_check_b4a0a995\"",
+        "sql": "ALTER TABLE \"public\".\"scrape_jobs\" ADD CONSTRAINT \"scrape_jobs_target_type_check_b4a0a995\" CHECK (\"target_type\" IN ('website', 'x_handle', 'linkedin', 'telegram', 'message', 'lead'))"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify check constraint \"scrape_jobs_target_type_check_b4a0a995\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4)) AS \"result\"",
+        "params": [
+          "scrape_jobs_target_type_check_b4a0a995",
+          "public",
+          "\"public\".\"scrape_jobs\"",
+          "c"
+        ]
+      }
+    ]
+  }
+]

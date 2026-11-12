@@ -1,6 +1,7 @@
 import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
-import type { ContextType, CryptoProject } from "@repo/shared";
+import type { ContextType, CryptoProject, LeadProvider } from "@repo/shared";
 import { z } from "zod";
+import type { LeadsService } from "../leads/leads.service.js";
 import type { PrismaService } from "../prisma/prisma.service.js";
 import { findFullProjectOrThrow } from "../projects/project.mapper.js";
 import type { ScraperService } from "../scraper/scraper.service.js";
@@ -8,11 +9,13 @@ import {
   DEFAULT_AGENCY_PROFILE_ID,
   mapAgencyProfileRowToDomain,
 } from "../settings/agency-profile.helper.js";
+import { PULSEOS_MCP_DOCS_MARKDOWN } from "./mcp-docs.js";
 import { mapTagToContextType, slugifyContextTag } from "./mcp-mentions.helper.js";
 
 export interface PulseOsMcpDeps {
   prisma: PrismaService;
   scraperService: ScraperService;
+  leadsService?: LeadsService;
 }
 
 function jsonToolResponse(payload: unknown, isError = false) {
@@ -76,14 +79,22 @@ export function createPulseOsMcpServer(deps: PulseOsMcpDeps): McpServer {
     {
       title: "Get Company / Project Context",
       description:
-        "Retrieve company overview, metadata, and all saved backend contexts (website, linkedin, x_handle, telegram, notes) plus latest scraped summaries for a project.",
+        "Retrieve target company overview, metadata, and all saved backend contexts (website, linkedin, x_handle, telegram, notes, lead) plus latest scraped summaries for a project.",
       inputSchema: {
         projectId: z
           .string()
           .optional()
           .describe("Project ID (auto-filled inside an active project chat)"),
         contextType: z
-          .enum(["all", "website", "x_handle", "linkedin", "telegram", "message"])
+          .enum([
+            "all",
+            "website",
+            "x_handle",
+            "linkedin",
+            "telegram",
+            "message",
+            "lead",
+          ])
           .optional()
           .describe("Optional context type filter (defaults to all)"),
         includeInactive: z
@@ -101,6 +112,7 @@ export function createPulseOsMcpServer(deps: PulseOsMcpDeps): McpServer {
           if (contextType !== "all" && c.type !== contextType) return false;
           return true;
         });
+        const leads = project.contexts.filter((c) => c.type === "lead");
 
         return jsonToolResponse({
           relationship:
@@ -118,6 +130,11 @@ export function createPulseOsMcpServer(deps: PulseOsMcpDeps): McpServer {
             tags: project.tags ?? [],
             platformRanks: project.platformRanks ?? null,
           },
+          leadsCount: leads.length,
+          leadsHint:
+            leads.length === 0
+              ? "No contact leads have been fetched manually yet for this target company. Call fetch_project_leads (with provider: 'auto') if you need decision-maker contacts, emails, or outreach recipients."
+              : undefined,
           contextCount: filtered.length,
           contexts: filtered.map(summarizeContextItem),
         });
@@ -383,7 +400,9 @@ export function createPulseOsMcpServer(deps: PulseOsMcpDeps): McpServer {
           renderJs,
         };
 
-        let targets = project.contexts.filter((c) => c.type !== "message");
+        let targets = project.contexts.filter(
+          (c) => c.type !== "message" && c.type !== "lead"
+        );
         if (contextId?.trim()) {
           targets = targets.filter((c) => c.id === contextId.trim());
         } else if (contextType) {
@@ -686,6 +705,129 @@ export function createPulseOsMcpServer(deps: PulseOsMcpDeps): McpServer {
         );
       }
     }
+  );
+
+  server.registerTool(
+    "fetch_project_leads",
+    {
+      title: "Fetch & Save Target Company Leads / Contacts",
+      description:
+        "Gather decision-maker contacts and emails for the target company if leads have not already been fetched manually, and save them onto the project's right-side Context Panel. Uses the best configured provider (Apollo, Hunter, Snov, Lusha) when provider is 'auto', or falls back to the built-in website_scraper.",
+      inputSchema: {
+        projectId: z
+          .string()
+          .optional()
+          .describe("Project ID (auto-filled inside an active project chat)"),
+        provider: z
+          .enum(["auto", "apollo", "hunter", "snov", "lusha", "website_scraper"])
+          .optional()
+          .describe("Lead provider ('auto' picks best configured provider or website_scraper)"),
+        domain: z
+          .string()
+          .optional()
+          .describe("Optional domain override (inferred from project website if omitted)"),
+        roles: z
+          .array(z.string())
+          .optional()
+          .describe("Optional job title keywords such as ['Founder', 'Head of BD']"),
+        limit: z
+          .number()
+          .int()
+          .min(1)
+          .max(25)
+          .optional()
+          .describe("Max leads to fetch (default 10)"),
+        forceRefresh: z
+          .boolean()
+          .optional()
+          .describe("Set true to fetch new leads even if leads already exist on the project"),
+      },
+    },
+    async ({
+      projectId,
+      provider = "auto",
+      domain,
+      roles,
+      limit = 10,
+      forceRefresh = false,
+    }) => {
+      try {
+        const pid = requireProjectId(projectId);
+        const project = await findFullProjectOrThrow(deps.prisma, pid);
+        const existingLeads = project.contexts.filter((c) => c.type === "lead");
+
+        if (existingLeads.length > 0 && !forceRefresh) {
+          return jsonToolResponse({
+            alreadyFetched: true,
+            projectId: pid,
+            projectName: project.name,
+            leadsCount: existingLeads.length,
+            leads: existingLeads.map(summarizeContextItem),
+            message: `Using ${existingLeads.length} existing lead contact(s) saved on ${project.name}. Pass forceRefresh=true to query a provider for more.`,
+          });
+        }
+
+        if (!deps.leadsService) {
+          return jsonToolResponse(
+            {
+              error: "Lead enrichment service is not wired in this environment.",
+            },
+            true
+          );
+        }
+
+        const chosenProvider: LeadProvider =
+          provider === "auto"
+            ? await deps.leadsService.resolveBestAvailableProvider()
+            : provider;
+
+        const res = await deps.leadsService.fetchLeadsForProject(pid, {
+          provider: chosenProvider,
+          domain,
+          roles,
+          limit,
+        });
+
+        return jsonToolResponse({
+          alreadyFetched: false,
+          projectId: pid,
+          projectName: project.name,
+          provider: res.provider,
+          addedCount: res.addedCount,
+          skippedCount: res.skippedCount,
+          leads: res.leads,
+          savedLeadContexts: res.project.contexts
+            .filter((c) => c.type === "lead")
+            .map(summarizeContextItem),
+          message: res.message,
+        });
+      } catch (error) {
+        return jsonToolResponse(
+          { error: error instanceof Error ? error.message : String(error) },
+          true
+        );
+      }
+    }
+  );
+
+  server.registerResource(
+    "mcp-documentation",
+    "pulseos://docs/mcp",
+    {
+      title: "PulseOS MCP Server Documentation",
+      description:
+        "Documentation for PulseOS MCP tools, @tags, agency role separation, and automatic lead fetching",
+      mimeType: "text/markdown",
+    },
+    async (uri) => ({
+      contents: [
+        {
+          uri: uri.href,
+          mimeType: "text/markdown",
+          text: PULSEOS_MCP_DOCS_MARKDOWN,
+        },
+      ],
+    })
   );
 
   server.registerResource(

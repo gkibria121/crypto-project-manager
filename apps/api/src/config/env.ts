@@ -38,6 +38,10 @@ export const envSchema = z.object({
   COINMARKETCAP_API_KEY: z.string().default(""),
   LIVECOINWATCH_API_KEY: z.string().default(""),
   COINCAP_API_KEY: z.string().default(""),
+  APOLLO_API_KEY: z.string().default(""),
+  HUNTER_API_KEY: z.string().default(""),
+  SNOV_API_KEY: z.string().default(""),
+  LUSHA_API_KEY: z.string().default(""),
 });
 
 export type AppEnv = z.infer<typeof envSchema>;

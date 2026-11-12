@@ -23,9 +23,9 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'3c7491912e1ca387c292446052c8a807c7a4bf99ac6f64fde1ded95fb6306a95'>;
+  StorageHashBase<'953ef57992a84db36c25151766b219cfc18a199f5f7324f19f0b5bedf5a42e62'>;
 export type ExecutionHash =
-  ExecutionHashBase<'f911d51e67bb3c7454ade5de9018384358a748b83b79be46a4e377794b854ca4'>;
+  ExecutionHashBase<'af8315fc39dff4974f1890ce650ffcf00003ad40b61d74d63a22f9a116b1a73f'>;
 export type ProfileHash =
   ProfileHashBase<'3916f444a8a17ad749191acf9e08dad97d1a327b88c2f1d45d12f240296aa8b2'>;
 
@@ -321,8 +321,8 @@ type FieldTypeOverrides = {
             'pending' | 'running' | 'completed' | 'unreachable' | 'failed' | 'api_key_required';
         };
         readonly type: {
-          readonly output: 'website' | 'x_handle' | 'linkedin' | 'telegram' | 'message';
-          readonly input: 'website' | 'x_handle' | 'linkedin' | 'telegram' | 'message';
+          readonly output: 'website' | 'x_handle' | 'linkedin' | 'telegram' | 'message' | 'lead';
+          readonly input: 'website' | 'x_handle' | 'linkedin' | 'telegram' | 'message' | 'lead';
         };
       };
       readonly ScrapeJob: {
@@ -333,8 +333,8 @@ type FieldTypeOverrides = {
             'pending' | 'running' | 'completed' | 'unreachable' | 'failed' | 'api_key_required';
         };
         readonly targetType: {
-          readonly output: 'website' | 'x_handle' | 'linkedin' | 'telegram' | 'message';
-          readonly input: 'website' | 'x_handle' | 'linkedin' | 'telegram' | 'message';
+          readonly output: 'website' | 'x_handle' | 'linkedin' | 'telegram' | 'message' | 'lead';
+          readonly input: 'website' | 'x_handle' | 'linkedin' | 'telegram' | 'message' | 'lead';
         };
       };
       readonly User: {
@@ -381,8 +381,8 @@ type ColumnTypeOverrides = {
           'pending' | 'running' | 'completed' | 'unreachable' | 'failed' | 'api_key_required';
       };
       readonly type: {
-        readonly output: 'website' | 'x_handle' | 'linkedin' | 'telegram' | 'message';
-        readonly input: 'website' | 'x_handle' | 'linkedin' | 'telegram' | 'message';
+        readonly output: 'website' | 'x_handle' | 'linkedin' | 'telegram' | 'message' | 'lead';
+        readonly input: 'website' | 'x_handle' | 'linkedin' | 'telegram' | 'message' | 'lead';
       };
     };
     readonly projects: {
@@ -419,8 +419,8 @@ type ColumnTypeOverrides = {
           'pending' | 'running' | 'completed' | 'unreachable' | 'failed' | 'api_key_required';
       };
       readonly target_type: {
-        readonly output: 'website' | 'x_handle' | 'linkedin' | 'telegram' | 'message';
-        readonly input: 'website' | 'x_handle' | 'linkedin' | 'telegram' | 'message';
+        readonly output: 'website' | 'x_handle' | 'linkedin' | 'telegram' | 'message' | 'lead';
+        readonly input: 'website' | 'x_handle' | 'linkedin' | 'telegram' | 'message' | 'lead';
       };
     };
     readonly users: {
@@ -533,6 +533,16 @@ export namespace Models {
     updatedAt: FieldOutputTypes['public']['ChecklistItem']['updatedAt'];
     projectStates: public_ProjectChecklistState[];
     readonly [RelationKeys]?: 'projectStates';
+  };
+  export type public_LeadProviderConfig = {
+    apiKey: FieldOutputTypes['public']['LeadProviderConfig']['apiKey'];
+    createdAt: FieldOutputTypes['public']['LeadProviderConfig']['createdAt'];
+    extraConfig: FieldOutputTypes['public']['LeadProviderConfig']['extraConfig'];
+    isEnabled: FieldOutputTypes['public']['LeadProviderConfig']['isEnabled'];
+    provider: FieldOutputTypes['public']['LeadProviderConfig']['provider'];
+    updatedAt: FieldOutputTypes['public']['LeadProviderConfig']['updatedAt'];
+    updatedBy: FieldOutputTypes['public']['LeadProviderConfig']['updatedBy'];
+    readonly [RelationKeys]?: never;
   };
   export type public_McpServerConfig = {
     authHeader: FieldOutputTypes['public']['McpServerConfig']['authHeader'];
@@ -723,6 +733,7 @@ export declare const models: {
     AuthSession: Models.public_AuthSession;
     ChatMessage: Models.public_ChatMessage;
     ChecklistItem: Models.public_ChecklistItem;
+    LeadProviderConfig: Models.public_LeadProviderConfig;
     McpServerConfig: Models.public_McpServerConfig;
     Project: Models.public_Project;
     ProjectChecklistState: Models.public_ProjectChecklistState;
@@ -1352,6 +1363,64 @@ type ContractBase = Omit<
                   readonly unique: false;
                 },
               ];
+              foreignKeys: readonly [];
+            };
+            readonly lead_provider_configs: {
+              columns: {
+                readonly api_key: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly created_at: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: false;
+                  readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+                readonly extra_config: {
+                  readonly dataType: 'pg/json';
+                  readonly codecId: 'pg/json@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly is_enabled: {
+                  readonly dataType: 'pg/bool';
+                  readonly codecId: 'pg/bool@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/bool@1', true>;
+                  };
+                  readonly many: false;
+                };
+                readonly provider: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly updated_at: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: false;
+                  readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+                readonly updated_by: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+              };
+              primaryKey: { readonly columns: readonly ['provider'] };
+              uniques: readonly [];
+              indexes: readonly [];
               foreignKeys: readonly [];
             };
             readonly mcp_servers: {
@@ -2660,7 +2729,14 @@ type ContractBase = Omit<
           readonly valueSet: {
             readonly ContextType: {
               readonly kind: 'valueSet';
-              readonly values: readonly ['website', 'x_handle', 'linkedin', 'telegram', 'message'];
+              readonly values: readonly [
+                'website',
+                'x_handle',
+                'linkedin',
+                'telegram',
+                'message',
+                'lead',
+              ];
             };
             readonly MessageSender: {
               readonly kind: 'valueSet';
@@ -2734,6 +2810,10 @@ type ContractBase = Omit<
     readonly checklist_items: {
       readonly namespace: 'public' & NamespaceId;
       readonly model: 'ChecklistItem';
+    };
+    readonly lead_provider_configs: {
+      readonly namespace: 'public' & NamespaceId;
+      readonly model: 'LeadProviderConfig';
     };
     readonly mcp_servers: {
       readonly namespace: 'public' & NamespaceId;
@@ -3246,6 +3326,60 @@ type ContractBase = Omit<
                 readonly scanPrompt: { readonly column: 'scan_prompt' };
                 readonly sortOrder: { readonly column: 'sort_order' };
                 readonly updatedAt: { readonly column: 'updated_at' };
+              };
+            };
+          };
+          readonly LeadProviderConfig: {
+            readonly fields: {
+              readonly apiKey: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly createdAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly extraConfig: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/json@1' };
+              };
+              readonly isEnabled: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/bool@1' };
+              };
+              readonly provider: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly updatedAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly updatedBy: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+            };
+            readonly relations: Record<string, never>;
+            readonly storage: {
+              readonly table: 'lead_provider_configs';
+              readonly namespaceId: 'public';
+              readonly fields: {
+                readonly apiKey: { readonly column: 'api_key' };
+                readonly createdAt: { readonly column: 'created_at' };
+                readonly extraConfig: { readonly column: 'extra_config' };
+                readonly isEnabled: { readonly column: 'is_enabled' };
+                readonly provider: { readonly column: 'provider' };
+                readonly updatedAt: { readonly column: 'updated_at' };
+                readonly updatedBy: { readonly column: 'updated_by' };
               };
             };
           };
@@ -4317,6 +4451,7 @@ type ContractBase = Omit<
               { readonly name: 'linkedin'; readonly value: 'linkedin' },
               { readonly name: 'telegram'; readonly value: 'telegram' },
               { readonly name: 'message'; readonly value: 'message' },
+              { readonly name: 'lead'; readonly value: 'lead' },
             ];
           };
           readonly MessageSender: {
@@ -4376,6 +4511,7 @@ type ContractBase = Omit<
             { readonly name: 'linkedin'; readonly value: 'linkedin' },
             { readonly name: 'telegram'; readonly value: 'telegram' },
             { readonly name: 'message'; readonly value: 'message' },
+            { readonly name: 'lead'; readonly value: 'lead' },
           ];
           readonly MessageSender: readonly [
             { readonly name: 'admin'; readonly value: 'admin' },
@@ -4583,6 +4719,35 @@ type ContractBase = Omit<
           };
           readonly ref: {
             readonly entry: 'checklist_items';
+            readonly field: 'updated_at';
+            readonly namespace: 'public';
+          };
+        },
+        {
+          readonly onCreate: {
+            readonly id: 'timestampNow';
+            readonly kind: 'generator';
+            readonly params: { readonly precision: 3 };
+          };
+          readonly ref: {
+            readonly entry: 'lead_provider_configs';
+            readonly field: 'created_at';
+            readonly namespace: 'public';
+          };
+        },
+        {
+          readonly onCreate: {
+            readonly id: 'timestampNow';
+            readonly kind: 'generator';
+            readonly params: { readonly precision: 3 };
+          };
+          readonly onUpdate: {
+            readonly id: 'timestampNow';
+            readonly kind: 'generator';
+            readonly params: { readonly precision: 3 };
+          };
+          readonly ref: {
+            readonly entry: 'lead_provider_configs';
             readonly field: 'updated_at';
             readonly namespace: 'public';
           };

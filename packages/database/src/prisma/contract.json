@@ -28,6 +28,10 @@
       "model": "ChecklistItem",
       "namespace": "public"
     },
+    "lead_provider_configs": {
+      "model": "LeadProviderConfig",
+      "namespace": "public"
+    },
     "mcp_servers": {
       "model": "McpServerConfig",
       "namespace": "public"
@@ -91,6 +95,10 @@
               {
                 "name": "message",
                 "value": "message"
+              },
+              {
+                "name": "lead",
+                "value": "lead"
               }
             ]
           },
@@ -1042,6 +1050,93 @@
               },
               "namespaceId": "public",
               "table": "checklist_items"
+            }
+          },
+          "LeadProviderConfig": {
+            "fields": {
+              "apiKey": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "extraConfig": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/json@1",
+                  "kind": "scalar"
+                }
+              },
+              "isEnabled": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/bool@1",
+                  "kind": "scalar"
+                }
+              },
+              "provider": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "updatedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "precision": 3
+                  }
+                }
+              },
+              "updatedBy": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {},
+            "storage": {
+              "fields": {
+                "apiKey": {
+                  "column": "api_key"
+                },
+                "createdAt": {
+                  "column": "created_at"
+                },
+                "extraConfig": {
+                  "column": "extra_config"
+                },
+                "isEnabled": {
+                  "column": "is_enabled"
+                },
+                "provider": {
+                  "column": "provider"
+                },
+                "updatedAt": {
+                  "column": "updated_at"
+                },
+                "updatedBy": {
+                  "column": "updated_by"
+                }
+              },
+              "namespaceId": "public",
+              "table": "lead_provider_configs"
             }
           },
           "McpServerConfig": {
@@ -3580,6 +3675,71 @@
               },
               "uniques": []
             },
+            "lead_provider_configs": {
+              "columns": {
+                "api_key": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
+                "created_at": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "extra_config": {
+                  "codecId": "pg/json@1",
+                  "dataType": "pg/json",
+                  "nullable": true
+                },
+                "is_enabled": {
+                  "codecId": "pg/bool@1",
+                  "dataType": "pg/bool",
+                  "default": {
+                    "kind": "literal",
+                    "value": true
+                  },
+                  "nullable": false
+                },
+                "provider": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "updated_at": {
+                  "codecId": "pg/timestamptz-date@1",
+                  "dataType": "pg/timestamptz",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nullable": false,
+                  "typeParams": {
+                    "precision": 3
+                  }
+                },
+                "updated_by": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                }
+              },
+              "foreignKeys": [],
+              "indexes": [],
+              "primaryKey": {
+                "columns": [
+                  "provider"
+                ]
+              },
+              "uniques": []
+            },
             "mcp_servers": {
               "columns": {
                 "auth_header": {
@@ -3827,8 +3987,8 @@
                   "prefix": "project_contexts_scrape_status_check"
                 },
                 {
-                  "expression": "\"type\" IN ('website', 'x_handle', 'linkedin', 'telegram', 'message')",
-                  "name": "project_contexts_type_check_d42820d8",
+                  "expression": "\"type\" IN ('website', 'x_handle', 'linkedin', 'telegram', 'message', 'lead')",
+                  "name": "project_contexts_type_check_e7ed2cba",
                   "prefix": "project_contexts_type_check"
                 }
               ],
@@ -4361,8 +4521,8 @@
                   "prefix": "scrape_jobs_status_check"
                 },
                 {
-                  "expression": "\"target_type\" IN ('website', 'x_handle', 'linkedin', 'telegram', 'message')",
-                  "name": "scrape_jobs_target_type_check_d8aa28ef",
+                  "expression": "\"target_type\" IN ('website', 'x_handle', 'linkedin', 'telegram', 'message', 'lead')",
+                  "name": "scrape_jobs_target_type_check_b4a0a995",
                   "prefix": "scrape_jobs_target_type_check"
                 }
               ],
@@ -5142,7 +5302,8 @@
                 "x_handle",
                 "linkedin",
                 "telegram",
-                "message"
+                "message",
+                "lead"
               ]
             },
             "MessageSender": {
@@ -5200,10 +5361,10 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "3c7491912e1ca387c292446052c8a807c7a4bf99ac6f64fde1ded95fb6306a95"
+    "storageHash": "953ef57992a84db36c25151766b219cfc18a199f5f7324f19f0b5bedf5a42e62"
   },
   "execution": {
-    "executionHash": "f911d51e67bb3c7454ade5de9018384358a748b83b79be46a4e377794b854ca4",
+    "executionHash": "af8315fc39dff4974f1890ce650ffcf00003ad40b61d74d63a22f9a116b1a73f",
     "mutations": {
       "defaults": [
         {
@@ -5371,6 +5532,41 @@
           },
           "ref": {
             "entry": "checklist_items",
+            "field": "updated_at",
+            "namespace": "public"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "timestampNow",
+            "kind": "generator",
+            "params": {
+              "precision": 3
+            }
+          },
+          "ref": {
+            "entry": "lead_provider_configs",
+            "field": "created_at",
+            "namespace": "public"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "timestampNow",
+            "kind": "generator",
+            "params": {
+              "precision": 3
+            }
+          },
+          "onUpdate": {
+            "id": "timestampNow",
+            "kind": "generator",
+            "params": {
+              "precision": 3
+            }
+          },
+          "ref": {
+            "entry": "lead_provider_configs",
             "field": "updated_at",
             "namespace": "public"
           }

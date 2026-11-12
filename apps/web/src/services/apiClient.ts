@@ -9,6 +9,8 @@ import {
   chatMentionSuggestionSchema,
   checklistItemConfigSchema,
   cryptoProjectSchema,
+  fetchLeadsResultSchema,
+  leadProviderStatusSchema,
   mcpOverviewSchema,
   mcpToolSummarySchema,
   projectScrapedDataResponseSchema,
@@ -35,6 +37,10 @@ import {
   type CreateMcpServerDto,
   type CreateUserDto,
   type CryptoProject,
+  type FetchLeadsDto,
+  type FetchLeadsResult,
+  type LeadProvider,
+  type LeadProviderStatus,
   type LoginDto,
   type McpOverview,
   type McpToolSummary,
@@ -808,6 +814,50 @@ export const apiClient = {
         body: JSON.stringify(input),
       },
       agencyProfileSchema
+    );
+  },
+
+  fetchLeadProviders(): Promise<LeadProviderStatus[]> {
+    return requestJson(
+      "/leads/providers",
+      { method: "GET" },
+      z.array(leadProviderStatusSchema)
+    );
+  },
+
+  saveLeadProviderKey(params: {
+    provider: LeadProvider;
+    apiKey: string;
+  }): Promise<LeadProviderStatus[]> {
+    return requestJson(
+      `/leads/providers/${encodeURIComponent(params.provider)}`,
+      {
+        method: "PUT",
+        body: JSON.stringify({ apiKey: params.apiKey }),
+      },
+      z.array(leadProviderStatusSchema)
+    );
+  },
+
+  deleteLeadProviderKey(provider: LeadProvider): Promise<LeadProviderStatus[]> {
+    return requestJson(
+      `/leads/providers/${encodeURIComponent(provider)}`,
+      { method: "DELETE" },
+      z.array(leadProviderStatusSchema)
+    );
+  },
+
+  fetchProjectLeads(params: {
+    projectId: string;
+    dto: FetchLeadsDto;
+  }): Promise<FetchLeadsResult> {
+    return requestJson(
+      `/projects/${encodeURIComponent(params.projectId)}/leads/fetch`,
+      {
+        method: "POST",
+        body: JSON.stringify(params.dto),
+      },
+      fetchLeadsResultSchema
     );
   },
 };

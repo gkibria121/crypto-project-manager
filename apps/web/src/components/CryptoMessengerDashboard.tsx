@@ -28,11 +28,14 @@ import {
   useDeleteAiProviderKeyMutation,
   useDeleteChecklistItemMutation,
   useDeleteContextMutation,
+  useDeleteLeadProviderKeyMutation,
   useDeleteMcpServerMutation,
   useDeleteProjectMutation,
   useDeletePromptTemplateMutation,
   useDeleteScraperProviderKeyMutation,
   useDeleteUserMutation,
+  useFetchProjectLeadsMutation,
+  useLeadProvidersQuery,
   useLoginMutation,
   useLogoutMutation,
   useMarkProjectReadMutation,
@@ -45,6 +48,7 @@ import {
   useSaveAgencyProfileMutation,
   useSaveAiProviderConfigMutation,
   useSaveChecklistItemMutation,
+  useSaveLeadProviderKeyMutation,
   useSavePromptTemplateMutation,
   useSaveScraperProviderKeyMutation,
   useScanAllChecklistItemsMutation,
@@ -72,6 +76,7 @@ import { ContextInspector } from "@/components/ContextInspector";
 import {
   AddContextDialog,
   EditProjectDialog,
+  FetchLeadsDialog,
   GlobalSettingsDialog,
   type GlobalSettingsTab,
   NewProjectDialog,
@@ -96,6 +101,8 @@ export function CryptoMessengerDashboard() {
     useChecklistItemsQuery(isAuthenticated);
   const { data: scraperProviders = [] } =
     useScraperProvidersQuery(isAuthenticated);
+  const { data: leadProviders = [] } =
+    useLeadProvidersQuery(isAuthenticated);
   const aiProvidersQuery = useAiProvidersQuery(isAuthenticated);
   const aiConfig = aiProvidersQuery.data;
   const agencyProfileQuery = useAgencyProfileQuery(isAuthenticated);
@@ -142,6 +149,7 @@ export function CryptoMessengerDashboard() {
     newProjectDialogRef,
     editProjectDialogRef,
     editLogoDialogRef,
+    fetchLeadsDialogRef,
     checklistDialogRef,
     globalSettingsDialogRef,
     teamRbacDialogRef,
@@ -151,6 +159,7 @@ export function CryptoMessengerDashboard() {
     openNewProjectModal,
     openEditProjectModal,
     openEditLogoModal,
+    openFetchLeadsModal,
     openChecklistModal,
     openGlobalSettingsModal,
     openTeamRbacModal,
@@ -183,6 +192,9 @@ export function CryptoMessengerDashboard() {
   const saveScraperProviderKeyMutation = useSaveScraperProviderKeyMutation();
   const deleteScraperProviderKeyMutation =
     useDeleteScraperProviderKeyMutation();
+  const saveLeadProviderKeyMutation = useSaveLeadProviderKeyMutation();
+  const deleteLeadProviderKeyMutation = useDeleteLeadProviderKeyMutation();
+  const fetchProjectLeadsMutation = useFetchProjectLeadsMutation();
   const toggleChecklistItemMutation = useToggleChecklistItemMutation();
   const scanAllChecklistItemsMutation = useScanAllChecklistItemsMutation();
   const savePromptTemplateMutation = useSavePromptTemplateMutation();
@@ -566,6 +578,7 @@ export function CryptoMessengerDashboard() {
         isScrapingAll={scrapeAllContextsMutation.isPending}
         onReferenceInPrompt={handleReferenceInPrompt}
         onOpenAddContextModal={openAddContextModal}
+        onOpenFetchLeadsModal={openFetchLeadsModal}
         onOpenEditLogoModal={openEditLogoModal}
         onOpenEditProjectModal={openEditProjectModal}
         isDesktopOpen={isDesktopContextOpen}
@@ -685,6 +698,36 @@ export function CryptoMessengerDashboard() {
         onOpenScrapeConfig={handleOpenScrapeConfig}
         onOpenGlobalSettings={openGlobalSettingsModal}
       />
+
+      {activeProject && (
+        <FetchLeadsDialog
+          key={activeProject.id}
+          dialogRef={fetchLeadsDialogRef}
+          project={activeProject}
+          providerStatuses={leadProviders}
+          canWriteSettings={hasPermission(currentUser, "settings:write")}
+          canWriteContexts={hasPermission(currentUser, "contexts:write")}
+          isFetching={fetchProjectLeadsMutation.isPending}
+          onSaveProviderKey={async (params) => {
+            await saveLeadProviderKeyMutation.mutateAsync(params);
+          }}
+          onDeleteProviderKey={async (provider) => {
+            await deleteLeadProviderKeyMutation.mutateAsync(provider);
+          }}
+          onFetchLeads={async (dto) =>
+            fetchProjectLeadsMutation.mutateAsync({
+              projectId: activeProject.id,
+              dto,
+            })
+          }
+          onToggleContext={handleToggleContext}
+          onDeleteContext={handleDeleteContext}
+          onReferenceInPrompt={(ctx) => {
+            fetchLeadsDialogRef.current?.close();
+            handleReferenceInPrompt(ctx);
+          }}
+        />
+      )}
 
       <TeamRbacDialog
         dialogRef={teamRbacDialogRef}

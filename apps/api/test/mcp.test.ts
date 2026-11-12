@@ -6,6 +6,7 @@ import {
 import { McpService } from "../src/mcp/mcp.service.js";
 import { ChatService } from "../src/chat/chat.service.js";
 import { sanitizeJsonSchemaForGemini } from "../src/chat/mcp-tool-adapter.helper.js";
+import { LeadsService } from "../src/leads/leads.service.js";
 import { ScraperService } from "../src/scraper/scraper.service.js";
 import { AiProvidersService } from "../src/settings/ai-providers.service.js";
 import { SettingsService } from "../src/settings/settings.service.js";
@@ -20,6 +21,7 @@ describe("MCP Server, @Tag Resolution, and Chatbot Tool-Calling Integration", ()
     const scrapedPagesStore: Array<Record<string, unknown>> = [];
     const mcpServersStore: Array<Record<string, unknown>> = [];
     const agencyProfileStore: Array<Record<string, unknown>> = [];
+    const leadConfigsStore: Array<Record<string, unknown>> = [];
 
     const projectRecord: Record<string, unknown> = {
       id: "proj-mcp-1",
@@ -140,6 +142,37 @@ describe("MCP Server, @Tag Resolution, and Chatbot Tool-Calling Integration", ()
         ScraperProviderConfig: {
           all: async () => [],
         },
+        LeadProviderConfig: {
+          all: async () => [...leadConfigsStore],
+          upsert: async (args: {
+            create: Record<string, unknown>;
+            update: Record<string, unknown>;
+          }) => {
+            const existing = leadConfigsStore.find(
+              (r) => r["provider"] === args.create["provider"]
+            );
+            if (existing) {
+              Object.assign(existing, args.update, { updatedAt: new Date() });
+              return existing;
+            }
+            const created = {
+              ...args.create,
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            };
+            leadConfigsStore.push(created);
+            return created;
+          },
+          where: ({ provider }: { provider: string }) => ({
+            delete: async () => {
+              const idx = leadConfigsStore.findIndex(
+                (r) => r["provider"] === provider
+              );
+              if (idx >= 0) leadConfigsStore.splice(idx, 1);
+              return null;
+            },
+          }),
+        },
         McpServerConfig: {
           all: async () => [...mcpServersStore],
           orderBy: () => ({ all: async () => [...mcpServersStore] }),
@@ -215,6 +248,21 @@ describe("MCP Server, @Tag Resolution, and Chatbot Tool-Calling Integration", ()
           }),
         },
         ProjectContext: {
+          create: async (data: Record<string, unknown>) => {
+            const contexts = projectRecord["contexts"] as Array<
+              Record<string, unknown>
+            >;
+            const created = {
+              scrapeStatus: null,
+              lastScrapedAt: null,
+              scrapedMetadata: null,
+              createdAt: new Date(),
+              updatedAt: new Date(),
+              ...data,
+            };
+            contexts.push(created);
+            return created;
+          },
           where: (filter: Record<string, unknown>) => ({
             first: async () => {
               const contexts = projectRecord["contexts"] as Array<
@@ -324,10 +372,16 @@ describe("MCP Server, @Tag Resolution, and Chatbot Tool-Calling Integration", ()
       prismaMock as never,
       configMock as never
     );
-    const mcpService = new McpService(
+    const leadsService = new LeadsService(
       prismaMock as never,
       scraperService,
       configMock as never
+    );
+    const mcpService = new McpService(
+      prismaMock as never,
+      scraperService,
+      configMock as never,
+      leadsService
     );
     const aiProvidersService = new AiProvidersService(
       prismaMock as never,
@@ -342,9 +396,11 @@ describe("MCP Server, @Tag Resolution, and Chatbot Tool-Calling Integration", ()
 
     return {
       mcpService,
+      leadsService,
       aiProvidersService,
       settingsService,
       chatService,
+      projectRecord,
       chatMessagesStore,
       scrapedPagesStore,
     };
@@ -384,11 +440,12 @@ describe("MCP Server, @Tag Resolution, and Chatbot Tool-Calling Integration", ()
     expect(overview.servers).toHaveLength(1);
     expect(overview.servers[0]?.id).toBe("pulseos-builtin");
     expect(overview.servers[0]?.status).toBe("connected");
-    expect(overview.totalTools).toBe(8);
+    expect(overview.totalTools).toBe(9);
 
     const toolNames = overview.servers[0]?.tools.map((t) => t.name) ?? [];
     expect(toolNames).toContain("get_company_context");
     expect(toolNames).toContain("get_context_by_tag");
+    expect(toolNames).toContain("fetch_project_leads");
     expect(toolNames).toContain("scrape_context_link");
     expect(toolNames).toContain("scrape_url");
     expect(toolNames).toContain("get_scraped_data");
@@ -658,6 +715,117 @@ describe("MCP Server, @Tag Resolution, and Chatbot Tool-Calling Integration", ()
       expect(capturedSystemPrompt).toContain("15-minute intro call");
       expect(capturedSystemPrompt).toContain("EXTERNAL TARGET / PROSPECTIVE CLIENT COMPANY");
       expect(capturedSystemPrompt).toContain("NEVER write 'on behalf of [Target Company]'");
+    } finally {
+      globalThis.fetch = originalFetch;
+      await mcpService.onModuleDestroy();
+    }
+  });
+
+  it("gathers leads via encrypted provider API key, persists them to context, and auto-fetches on MCP/ @leads when missing", async () => {
+    const { mcpService, leadsService, projectRecord } = createHarness();
+    await mcpService.onModuleInit();
+
+    const initialStatuses = await leadsService.listProviderStatuses();
+    const apolloInitial = initialStatuses.find((s) => s.provider === "apollo");
+    expect(apolloInitial?.configured).toBe(false);
+    expect(apolloInitial?.requiresApiKey).toBe(true);
+    const scraperInitial = initialStatuses.find(
+      (s) => s.provider === "website_scraper"
+    );
+    expect(scraperInitial?.configured).toBe(true);
+    expect(scraperInitial?.requiresApiKey).toBe(false);
+
+    // Requires API key before fetching from Apollo
+    let missingKeyErr: unknown = null;
+    try {
+      await leadsService.fetchLeadsForProject("proj-mcp-1", {
+        provider: "apollo",
+        limit: 5,
+      });
+    } catch (err) {
+      missingKeyErr = err;
+    }
+    expect(missingKeyErr).toBeDefined();
+
+    // Save encrypted Apollo key and verify masked status
+    const updatedStatuses = await leadsService.saveProviderKey(
+      "apollo",
+      "apollo_live_secret_9988"
+    );
+    const apolloConfigured = updatedStatuses.find(
+      (s) => s.provider === "apollo"
+    );
+    expect(apolloConfigured?.configured).toBe(true);
+    expect(apolloConfigured?.source).toBe("workspace");
+    expect(apolloConfigured?.maskedKey).toContain("9988");
+
+    const originalFetch = globalThis.fetch;
+    let apolloCalls = 0;
+    globalThis.fetch = (async (input: string | URL | Request) => {
+      const url = typeof input === "string" ? input : input.toString();
+      if (url.includes("api.apollo.io")) {
+        apolloCalls++;
+        return new Response(
+          JSON.stringify({
+            people: [
+              {
+                name: "Satoshi Lin",
+                title: "Head of Partnerships",
+                email: "satoshi@aetheris.example",
+                linkedin_url: "https://linkedin.com/in/satoshi-lin",
+              },
+              {
+                name: "Mira Patel",
+                title: "Co-Founder & CTO",
+                email: "mira@aetheris.example",
+                linkedin_url: "https://linkedin.com/in/mira-patel",
+              },
+            ],
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        );
+      }
+      throw new Error(`Unexpected fetch URL: ${url}`);
+    }) as typeof fetch;
+
+    try {
+      // Test MCP @leads auto-fetching when no manual leads exist yet
+      const autoFetchedMention = await mcpService.resolveMentionContext(
+        "proj-mcp-1",
+        "Find @leads for outreach"
+      );
+      expect(apolloCalls).toBe(1);
+      expect(autoFetchedMention.resolvedTags).toContain("@leads");
+      expect(autoFetchedMention.contextBlock).toContain("satoshi@aetheris.example");
+      expect(autoFetchedMention.contextBlock).toContain("mira@aetheris.example");
+
+      const savedContexts = projectRecord["contexts"] as Array<
+        Record<string, unknown>
+      >;
+      const leadContexts = savedContexts.filter((c) => c["type"] === "lead");
+      expect(leadContexts).toHaveLength(2);
+
+      // Calling MCP fetch_project_leads without forceRefresh reuses saved leads without calling Apollo again
+      const toolResult = await mcpService.callTool("fetch_project_leads", {
+        projectId: "proj-mcp-1",
+      });
+      expect(toolResult.isError).toBe(false);
+      expect(apolloCalls).toBe(1);
+      const parsedResult = JSON.parse(toolResult.text) as Record<
+        string,
+        unknown
+      >;
+      expect(parsedResult["alreadyFetched"]).toBe(true);
+      expect(parsedResult["leadsCount"]).toBe(2);
+
+      // Fetching manually again deduplicates existing emails
+      const dedupResult = await leadsService.fetchLeadsForProject("proj-mcp-1", {
+        provider: "apollo",
+        limit: 5,
+      });
+      expect(apolloCalls).toBe(2);
+      expect(dedupResult.addedCount).toBe(0);
+      expect(dedupResult.skippedCount).toBe(2);
     } finally {
       globalThis.fetch = originalFetch;
       await mcpService.onModuleDestroy();

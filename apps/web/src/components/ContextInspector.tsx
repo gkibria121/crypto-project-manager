@@ -11,6 +11,7 @@ import {
   Plus,
   RefreshCw,
   Trash2,
+  Users,
   X,
 } from "lucide-react";
 import {
@@ -52,6 +53,7 @@ interface ContextInspectorProps {
   isScrapingAll?: boolean;
   onReferenceInPrompt: (ctx: ProjectContextItem) => void;
   onOpenAddContextModal: () => void;
+  onOpenFetchLeadsModal?: () => void;
   onOpenEditLogoModal: () => void;
   onOpenEditProjectModal?: () => void;
   isDesktopOpen?: boolean;
@@ -75,6 +77,7 @@ export function ContextInspector({
   isScrapingAll = false,
   onReferenceInPrompt,
   onOpenAddContextModal,
+  onOpenFetchLeadsModal,
   onOpenEditLogoModal,
   onOpenEditProjectModal,
   isDesktopOpen = true,
@@ -87,11 +90,12 @@ export function ContextInspector({
   const canTriggerScraper = hasPermission(currentUser, "scraper:trigger");
   const canWriteChat = hasPermission(currentUser, "chat:write");
 
-  const [filterTab, setFilterTab] = useState<"all" | "links" | "messages">(
-    "all"
-  );
+  const [filterTab, setFilterTab] = useState<
+    "all" | "links" | "leads" | "messages"
+  >("all");
 
   const activeCount = project.contexts.filter((c) => c.isActive).length;
+  const leadsCount = project.contexts.filter((c) => c.type === "lead").length;
   const allEnabled =
     project.contexts.length > 0 && activeCount === project.contexts.length;
   const providerStatusMap = new Map(
@@ -102,7 +106,10 @@ export function ContextInspector({
   );
 
   const filteredContexts = project.contexts.filter((ctx) => {
-    if (filterTab === "links") return ctx.type !== "message";
+    if (filterTab === "links") {
+      return ctx.type !== "message" && ctx.type !== "lead";
+    }
+    if (filterTab === "leads") return ctx.type === "lead";
     if (filterTab === "messages") return ctx.type === "message";
     return true;
   });
@@ -289,6 +296,19 @@ export function ContextInspector({
                   <span>{isScrapingAll ? "Scraping..." : "Scrape all"}</span>
                 </button>
               )}
+            {onOpenFetchLeadsModal && (
+              <button
+                type="button"
+                onClick={onOpenFetchLeadsModal}
+                title="View available contact leads or fetch new leads from providers"
+                className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold bg-indigo-500/12 text-indigo-700 hover:bg-indigo-500/20 dark:bg-indigo-500/20 dark:text-indigo-300 transition cursor-pointer"
+              >
+                <Users className="w-3 h-3" aria-hidden="true" />
+                <span>
+                  {leadsCount > 0 ? `Show leads (${leadsCount})` : "Show leads"}
+                </span>
+              </button>
+            )}
             {canWriteContexts && (
               <>
                 <button
@@ -311,12 +331,16 @@ export function ContextInspector({
           </div>
         </div>
 
-        {/* Filter Chips: All / Links / Notes */}
-        <div className="flex items-center gap-1.5">
+        {/* Filter Chips: All / Links / Leads / Notes */}
+        <div className="flex items-center gap-1.5 flex-wrap">
           {(
             [
               { id: "all", label: "All" },
               { id: "links", label: "Links" },
+              {
+                id: "leads",
+                label: `Leads (${leadsCount})`,
+              },
               { id: "messages", label: "Notes" },
             ] as const
           ).map((tab) => (
@@ -534,7 +558,9 @@ export function ContextInspector({
                             </button>
                           )}
 
-                          {canTriggerScraper && onScrapeContext && (
+                          {canTriggerScraper &&
+                            onScrapeContext &&
+                            ctx.type !== "lead" && (
                             <button
                               type="button"
                               onClick={() => onScrapeContext(ctx)}
@@ -559,7 +585,9 @@ export function ContextInspector({
                             </button>
                           )}
 
-                          {onViewScrapedData && hasScrapedData && (
+                          {onViewScrapedData &&
+                            hasScrapedData &&
+                            ctx.type !== "lead" && (
                             <button
                               type="button"
                               onClick={() => onViewScrapedData(ctx)}
