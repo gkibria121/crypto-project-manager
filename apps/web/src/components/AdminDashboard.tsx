@@ -1369,30 +1369,7 @@ export function AdminDashboard() {
               </p>
             </div>
 
-            <div className="flex items-center gap-2 flex-wrap shrink-0">
-              <button
-                type="button"
-                onClick={() => {
-                  if (activeSection !== "users") {
-                    setActiveSection("users");
-                    setShowCreateUserForm(true);
-                  } else {
-                    setShowCreateUserForm((prev) => !prev);
-                  }
-                }}
-                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-[#f0f2f5] dark:bg-[#202c33] hover:bg-[#e4e6eb] dark:hover:bg-[#2a3942] text-[#050505] dark:text-[#e9edef] transition cursor-pointer"
-              >
-                <UserPlus
-                  className="w-3.5 h-3.5 text-[#0084ff]"
-                  aria-hidden="true"
-                />
-                <span>
-                  {activeSection === "users" && showCreateUserForm
-                    ? "Close User Form"
-                    : "Provision User"}
-                </span>
-              </button>
-
+            <div className="flex items-center gap-2 flex-wrap shrink-0"> 
               <button
                 type="button"
                 onClick={openSyncProjectsModal}
