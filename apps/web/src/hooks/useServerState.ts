@@ -19,6 +19,8 @@ import type {
   ProjectBusinessStatus,
   PromptTemplate,
   RegisterDto,
+  SyncProjectsDto,
+  SyncProjectsResponse,
   UpdateProjectFormValues,
   UserRole,
 } from "@/types/project";
@@ -37,6 +39,7 @@ export const queryKeys = {
   projects: {
     all: ["projects"] as const,
     detail: (id: string) => ["projects", id] as const,
+    syncProviders: ["projects", "sync-providers"] as const,
   },
   promptTemplates: {
     all: ["prompt-templates"] as const,
@@ -103,6 +106,14 @@ export function useProjectsQuery(enabled = true) {
   return useQuery({
     queryKey: queryKeys.projects.all,
     queryFn: () => apiClient.fetchProjects(),
+    enabled,
+  });
+}
+
+export function useSyncProvidersQuery(enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.projects.syncProviders,
+    queryFn: () => apiClient.fetchSyncProviders(),
     enabled,
   });
 }
@@ -292,6 +303,23 @@ export function useCreateProjectMutation() {
       apiClient.createProject(values),
     onSuccess: (createdProject) => {
       syncUpdatedProjectInCache(queryClient, createdProject);
+    },
+  });
+}
+
+export function useSyncProjectsMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: SyncProjectsDto) => apiClient.syncProjects(input),
+    onSuccess: (response: SyncProjectsResponse) => {
+      queryClient.setQueryData<CryptoProject[]>(
+        queryKeys.projects.all,
+        response.projects
+      );
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.users.auditLogs,
+      });
     },
   });
 }

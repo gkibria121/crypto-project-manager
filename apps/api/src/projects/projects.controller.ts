@@ -10,29 +10,63 @@ import {
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import {
   newProjectFormSchema,
+  syncProjectsDtoSchema,
   updateBusinessStatusDtoSchema,
   updateProjectFormSchema,
   updateProjectLogoDtoSchema,
   type NewProjectFormValues,
+  type SyncProjectsDto,
   type UpdateBusinessStatusDto,
   type UpdateProjectFormValues,
   type UpdateProjectLogoDto,
 } from "@repo/shared";
-import { RequirePermissions } from "../auth/auth.decorators.js";
+import {
+  CurrentUser,
+  RequirePermissions,
+  type AuthenticatedUser,
+} from "../auth/auth.decorators.js";
 import { ZodValidationPipe } from "../common/pipes/zod-validation.pipe.js";
+import { ProjectSyncService } from "./project-sync.service.js";
 import { ProjectsService } from "./projects.service.js";
 
 @ApiTags("projects")
 @ApiBearerAuth()
 @Controller("projects")
 export class ProjectsController {
-  constructor(private readonly projectsService: ProjectsService) {}
+  constructor(
+    private readonly projectsService: ProjectsService,
+    private readonly projectSyncService: ProjectSyncService
+  ) {}
 
   @Get()
   @RequirePermissions("projects:read")
   @ApiOperation({ summary: "List all crypto projects with contexts and messages" })
   findAll() {
     return this.projectsService.findAll();
+  }
+
+  @Get("sync/providers")
+  @RequirePermissions("projects:create")
+  @ApiOperation({
+    summary:
+      "List available third-party crypto market cap sync providers and API key configuration status",
+  })
+  listSyncProviders() {
+    return this.projectSyncService.listProvidersStatus();
+  }
+
+  @Post("sync")
+  @RequirePermissions("projects:create")
+  @ApiOperation({
+    summary:
+      "Sync crypto projects from a third-party market cap API provider into New status with Website, X, and LinkedIn contexts",
+  })
+  syncProjects(
+    @CurrentUser() user: AuthenticatedUser | undefined,
+    @Body(new ZodValidationPipe(syncProjectsDtoSchema))
+    body: SyncProjectsDto
+  ) {
+    return this.projectSyncService.syncFromProvider(body, user);
   }
 
   @Get(":projectId")

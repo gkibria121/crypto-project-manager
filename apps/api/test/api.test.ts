@@ -21,6 +21,7 @@ import {
   hasAnyRole,
   hasPermission,
   type Permission,
+  syncProjectsDtoSchema,
   updateProjectFormSchema,
   type UserRole,
 } from "@repo/shared";
@@ -35,6 +36,7 @@ import { RbacGuard } from "../src/auth/rbac.guard.js";
 import { ZodValidationPipe } from "../src/common/pipes/zod-validation.pipe.js";
 import { validateEnv } from "../src/config/env.js";
 import { mapPrismaProjectToDomain } from "../src/projects/project.mapper.js";
+import { ProjectSyncService } from "../src/projects/project-sync.service.js";
 import { UsersService } from "../src/users/users.service.js";
 
 describe("NestJS Core Backend Unit Tests", () => {
@@ -479,5 +481,210 @@ describe("NestJS Core Backend Unit Tests", () => {
 
     expect(loginSession.user.isActive).toBe(true);
     expect(loginSession.accessToken.length).toBeGreaterThan(20);
+  });
+
+  it("rejects project sync when provider API key is missing in .env and syncs projects into 'new' state with website, x, and linkedin contexts when configured", async () => {
+    const syncPipe = new ZodValidationPipe(syncProjectsDtoSchema);
+    const parsedSyncDto = syncPipe.transform({
+      provider: "coingecko",
+      limit: 2,
+    });
+    expect(parsedSyncDto.provider).toBe("coingecko");
+    expect(parsedSyncDto.limit).toBe(2);
+
+    const projectsStore: Array<Record<string, unknown>> = [];
+    const contextsStore: Array<Record<string, unknown>> = [];
+    const messagesStore: Array<Record<string, unknown>> = [];
+    const auditStore: Array<Record<string, unknown>> = [];
+
+    const buildProjectWithRelations = (proj: Record<string, unknown>) => ({
+      ...proj,
+      createdAt: (proj["createdAt"] as Date) ?? new Date(),
+      updatedAt: (proj["updatedAt"] as Date) ?? new Date(),
+      lastScrapedAt: null,
+      contexts: contextsStore
+        .filter((c) => c["projectId"] === proj["id"])
+        .map((c) => ({
+          ...c,
+          summary: (c["summary"] as string | null) ?? null,
+          scrapeStatus: null,
+          lastScrapedAt: null,
+          scrapedMetadata: null,
+          createdAt: (c["createdAt"] as Date) ?? new Date(),
+          updatedAt: new Date(),
+        })),
+      messages: messagesStore
+        .filter((m) => m["projectId"] === proj["id"])
+        .map((m) => ({
+          ...m,
+          appliedSystemPromptTitle: null,
+          metadata: null,
+          createdAt: new Date(),
+        })),
+      checklistStates: [],
+    });
+
+    const ormMock = {
+      public: {
+        Project: {
+          include: () => ({
+            include: () => ({
+              include: () => ({
+                orderBy: () => ({
+                  all: async () =>
+                    projectsStore.map((p) => buildProjectWithRelations(p)),
+                }),
+              }),
+            }),
+          }),
+          create: async (row: Record<string, unknown>) => {
+            projectsStore.push({
+              ...row,
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            });
+            return row;
+          },
+        },
+        ProjectContext: {
+          createAll: async (rows: Array<Record<string, unknown>>) => {
+            contextsStore.push(...rows);
+            return rows;
+          },
+        },
+        ChatMessage: {
+          create: async (row: Record<string, unknown>) => {
+            messagesStore.push(row);
+            return row;
+          },
+        },
+        AuditLog: {
+          create: async (row: Record<string, unknown>) => {
+            auditStore.push(row);
+            return row;
+          },
+        },
+      },
+    };
+
+    const prismaMock = {
+      db: {
+        orm: ormMock,
+        transaction: async (
+          fn: (tx: { orm: typeof ormMock }) => Promise<unknown>
+        ) => fn({ orm: ormMock }),
+      },
+    };
+
+    const envKeys: Record<string, string> = {
+      COINGECKO_API_KEY: "",
+      COINMARKETCAP_API_KEY: "",
+      LIVECOINWATCH_API_KEY: "",
+      COINCAP_API_KEY: "",
+    };
+
+    const configMock = {
+      get: (key: string) => envKeys[key] ?? "",
+    };
+
+    const syncService = new ProjectSyncService(
+      prismaMock as never,
+      configMock as never
+    );
+
+    const statusesBefore = syncService.listProvidersStatus();
+    expect(statusesBefore.every((s) => s.configured === false)).toBe(true);
+
+    // 1. Missing API key throws BadRequestException with clear provider error message
+    await expect(
+      syncService.syncFromProvider({ provider: "coingecko", limit: 2 })
+    ).rejects.toThrow(/API key is not given for provider "CoinGecko"/);
+
+    await expect(
+      syncService.syncFromProvider({ provider: "coinmarketcap", limit: 2 })
+    ).rejects.toThrow(/API key is not given for provider "CoinMarketCap"/);
+
+    // 2. Configure COINGECKO_API_KEY and sync projects
+    envKeys["COINGECKO_API_KEY"] = "cg-demo-test-key-123";
+    expect(
+      syncService.listProvidersStatus().find((s) => s.id === "coingecko")
+        ?.configured
+    ).toBe(true);
+
+    const mockFetch = (async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("/coins/markets")) {
+        return new Response(
+          JSON.stringify([
+            {
+              id: "render-token",
+              symbol: "rndr",
+              name: "Render Network",
+              image: "https://assets.coingecko.com/coins/images/render.png",
+              current_price: 8.45,
+              market_cap: 4_350_000_000,
+              market_cap_rank: 24,
+              price_change_percentage_24h: 6.2,
+            },
+          ]),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        );
+      }
+      if (url.includes("/coins/render-token")) {
+        return new Response(
+          JSON.stringify({
+            id: "render-token",
+            asset_platform_id: "solana",
+            description: {
+              en: "Distributed GPU rendering network on Solana.",
+            },
+            links: {
+              homepage: ["https://rendernetwork.com"],
+              twitter_screen_name: "rendernetwork",
+              telegram_channel_identifier: "rendernetwork",
+              official_forum_url: [
+                "https://www.linkedin.com/company/render-network",
+              ],
+            },
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        );
+      }
+      return new Response("Not found", { status: 404 });
+    }) as unknown as typeof fetch;
+
+    const result = await syncService.syncFromProvider(
+      { provider: "coingecko", limit: 2 },
+      undefined,
+      mockFetch
+    );
+
+    expect(result.syncedCount).toBe(1);
+    expect(result.createdProjects).toHaveLength(1);
+
+    const syncedProject = result.createdProjects[0];
+    expect(syncedProject?.name).toBe("Render Network");
+    expect(syncedProject?.ticker).toBe("$RNDR");
+    expect(syncedProject?.businessStatus).toBe("new");
+    expect(syncedProject?.chain).toBe("Solana");
+
+    const contextTypes = syncedProject?.contexts.map((c) => c.type) ?? [];
+    expect(contextTypes).toContain("website");
+    expect(contextTypes).toContain("x_handle");
+    expect(contextTypes).toContain("linkedin");
+
+    const websiteCtx = syncedProject?.contexts.find(
+      (c) => c.type === "website"
+    );
+    const xCtx = syncedProject?.contexts.find((c) => c.type === "x_handle");
+    const linkedinCtx = syncedProject?.contexts.find(
+      (c) => c.type === "linkedin"
+    );
+
+    expect(websiteCtx?.url).toBe("https://rendernetwork.com");
+    expect(xCtx?.value).toBe("@rendernetwork");
+    expect(linkedinCtx?.url).toBe(
+      "https://www.linkedin.com/company/render-network"
+    );
   });
 });

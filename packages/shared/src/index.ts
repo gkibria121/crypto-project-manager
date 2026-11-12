@@ -5,6 +5,7 @@ export {
   projectChainSchema,
   messageSenderSchema,
   scrapeStatusSchema,
+  syncProviderSchema,
   userRoleSchema,
   permissionSchema,
   scrapedMetadataSchema,
@@ -28,6 +29,9 @@ export {
   sendMessageDtoSchema,
   toggleAllContextsDtoSchema,
   scanSingleChecklistDtoSchema,
+  syncProjectsDtoSchema,
+  syncProviderStatusSchema,
+  syncProjectsResponseSchema,
   systemHealthSchema,
   authUserSchema,
   authSessionResponseSchema,
@@ -44,6 +48,10 @@ export {
   type ProjectChain,
   type MessageSender,
   type ScrapeStatus,
+  type SyncProvider,
+  type SyncProjectsDto,
+  type SyncProviderStatus,
+  type SyncProjectsResponse,
   type UserRole,
   type Permission,
   type ScrapedMetadata,
@@ -93,6 +101,8 @@ export {
   BUSINESS_STATUS_ORDER,
   SOLID_AVATAR_COLORS,
   BUSINESS_STATUS_META,
+  SYNC_PROVIDERS,
+  SYNC_PROVIDER_META,
 } from "./constants/project.constants";
 
 export {

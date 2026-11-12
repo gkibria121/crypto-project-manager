@@ -6,6 +6,7 @@ export function useDashboardDialogs() {
   const addContextDialogRef = useRef<HTMLDialogElement | null>(null);
   const newProjectDialogRef = useRef<HTMLDialogElement | null>(null);
   const editProjectDialogRef = useRef<HTMLDialogElement | null>(null);
+  const syncProjectsDialogRef = useRef<HTMLDialogElement | null>(null);
   const editLogoDialogRef = useRef<HTMLDialogElement | null>(null);
   const checklistDialogRef = useRef<HTMLDialogElement | null>(null);
   const globalSettingsDialogRef = useRef<HTMLDialogElement | null>(null);
@@ -21,6 +22,10 @@ export function useDashboardDialogs() {
   );
   const openEditProjectModal = useCallback(
     () => editProjectDialogRef.current?.showModal(),
+    []
+  );
+  const openSyncProjectsModal = useCallback(
+    () => syncProjectsDialogRef.current?.showModal(),
     []
   );
   const openEditLogoModal = useCallback(
@@ -44,6 +49,7 @@ export function useDashboardDialogs() {
     addContextDialogRef,
     newProjectDialogRef,
     editProjectDialogRef,
+    syncProjectsDialogRef,
     editLogoDialogRef,
     checklistDialogRef,
     globalSettingsDialogRef,
@@ -51,6 +57,7 @@ export function useDashboardDialogs() {
     openAddContextModal,
     openNewProjectModal,
     openEditProjectModal,
+    openSyncProjectsModal,
     openEditLogoModal,
     openChecklistModal,
     openGlobalSettingsModal,

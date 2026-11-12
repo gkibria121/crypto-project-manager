@@ -7,6 +7,8 @@ import {
   cryptoProjectSchema,
   promptTemplateSchema,
   scrapeJobSchema,
+  syncProjectsResponseSchema,
+  syncProviderStatusSchema,
   systemHealthSchema,
   type AddContextFormValues,
   type AuditLogItem,
@@ -22,6 +24,9 @@ import {
   type PromptTemplate,
   type RegisterDto,
   type ScrapeJob,
+  type SyncProjectsDto,
+  type SyncProjectsResponse,
+  type SyncProviderStatus,
   type SystemHealthStatus,
   type UpdateProjectFormValues,
   type UserRole,
@@ -209,6 +214,25 @@ export const apiClient = {
       "/projects",
       { method: "GET" },
       z.array(cryptoProjectSchema)
+    );
+  },
+
+  fetchSyncProviders(): Promise<SyncProviderStatus[]> {
+    return requestJson(
+      "/projects/sync/providers",
+      { method: "GET" },
+      z.array(syncProviderStatusSchema)
+    );
+  },
+
+  syncProjects(input: SyncProjectsDto): Promise<SyncProjectsResponse> {
+    return requestJson(
+      "/projects/sync",
+      {
+        method: "POST",
+        body: JSON.stringify(input),
+      },
+      syncProjectsResponseSchema
     );
   },
 

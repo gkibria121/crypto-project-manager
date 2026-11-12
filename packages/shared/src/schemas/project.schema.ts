@@ -47,6 +47,13 @@ export const scrapeStatusSchema = z.enum([
   "failed",
 ]);
 
+export const syncProviderSchema = z.enum([
+  "coingecko",
+  "coinmarketcap",
+  "livecoinwatch",
+  "coincap",
+]);
+
 /**
  * RBAC Roles & Permissions Enums
  */
@@ -289,6 +296,34 @@ export const scanSingleChecklistDtoSchema = z.object({
   item: checklistItemConfigSchema.optional(),
 });
 
+export const syncProjectsDtoSchema = z.object({
+  provider: syncProviderSchema,
+  limit: z.coerce
+    .number()
+    .int()
+    .min(1, "Sync limit must be at least 1")
+    .max(25, "Sync limit must be 25 or fewer")
+    .default(5),
+});
+
+export const syncProviderStatusSchema = z.object({
+  id: syncProviderSchema,
+  name: z.string(),
+  envVar: z.string(),
+  apiBaseUrl: z.string(),
+  configured: z.boolean(),
+});
+
+export const syncProjectsResponseSchema = z.object({
+  provider: syncProviderSchema,
+  providerName: z.string(),
+  syncedCount: z.number().int().nonnegative(),
+  skippedCount: z.number().int().nonnegative(),
+  createdProjects: z.array(cryptoProjectSchema),
+  projects: z.array(cryptoProjectSchema),
+  message: z.string(),
+});
+
 export const systemHealthSchema = z.object({
   status: z.enum(["ok", "degraded"]),
   service: z.string(),
@@ -391,6 +426,10 @@ export type ProjectBusinessStatus = z.infer<typeof projectBusinessStatusSchema>;
 export type ProjectChain = z.infer<typeof projectChainSchema>;
 export type MessageSender = z.infer<typeof messageSenderSchema>;
 export type ScrapeStatus = z.infer<typeof scrapeStatusSchema>;
+export type SyncProvider = z.infer<typeof syncProviderSchema>;
+export type SyncProjectsDto = z.infer<typeof syncProjectsDtoSchema>;
+export type SyncProviderStatus = z.infer<typeof syncProviderStatusSchema>;
+export type SyncProjectsResponse = z.infer<typeof syncProjectsResponseSchema>;
 export type UserRole = z.infer<typeof userRoleSchema>;
 export type Permission = z.infer<typeof permissionSchema>;
 export type ScrapedMetadata = z.infer<typeof scrapedMetadataSchema>;

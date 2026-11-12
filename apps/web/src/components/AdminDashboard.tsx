@@ -13,6 +13,7 @@ import {
   Check,
   CheckCircle2,
   Clock,
+  CloudDownload,
   Database,
   FolderKanban,
   Globe,
@@ -56,6 +57,7 @@ import {
   type NewProjectFormValues,
   type ProjectBusinessStatus,
   type PromptTemplateFormValues,
+  type SyncProjectsDto,
   type UpdateProjectFormValues,
   type UserRole,
 } from "@/types/project";
@@ -77,6 +79,8 @@ import {
   useRegisterMutation,
   useSaveChecklistItemMutation,
   useSavePromptTemplateMutation,
+  useSyncProjectsMutation,
+  useSyncProvidersQuery,
   useSystemHealthQuery,
   useUpdateBusinessStatusMutation,
   useUpdateProjectMutation,
@@ -86,7 +90,11 @@ import {
 } from "@/hooks";
 import { AuthScreen } from "@/components/AuthScreen";
 import { ProjectAvatar } from "@/components/ProjectAvatar";
-import { EditProjectDialog, NewProjectDialog } from "@/components/modals";
+import {
+  EditProjectDialog,
+  NewProjectDialog,
+  SyncProjectsDialog,
+} from "@/components/modals";
 import { FilterChip, FormField } from "@/components/ui";
 
 type AdminSectionId =
@@ -155,12 +163,16 @@ export function AdminDashboard() {
   const checklistItemsQuery = useChecklistItemsQuery(
     isAuthenticated && isAdmin
   );
+  const syncProvidersQuery = useSyncProvidersQuery(
+    isAuthenticated && isAdmin
+  );
 
   const users = usersQuery.data ?? [];
   const projects = projectsQuery.data ?? [];
   const auditLogs = auditLogsQuery.data ?? [];
   const promptTemplates = promptTemplatesQuery.data ?? [];
   const checklistItems = checklistItemsQuery.data ?? [];
+  const syncProviders = syncProvidersQuery.data ?? [];
 
   const loginMutation = useLoginMutation();
   const registerMutation = useRegisterMutation();
@@ -171,6 +183,7 @@ export function AdminDashboard() {
   const deleteUserMutation = useDeleteUserMutation();
 
   const createProjectMutation = useCreateProjectMutation();
+  const syncProjectsMutation = useSyncProjectsMutation();
   const updateProjectMutation = useUpdateProjectMutation();
   const updateBusinessStatusMutation = useUpdateBusinessStatusMutation();
   const deleteProjectMutation = useDeleteProjectMutation();
@@ -183,8 +196,10 @@ export function AdminDashboard() {
   const {
     newProjectDialogRef,
     editProjectDialogRef,
+    syncProjectsDialogRef,
     openNewProjectModal,
     openEditProjectModal,
+    openSyncProjectsModal,
   } = useDashboardDialogs();
 
   const mainHeadingRef = useRef<HTMLHeadingElement | null>(null);
@@ -539,6 +554,14 @@ export function AdminDashboard() {
         err instanceof Error ? err.message : "Failed to create project."
       );
     }
+  };
+
+  const handleSyncProjects = async (dto: SyncProjectsDto) => {
+    setActionError(null);
+    setStatusAnnouncement(null);
+    const result = await syncProjectsMutation.mutateAsync(dto);
+    setStatusAnnouncement(result.message);
+    return result;
   };
 
   const handleOpenEditProject = (project: CryptoProject) => {
@@ -984,6 +1007,15 @@ export function AdminDashboard() {
 
               <button
                 type="button"
+                onClick={openSyncProjectsModal}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-[#00a884] hover:bg-[#008f6f] text-white transition cursor-pointer"
+              >
+                <CloudDownload className="w-3.5 h-3.5" aria-hidden="true" />
+                <span>Sync</span>
+              </button>
+
+              <button
+                type="button"
                 onClick={openNewProjectModal}
                 className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-[#0084ff] hover:bg-[#0073e6] text-white transition cursor-pointer"
               >
@@ -997,6 +1029,7 @@ export function AdminDashboard() {
                   void refetchHealth();
                   void usersQuery.refetch();
                   void projectsQuery.refetch();
+                  void syncProvidersQuery.refetch();
                   void auditLogsQuery.refetch();
                   void promptTemplatesQuery.refetch();
                   void checklistItemsQuery.refetch();
@@ -1901,29 +1934,43 @@ export function AdminDashboard() {
                       ))}
                     </div>
 
-                    <search className="relative min-w-56">
-                      <label
-                        htmlFor={projectSearchInputId}
-                        className="visually-hidden"
+                    <div className="flex items-center gap-2">
+                      <search className="relative min-w-56 flex-1">
+                        <label
+                          htmlFor={projectSearchInputId}
+                          className="visually-hidden"
+                        >
+                          Search projects
+                        </label>
+                        <Search
+                          className="w-3.5 h-3.5 text-[#65676b] dark:text-[#8696a0] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
+                          aria-hidden="true"
+                        />
+                        <input
+                          id={projectSearchInputId}
+                          type="search"
+                          autoCorrect="off"
+                          autoCapitalize="none"
+                          spellCheck={false}
+                          value={projectSearchQuery}
+                          onChange={(e) => setProjectSearchQuery(e.target.value)}
+                          placeholder="Search project, ticker, chain..."
+                          className="w-full pl-8 pr-3 py-1.5 text-xs rounded-full bg-[#f0f2f5] dark:bg-[#111b21] text-[#050505] dark:text-[#e9edef] border border-transparent focus:border-[#0084ff] outline-none"
+                        />
+                      </search>
+
+                      <button
+                        type="button"
+                        onClick={openSyncProjectsModal}
+                        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-[#00a884] hover:bg-[#008f6f] text-white transition cursor-pointer shrink-0"
                       >
-                        Search projects
-                      </label>
-                      <Search
-                        className="w-3.5 h-3.5 text-[#65676b] dark:text-[#8696a0] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
-                        aria-hidden="true"
-                      />
-                      <input
-                        id={projectSearchInputId}
-                        type="search"
-                        autoCorrect="off"
-                        autoCapitalize="none"
-                        spellCheck={false}
-                        value={projectSearchQuery}
-                        onChange={(e) => setProjectSearchQuery(e.target.value)}
-                        placeholder="Search project, ticker, chain..."
-                        className="w-full pl-8 pr-3 py-1.5 text-xs rounded-full bg-[#f0f2f5] dark:bg-[#111b21] text-[#050505] dark:text-[#e9edef] border border-transparent focus:border-[#0084ff] outline-none"
-                      />
-                    </search>
+                        <CloudDownload
+                          className="w-3.5 h-3.5"
+                          aria-hidden="true"
+                        />
+                        <span>Sync</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
 
@@ -2725,6 +2772,12 @@ export function AdminDashboard() {
       <NewProjectDialog
         dialogRef={newProjectDialogRef}
         onCreateProject={handleCreateProject}
+      />
+
+      <SyncProjectsDialog
+        dialogRef={syncProjectsDialogRef}
+        providerStatuses={syncProviders}
+        onSyncProjects={handleSyncProjects}
       />
 
       <EditProjectDialog

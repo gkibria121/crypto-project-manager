@@ -3,6 +3,7 @@ import type {
   ProjectBusinessStatus,
   ProjectChain,
   ProjectStage,
+  SyncProvider,
   UserRole,
 } from "../schemas/project.schema";
 
@@ -277,5 +278,75 @@ export const BUSINESS_STATUS_META: Record<
       "bg-slate-200/60 text-slate-500 dark:bg-[#202c33] dark:text-[#8696a0]",
     dotClass: "bg-slate-400",
     sortPriority: 5,
+  },
+};
+
+export const SYNC_PROVIDERS: readonly SyncProvider[] = [
+  "coingecko",
+  "coinmarketcap",
+  "livecoinwatch",
+  "coincap",
+] as const;
+
+export const SYNC_PROVIDER_META: Record<
+  SyncProvider,
+  {
+    label: string;
+    shortLabel: string;
+    description: string;
+    envVar: string;
+    apiBaseUrl: string;
+    docsUrl: string;
+    freeTierNote: string;
+    badgeClass: string;
+  }
+> = {
+  coingecko: {
+    label: "CoinGecko Market Cap API",
+    shortLabel: "CoinGecko",
+    description:
+      "Sync top crypto assets by market cap, token metadata, official websites, X handles, and LinkedIn profiles via CoinGecko v3 Demo API.",
+    envVar: "COINGECKO_API_KEY",
+    apiBaseUrl: "https://api.coingecko.com/api/v3",
+    docsUrl: "https://www.coingecko.com/en/api",
+    freeTierNote: "Free Demo API tier (30 calls/min)",
+    badgeClass:
+      "bg-emerald-500/12 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300",
+  },
+  coinmarketcap: {
+    label: "CoinMarketCap Basic API",
+    shortLabel: "CoinMarketCap",
+    description:
+      "Sync market-cap ranked cryptocurrencies, logos, descriptions, and official website/social context links via CoinMarketCap Pro Basic API.",
+    envVar: "COINMARKETCAP_API_KEY",
+    apiBaseUrl: "https://pro-api.coinmarketcap.com",
+    docsUrl: "https://coinmarketcap.com/api/",
+    freeTierNote: "Free Basic tier (10,000 credits/mo)",
+    badgeClass:
+      "bg-[#e7f3ff] text-[#0084ff] dark:bg-[#0084ff]/20 dark:text-[#4599ff]",
+  },
+  livecoinwatch: {
+    label: "LiveCoinWatch API",
+    shortLabel: "LiveCoinWatch",
+    description:
+      "Sync real-time market cap leaders with first-class Website, X (Twitter), and LinkedIn social links via LiveCoinWatch Coins API.",
+    envVar: "LIVECOINWATCH_API_KEY",
+    apiBaseUrl: "https://api.livecoinwatch.com",
+    docsUrl: "https://www.livecoinwatch.com/tools/api",
+    freeTierNote: "Free API key (10,000 requests/day)",
+    badgeClass:
+      "bg-purple-500/12 text-purple-700 dark:bg-purple-500/20 dark:text-purple-300",
+  },
+  coincap: {
+    label: "CoinCap Market Data API",
+    shortLabel: "CoinCap",
+    description:
+      "Sync high-liquidity crypto assets, market capitalization rankings, and social context links via CoinCap REST API.",
+    envVar: "COINCAP_API_KEY",
+    apiBaseUrl: "https://rest.coincap.io/v3",
+    docsUrl: "https://docs.coincap.io/",
+    freeTierNote: "Free Bearer API key tier",
+    badgeClass:
+      "bg-amber-500/12 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300",
   },
 };

@@ -23,6 +23,10 @@ export const envSchema = z.object({
     .default(60 * 60 * 24 * 7),
   OPENAI_API_KEY: z.string().optional(),
   OPENAI_MODEL: z.string().default("gpt-4o-mini"),
+  COINGECKO_API_KEY: z.string().default(""),
+  COINMARKETCAP_API_KEY: z.string().default(""),
+  LIVECOINWATCH_API_KEY: z.string().default(""),
+  COINCAP_API_KEY: z.string().default(""),
 });
 
 export type AppEnv = z.infer<typeof envSchema>;
