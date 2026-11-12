@@ -23,9 +23,9 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'b267b364a85bf1a983e8198268c566c0642aed3405598d394ffa0862c274acfd'>;
+  StorageHashBase<'68047f13351ee0dc4a823d256f31689f4b5acfc934e4baf1fe144fee7a8577fa'>;
 export type ExecutionHash =
-  ExecutionHashBase<'188363034d4280b98283741723e51a59b5ee3b31ea9d8ff009882547e2e8240e'>;
+  ExecutionHashBase<'4ab06c33287725e72d61d55f456d779c016f4cf8c7cf8273854d07276428cc6c'>;
 export type ProfileHash =
   ProfileHashBase<'3916f444a8a17ad749191acf9e08dad97d1a327b88c2f1d45d12f240296aa8b2'>;
 
@@ -511,6 +511,24 @@ export namespace Models {
     projectStates: public_ProjectChecklistState[];
     readonly [RelationKeys]?: 'projectStates';
   };
+  export type public_McpServerConfig = {
+    authHeader: FieldOutputTypes['public']['McpServerConfig']['authHeader'];
+    cachedTools: FieldOutputTypes['public']['McpServerConfig']['cachedTools'];
+    createdAt: FieldOutputTypes['public']['McpServerConfig']['createdAt'];
+    description: FieldOutputTypes['public']['McpServerConfig']['description'];
+    id: FieldOutputTypes['public']['McpServerConfig']['id'];
+    isBuiltIn: FieldOutputTypes['public']['McpServerConfig']['isBuiltIn'];
+    isEnabled: FieldOutputTypes['public']['McpServerConfig']['isEnabled'];
+    lastError: FieldOutputTypes['public']['McpServerConfig']['lastError'];
+    lastStatus: FieldOutputTypes['public']['McpServerConfig']['lastStatus'];
+    lastSyncAt: FieldOutputTypes['public']['McpServerConfig']['lastSyncAt'];
+    name: FieldOutputTypes['public']['McpServerConfig']['name'];
+    transport: FieldOutputTypes['public']['McpServerConfig']['transport'];
+    updatedAt: FieldOutputTypes['public']['McpServerConfig']['updatedAt'];
+    updatedBy: FieldOutputTypes['public']['McpServerConfig']['updatedBy'];
+    url: FieldOutputTypes['public']['McpServerConfig']['url'];
+    readonly [RelationKeys]?: never;
+  };
   export type public_Project = {
     archivedAt: FieldOutputTypes['public']['Project']['archivedAt'];
     avatarBg: FieldOutputTypes['public']['Project']['avatarBg'];
@@ -681,6 +699,7 @@ export declare const models: {
     AuthSession: Models.public_AuthSession;
     ChatMessage: Models.public_ChatMessage;
     ChecklistItem: Models.public_ChecklistItem;
+    McpServerConfig: Models.public_McpServerConfig;
     Project: Models.public_Project;
     ProjectChecklistState: Models.public_ProjectChecklistState;
     ProjectContext: Models.public_ProjectContext;
@@ -1169,6 +1188,121 @@ type ContractBase = Omit<
                   readonly unique: false;
                 },
               ];
+              foreignKeys: readonly [];
+            };
+            readonly mcp_servers: {
+              columns: {
+                readonly auth_header: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly cached_tools: {
+                  readonly dataType: 'pg/json';
+                  readonly codecId: 'pg/json@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly created_at: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: false;
+                  readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+                readonly description: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly id: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly is_built_in: {
+                  readonly dataType: 'pg/bool';
+                  readonly codecId: 'pg/bool@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/bool@1', false>;
+                  };
+                  readonly many: false;
+                };
+                readonly is_enabled: {
+                  readonly dataType: 'pg/bool';
+                  readonly codecId: 'pg/bool@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/bool@1', true>;
+                  };
+                  readonly many: false;
+                };
+                readonly last_error: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly last_status: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly last_sync_at: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: true;
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+                readonly name: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly transport: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/text@1', 'streamable_http'>;
+                  };
+                  readonly many: false;
+                };
+                readonly updated_at: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: false;
+                  readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+                readonly updated_by: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly url: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+              };
+              primaryKey: { readonly columns: readonly ['id'] };
+              uniques: readonly [];
+              indexes: readonly [];
               foreignKeys: readonly [];
             };
             readonly project_checklist_states: {
@@ -2433,6 +2567,10 @@ type ContractBase = Omit<
       readonly namespace: 'public' & NamespaceId;
       readonly model: 'ChecklistItem';
     };
+    readonly mcp_servers: {
+      readonly namespace: 'public' & NamespaceId;
+      readonly model: 'McpServerConfig';
+    };
     readonly project_checklist_states: {
       readonly namespace: 'public' & NamespaceId;
       readonly model: 'ProjectChecklistState';
@@ -2821,6 +2959,104 @@ type ContractBase = Omit<
                 readonly scanPrompt: { readonly column: 'scan_prompt' };
                 readonly sortOrder: { readonly column: 'sort_order' };
                 readonly updatedAt: { readonly column: 'updated_at' };
+              };
+            };
+          };
+          readonly McpServerConfig: {
+            readonly fields: {
+              readonly authHeader: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly cachedTools: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/json@1' };
+              };
+              readonly createdAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly description: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly id: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly isBuiltIn: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/bool@1' };
+              };
+              readonly isEnabled: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/bool@1' };
+              };
+              readonly lastError: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly lastStatus: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly lastSyncAt: {
+                readonly nullable: true;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly name: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly transport: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly updatedAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly updatedBy: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly url: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+            };
+            readonly relations: Record<string, never>;
+            readonly storage: {
+              readonly table: 'mcp_servers';
+              readonly namespaceId: 'public';
+              readonly fields: {
+                readonly authHeader: { readonly column: 'auth_header' };
+                readonly cachedTools: { readonly column: 'cached_tools' };
+                readonly createdAt: { readonly column: 'created_at' };
+                readonly description: { readonly column: 'description' };
+                readonly id: { readonly column: 'id' };
+                readonly isBuiltIn: { readonly column: 'is_built_in' };
+                readonly isEnabled: { readonly column: 'is_enabled' };
+                readonly lastError: { readonly column: 'last_error' };
+                readonly lastStatus: { readonly column: 'last_status' };
+                readonly lastSyncAt: { readonly column: 'last_sync_at' };
+                readonly name: { readonly column: 'name' };
+                readonly transport: { readonly column: 'transport' };
+                readonly updatedAt: { readonly column: 'updated_at' };
+                readonly updatedBy: { readonly column: 'updated_by' };
+                readonly url: { readonly column: 'url' };
               };
             };
           };
@@ -4031,6 +4267,35 @@ type ContractBase = Omit<
           };
           readonly ref: {
             readonly entry: 'checklist_items';
+            readonly field: 'updated_at';
+            readonly namespace: 'public';
+          };
+        },
+        {
+          readonly onCreate: {
+            readonly id: 'timestampNow';
+            readonly kind: 'generator';
+            readonly params: { readonly precision: 3 };
+          };
+          readonly ref: {
+            readonly entry: 'mcp_servers';
+            readonly field: 'created_at';
+            readonly namespace: 'public';
+          };
+        },
+        {
+          readonly onCreate: {
+            readonly id: 'timestampNow';
+            readonly kind: 'generator';
+            readonly params: { readonly precision: 3 };
+          };
+          readonly onUpdate: {
+            readonly id: 'timestampNow';
+            readonly kind: 'generator';
+            readonly params: { readonly precision: 3 };
+          };
+          readonly ref: {
+            readonly entry: 'mcp_servers';
             readonly field: 'updated_at';
             readonly namespace: 'public';
           };

@@ -337,3 +337,22 @@ model AiProviderConfig {
 
   @@map("ai_provider_configs")
 }
+
+model McpServerConfig {
+  id          String    @id
+  name        String
+  description String?
+  transport   String    @default("streamable_http")
+  url         String?
+  authHeader  String?   @map("auth_header")
+  isBuiltIn   Boolean   @default(false) @map("is_built_in")
+  isEnabled   Boolean   @default(true) @map("is_enabled")
+  cachedTools Json?     @map("cached_tools")
+  lastStatus  String?   @map("last_status")
+  lastError   String?   @map("last_error")
+  lastSyncAt  DateTime? @map("last_sync_at")
+  updatedBy   String?   @map("updated_by")
+  +Timestamps
+
+  @@map("mcp_servers")
+}

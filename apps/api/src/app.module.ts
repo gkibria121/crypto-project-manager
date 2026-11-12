@@ -6,6 +6,7 @@ import { ChecklistModule } from "./checklist/checklist.module.js";
 import { validateEnv } from "./config/env.js";
 import { ContextsModule } from "./contexts/contexts.module.js";
 import { HealthModule } from "./health/health.module.js";
+import { McpModule } from "./mcp/mcp.module.js";
 import { PrismaModule } from "./prisma/prisma.module.js";
 import { ProjectsModule } from "./projects/projects.module.js";
 import { ScraperModule } from "./scraper/scraper.module.js";
@@ -29,6 +30,7 @@ import { UsersModule } from "./users/users.module.js";
     ChecklistModule,
     SettingsModule,
     ScraperModule,
+    McpModule,
   ],
 })
 export class AppModule {}

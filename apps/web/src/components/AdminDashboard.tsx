@@ -80,22 +80,26 @@ import {
   useBulkDeleteProjectsMutation,
   useBulkUpdateBusinessStatusMutation,
   useChecklistItemsQuery,
+  useCreateMcpServerMutation,
   useCreateProjectMutation,
   useCreateUserMutation,
   useCurrentUserQuery,
   useDashboardDialogs,
   useDeleteAiProviderKeyMutation,
   useDeleteChecklistItemMutation,
+  useDeleteMcpServerMutation,
   useDeleteProjectMutation,
   useDeletePromptTemplateMutation,
   useDeleteScraperProviderKeyMutation,
   useDeleteUserMutation,
   useLoginMutation,
   useLogoutMutation,
+  useMcpServersQuery,
   usePagination,
   useProjectSyncSocket,
   useProjectsQuery,
   usePromptTemplatesQuery,
+  useRefreshMcpServerMutation,
   useRegisterMutation,
   useSaveAiProviderConfigMutation,
   useSaveChecklistItemMutation,
@@ -107,6 +111,7 @@ import {
   useSyncProvidersQuery,
   useSystemHealthQuery,
   useUpdateBusinessStatusMutation,
+  useUpdateMcpServerMutation,
   useUpdateProjectMutation,
   useUpdateUserRoleMutation,
   useUpdateUserStatusMutation,
@@ -114,6 +119,7 @@ import {
 } from "@/hooks";
 import { AiProviderKeysPanel } from "@/components/AiProviderKeysPanel";
 import { AuthScreen } from "@/components/AuthScreen";
+import { McpServersPanel } from "@/components/McpServersPanel";
 import { ProjectAvatar } from "@/components/ProjectAvatar";
 import { ScraperProviderKeysPanel } from "@/components/ScraperProviderKeysPanel";
 import {
@@ -210,6 +216,7 @@ export function AdminDashboard() {
     isAuthenticated && isAdmin
   );
   const aiProvidersQuery = useAiProvidersQuery(isAuthenticated && isAdmin);
+  const mcpServersQuery = useMcpServersQuery(isAuthenticated && isAdmin);
 
   const users = usersQuery.data ?? [];
   const projects = projectsQuery.data ?? [];
@@ -219,6 +226,7 @@ export function AdminDashboard() {
   const syncProviders = syncProvidersQuery.data ?? [];
   const scraperProviders = scraperProvidersQuery.data ?? [];
   const aiConfig = aiProvidersQuery.data;
+  const mcpOverview = mcpServersQuery.data;
 
   const loginMutation = useLoginMutation();
   const registerMutation = useRegisterMutation();
@@ -256,6 +264,10 @@ export function AdminDashboard() {
   const saveAiProviderConfigMutation = useSaveAiProviderConfigMutation();
   const activateAiProviderMutation = useActivateAiProviderMutation();
   const deleteAiProviderKeyMutation = useDeleteAiProviderKeyMutation();
+  const createMcpServerMutation = useCreateMcpServerMutation();
+  const updateMcpServerMutation = useUpdateMcpServerMutation();
+  const refreshMcpServerMutation = useRefreshMcpServerMutation();
+  const deleteMcpServerMutation = useDeleteMcpServerMutation();
   const scrapeContextMutation = useScrapeContextMutation();
   const scrapeAllContextsMutation = useScrapeAllContextsMutation();
 
@@ -3096,6 +3108,28 @@ export function AdminDashboard() {
                     deleteAiProviderKeyMutation.mutateAsync(provider)
                   }
                 />
+
+                <div className="pt-4 border-t border-[#e4e6eb] dark:border-[#2a3942]">
+                  <McpServersPanel
+                    mcpOverview={mcpOverview}
+                    canEdit={hasPermission(currentUser, "settings:write")}
+                    onCreateServer={(dto) =>
+                      createMcpServerMutation.mutateAsync(dto)
+                    }
+                    onToggleServer={(serverId, isEnabled) =>
+                      updateMcpServerMutation.mutateAsync({
+                        serverId,
+                        dto: { isEnabled },
+                      })
+                    }
+                    onRefreshServer={(serverId) =>
+                      refreshMcpServerMutation.mutateAsync(serverId)
+                    }
+                    onDeleteServer={(serverId) =>
+                      deleteMcpServerMutation.mutateAsync(serverId)
+                    }
+                  />
+                </div>
               </section>
             )}
 

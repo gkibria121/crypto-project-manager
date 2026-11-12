@@ -11,8 +11,11 @@ import {
   DEFAULT_SCRAPE_CONFIG,
   SPECIALIZED_SCRAPER_PROVIDERS,
   SPECIALIZED_SCRAPER_PROVIDER_META,
+  detectSpecializedProvider,
+  normalizeContextUrl,
   scrapeConfigSchema,
   scraperServiceResponseSchema,
+  type ContextType,
   type CryptoProject,
   type ProjectScrapedDataResponse,
   type ScrapeConfig,
@@ -22,6 +25,7 @@ import {
   type SpecializedScraperProvider,
   type TriggerScrapeDto,
 } from "@repo/shared";
+import { randomUUID } from "crypto";
 import { z } from "zod";
 import type { AuthenticatedUser } from "../auth/auth.decorators.js";
 import type { AppEnv } from "../config/env.js";
@@ -708,5 +712,108 @@ export class ScraperService {
     }
 
     return response.json();
+  }
+
+  async scrapeAdHocUrl(params: {
+    url: string;
+    targetType?: ContextType;
+    config?: TriggerScrapeDto;
+    projectId?: string;
+    saveToContext?: boolean;
+    title?: string;
+  }): Promise<{
+    outcome: ScraperServiceResponse;
+    savedContextId?: string;
+    job?: ScrapeJob;
+  }> {
+    const rawUrl = params.url.trim();
+    if (!rawUrl) {
+      throw new BadRequestException("A URL or handle is required to scrape.");
+    }
+
+    let resolvedType: ContextType = params.targetType ?? "website";
+    if (!params.targetType) {
+      const specialized = detectSpecializedProvider("website", rawUrl);
+      if (specialized === "x") resolvedType = "x_handle";
+      else if (specialized === "linkedin") resolvedType = "linkedin";
+      else if (specialized === "telegram") resolvedType = "telegram";
+      else resolvedType = "website";
+    }
+
+    const effectiveConfig = this.normalizeScrapeConfig(params.config);
+    const credentials = await this.resolveProviderCredentials();
+
+    const rawResult = await this.callPythonScraper(
+      "/api/v1/scrape",
+      {
+        targetType: resolvedType,
+        targetValue: rawUrl,
+        config: effectiveConfig,
+        providerCredentials: credentials,
+      },
+      this.computeScrapeTimeoutMs(effectiveConfig, 1)
+    );
+    const outcome = scraperServiceResponseSchema.parse(rawResult);
+
+    if (params.projectId && params.saveToContext) {
+      const normalized =
+        outcome.normalizedUrl ?? normalizeContextUrl(resolvedType, rawUrl) ?? rawUrl;
+      const existingContexts = await this.prisma.db.orm.public.ProjectContext.where({
+        projectId: params.projectId,
+      }).all();
+
+      let targetCtx = existingContexts.find(
+        (c) =>
+          (c.url && c.url.toLowerCase() === normalized.toLowerCase()) ||
+          c.value.toLowerCase() === rawUrl.toLowerCase()
+      );
+
+      if (!targetCtx) {
+        const ctxId = `ctx-${Date.now()}-${randomUUID().slice(0, 6)}`;
+        const fallbackTitle =
+          params.title?.trim() ||
+          outcome.title?.trim() ||
+          `${resolvedType.toUpperCase()} Link`;
+        targetCtx = await this.prisma.db.orm.public.ProjectContext.create({
+          id: ctxId,
+          projectId: params.projectId,
+          type: resolvedType,
+          title: fallbackTitle.slice(0, 120),
+          value: rawUrl,
+          url: normalized,
+          summary: outcome.summary ?? null,
+          isActive: true,
+          updatedAtLabel: "Just scraped",
+        });
+      }
+
+      const pendingJob = await this.prisma.db.orm.public.ScrapeJob.create({
+        projectId: params.projectId,
+        contextId: targetCtx.id,
+        targetType: resolvedType,
+        targetValue: rawUrl,
+        normalizedUrl: normalized,
+        status: "running",
+        attemptCount: 1,
+        config: effectiveConfig as never,
+      });
+
+      const savedJob = await this.persistScrapeOutcome(
+        pendingJob.id,
+        targetCtx.id,
+        params.projectId,
+        targetCtx.summary,
+        outcome,
+        effectiveConfig
+      );
+
+      return {
+        outcome,
+        savedContextId: targetCtx.id,
+        job: savedJob,
+      };
+    }
+
+    return { outcome };
   }
 }

@@ -16,9 +16,11 @@ import type {
   BulkDeleteProjectsDto,
   BulkUpdateBusinessStatusDto,
   ChecklistItemConfig,
+  CreateMcpServerDto,
   CreateUserDto,
   CryptoProject,
   LoginDto,
+  McpOverview,
   NewProjectFormValues,
   ProjectBusinessStatus,
   PromptTemplate,
@@ -29,6 +31,7 @@ import type {
   SyncProjectsResponse,
   TriggerScrapeDto,
   UpdateAiProviderConfigDto,
+  UpdateMcpServerDto,
   UpdateProjectFormValues,
   UserRole,
 } from "@/types/project";
@@ -64,6 +67,11 @@ export const queryKeys = {
   },
   checklistItems: {
     all: ["checklist-items"] as const,
+  },
+  mcp: {
+    servers: ["mcp", "servers"] as const,
+    mentions: (projectId: string) =>
+      ["projects", projectId, "chat", "mentions"] as const,
   },
 } as const;
 
@@ -165,6 +173,25 @@ export function useAiProvidersQuery(enabled = true) {
     queryKey: queryKeys.ai.providers,
     queryFn: () => apiClient.fetchAiProviders(),
     enabled,
+  });
+}
+
+export function useMcpServersQuery(enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.mcp.servers,
+    queryFn: () => apiClient.fetchMcpServers(),
+    enabled,
+  });
+}
+
+export function useChatMentionsQuery(
+  projectId: string | undefined,
+  enabled = true
+) {
+  return useQuery({
+    queryKey: queryKeys.mcp.mentions(projectId ?? ""),
+    queryFn: () => apiClient.fetchChatMentions(projectId ?? ""),
+    enabled: Boolean(projectId) && enabled,
   });
 }
 
@@ -1081,6 +1108,55 @@ export function useDeleteAiProviderKeyMutation() {
       void queryClient.invalidateQueries({
         queryKey: queryKeys.users.auditLogs,
       });
+    },
+  });
+}
+
+/**
+ * MCP Server Registry Mutations
+ */
+export function useCreateMcpServerMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: CreateMcpServerDto) => apiClient.createMcpServer(input),
+    onSuccess: (overview) => {
+      queryClient.setQueryData<McpOverview>(queryKeys.mcp.servers, overview);
+      void queryClient.invalidateQueries({ queryKey: ["projects"] });
+    },
+  });
+}
+
+export function useUpdateMcpServerMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (params: { serverId: string; dto: UpdateMcpServerDto }) =>
+      apiClient.updateMcpServer(params),
+    onSuccess: (overview) => {
+      queryClient.setQueryData<McpOverview>(queryKeys.mcp.servers, overview);
+    },
+  });
+}
+
+export function useRefreshMcpServerMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (serverId: string) => apiClient.refreshMcpServer(serverId),
+    onSuccess: (overview) => {
+      queryClient.setQueryData<McpOverview>(queryKeys.mcp.servers, overview);
+    },
+  });
+}
+
+export function useDeleteMcpServerMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (serverId: string) => apiClient.deleteMcpServer(serverId),
+    onSuccess: (overview) => {
+      queryClient.setQueryData<McpOverview>(queryKeys.mcp.servers, overview);
     },
   });
 }

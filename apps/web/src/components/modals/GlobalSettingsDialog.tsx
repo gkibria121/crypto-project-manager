@@ -11,6 +11,8 @@ import {
   type AiProvider,
   type ChecklistItemConfig,
   type ChecklistItemFormValues,
+  type CreateMcpServerDto,
+  type McpOverview,
   type PromptTemplate,
   type PromptTemplateFormValues,
   type ScraperProviderStatus,
@@ -18,6 +20,7 @@ import {
   type UpdateAiProviderConfigDto,
 } from "@/types/project";
 import { AiProviderKeysPanel } from "@/components/AiProviderKeysPanel";
+import { McpServersPanel } from "@/components/McpServersPanel";
 import { ScraperProviderKeysPanel } from "@/components/ScraperProviderKeysPanel";
 import {
   FormField,
@@ -28,6 +31,7 @@ import { usePagination } from "@/hooks/usePagination";
 
 export type GlobalSettingsTab =
   | "ai-providers"
+  | "mcp-servers"
   | "prompts"
   | "checklist"
   | "scraper-apis";
@@ -51,6 +55,11 @@ interface GlobalSettingsDialogProps {
     selectedModel?: string;
   }) => Promise<unknown>;
   onDeleteAiProviderKey?: (provider: AiProvider) => Promise<unknown>;
+  mcpOverview?: McpOverview;
+  onCreateMcpServer?: (dto: CreateMcpServerDto) => Promise<unknown>;
+  onToggleMcpServer?: (serverId: string, isEnabled: boolean) => Promise<unknown>;
+  onRefreshMcpServer?: (serverId: string) => Promise<unknown>;
+  onDeleteMcpServer?: (serverId: string) => Promise<unknown>;
   scraperProviders?: ScraperProviderStatus[];
   canEditScraperKeys?: boolean;
   onSaveScraperProviderKey?: (params: {
@@ -76,6 +85,11 @@ export function GlobalSettingsDialog({
   onSaveAiProviderConfig,
   onActivateAiProvider,
   onDeleteAiProviderKey,
+  mcpOverview,
+  onCreateMcpServer,
+  onToggleMcpServer,
+  onRefreshMcpServer,
+  onDeleteMcpServer,
   scraperProviders = [],
   canEditScraperKeys = false,
   onSaveScraperProviderKey,
@@ -166,6 +180,15 @@ export function GlobalSettingsDialog({
         <button
           type="button"
           role="tab"
+          aria-selected={activeTab === "mcp-servers"}
+          onClick={() => setActiveTab("mcp-servers")}
+          className="accessible-tab px-3 py-2 text-xs font-semibold text-[#65676b] dark:text-[#8696a0] hover:text-[#050505] dark:hover:text-[#e9edef] transition cursor-pointer whitespace-nowrap"
+        >
+          MCP Servers ({mcpOverview?.totalTools ?? 0} tools)
+        </button>
+        <button
+          type="button"
+          role="tab"
           aria-selected={activeTab === "prompts"}
           onClick={() => setActiveTab("prompts")}
           className="accessible-tab px-3 py-2 text-xs font-semibold text-[#65676b] dark:text-[#8696a0] hover:text-[#050505] dark:hover:text-[#e9edef] transition cursor-pointer whitespace-nowrap"
@@ -205,6 +228,17 @@ export function GlobalSettingsDialog({
               onActivateAiProvider ?? (async () => undefined)
             }
             onDeleteKey={onDeleteAiProviderKey ?? (async () => undefined)}
+          />
+        </div>
+      ) : activeTab === "mcp-servers" ? (
+        <div className="mt-4 max-h-[60vh] overflow-y-auto scroller pr-1">
+          <McpServersPanel
+            mcpOverview={mcpOverview}
+            canEdit={canEditScraperKeys}
+            onCreateServer={onCreateMcpServer ?? (async () => undefined)}
+            onToggleServer={onToggleMcpServer ?? (async () => undefined)}
+            onRefreshServer={onRefreshMcpServer ?? (async () => undefined)}
+            onDeleteServer={onDeleteMcpServer ?? (async () => undefined)}
           />
         </div>
       ) : activeTab === "scraper-apis" ? (

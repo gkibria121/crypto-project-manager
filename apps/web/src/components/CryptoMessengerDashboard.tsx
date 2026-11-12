@@ -18,6 +18,8 @@ import {
   useAiProvidersQuery,
   useAuditLogsQuery,
   useChecklistItemsQuery,
+  useChatMentionsQuery,
+  useCreateMcpServerMutation,
   useCreateProjectMutation,
   useCreateUserMutation,
   useCurrentUserQuery,
@@ -25,6 +27,7 @@ import {
   useDeleteAiProviderKeyMutation,
   useDeleteChecklistItemMutation,
   useDeleteContextMutation,
+  useDeleteMcpServerMutation,
   useDeleteProjectMutation,
   useDeletePromptTemplateMutation,
   useDeleteScraperProviderKeyMutation,
@@ -32,8 +35,10 @@ import {
   useLoginMutation,
   useLogoutMutation,
   useMarkProjectReadMutation,
+  useMcpServersQuery,
   useProjectsQuery,
   usePromptTemplatesQuery,
+  useRefreshMcpServerMutation,
   useRegisterMutation,
   useResetConversationMutation,
   useSaveAiProviderConfigMutation,
@@ -50,6 +55,7 @@ import {
   useToggleChecklistItemMutation,
   useToggleContextMutation,
   useUpdateBusinessStatusMutation,
+  useUpdateMcpServerMutation,
   useUpdateProjectLogoMutation,
   useUpdateProjectMutation,
   useUpdateUserRoleMutation,
@@ -90,6 +96,8 @@ export function CryptoMessengerDashboard() {
     useScraperProvidersQuery(isAuthenticated);
   const aiProvidersQuery = useAiProvidersQuery(isAuthenticated);
   const aiConfig = aiProvidersQuery.data;
+  const mcpServersQuery = useMcpServersQuery(isAuthenticated);
+  const mcpOverview = mcpServersQuery.data;
   const { data: healthStatus } = useSystemHealthQuery();
   const { data: usersList = [] } = useUsersQuery(
     isAuthenticated && canReadUsers
@@ -180,9 +188,18 @@ export function CryptoMessengerDashboard() {
   const saveAiProviderConfigMutation = useSaveAiProviderConfigMutation();
   const activateAiProviderMutation = useActivateAiProviderMutation();
   const deleteAiProviderKeyMutation = useDeleteAiProviderKeyMutation();
+  const createMcpServerMutation = useCreateMcpServerMutation();
+  const updateMcpServerMutation = useUpdateMcpServerMutation();
+  const refreshMcpServerMutation = useRefreshMcpServerMutation();
+  const deleteMcpServerMutation = useDeleteMcpServerMutation();
 
   const activeProject =
     projects.find((p) => p.id === selectedProjectId) ?? projects[0];
+  const chatMentionsQuery = useChatMentionsQuery(
+    activeProject?.id,
+    isAuthenticated && Boolean(activeProject)
+  );
+  const mentionSuggestions = chatMentionsQuery.data ?? [];
 
   const totalUnreadCount = projects.reduce(
     (acc, proj) => acc + (proj.unreadInsights ?? 0),
@@ -493,6 +510,8 @@ export function CryptoMessengerDashboard() {
         currentUser={currentUser}
         aiConfig={aiConfig}
         isAiConfigLoading={aiProvidersQuery.isLoading}
+        mcpOverview={mcpOverview}
+        mentionSuggestions={mentionSuggestions}
         promptTemplates={promptTemplates}
         checklistItems={checklistItems}
         draftPrompt={draftPrompt}
@@ -514,6 +533,7 @@ export function CryptoMessengerDashboard() {
         onOpenChecklistModal={openChecklistModal}
         onOpenGlobalSettings={() => handleOpenSettingsTab("prompts")}
         onOpenAiSettings={() => handleOpenSettingsTab("ai-providers")}
+        onOpenMcpSettings={() => handleOpenSettingsTab("mcp-servers")}
         isContextPanelOpen={isDesktopContextOpen || isMobileContextOpen}
         onToggleContextPanel={handleToggleContextPanel}
         isAiTyping={sendMessageMutation.isPending}
@@ -605,6 +625,20 @@ export function CryptoMessengerDashboard() {
         }
         onDeleteAiProviderKey={(provider) =>
           deleteAiProviderKeyMutation.mutateAsync(provider)
+        }
+        mcpOverview={mcpOverview}
+        onCreateMcpServer={(dto) => createMcpServerMutation.mutateAsync(dto)}
+        onToggleMcpServer={(serverId, isEnabled) =>
+          updateMcpServerMutation.mutateAsync({
+            serverId,
+            dto: { isEnabled },
+          })
+        }
+        onRefreshMcpServer={(serverId) =>
+          refreshMcpServerMutation.mutateAsync(serverId)
+        }
+        onDeleteMcpServer={(serverId) =>
+          deleteMcpServerMutation.mutateAsync(serverId)
         }
         scraperProviders={scraperProviders}
         canEditScraperKeys={hasPermission(currentUser, "settings:write")}

@@ -5,8 +5,11 @@ import {
   authRegisterResponseSchema,
   authSessionResponseSchema,
   authUserSchema,
+  chatMentionSuggestionSchema,
   checklistItemConfigSchema,
   cryptoProjectSchema,
+  mcpOverviewSchema,
+  mcpToolSummarySchema,
   projectScrapedDataResponseSchema,
   promptTemplateSchema,
   scrapeJobSchema,
@@ -25,10 +28,14 @@ import {
   type AuthUser,
   type BulkDeleteProjectsDto,
   type BulkUpdateBusinessStatusDto,
+  type ChatMentionSuggestion,
   type ChecklistItemConfig,
+  type CreateMcpServerDto,
   type CreateUserDto,
   type CryptoProject,
   type LoginDto,
+  type McpOverview,
+  type McpToolSummary,
   type NewProjectFormValues,
   type ProjectBusinessStatus,
   type ProjectScrapedDataResponse,
@@ -44,6 +51,7 @@ import {
   type SystemHealthStatus,
   type TriggerScrapeDto,
   type UpdateAiProviderConfigDto,
+  type UpdateMcpServerDto,
   type UpdateProjectFormValues,
   type UserRole,
 } from "@/types/project";
@@ -717,6 +725,67 @@ export const apiClient = {
       `/settings/ai-providers/${encodeURIComponent(provider)}`,
       { method: "DELETE" },
       aiConfigurationSummarySchema
+    );
+  },
+
+  fetchChatMentions(projectId: string): Promise<ChatMentionSuggestion[]> {
+    return requestJson(
+      `/projects/${encodeURIComponent(projectId)}/chat/mentions`,
+      { method: "GET" },
+      z.array(chatMentionSuggestionSchema)
+    );
+  },
+
+  fetchMcpServers(): Promise<McpOverview> {
+    return requestJson("/mcp/servers", { method: "GET" }, mcpOverviewSchema);
+  },
+
+  fetchMcpTools(): Promise<McpToolSummary[]> {
+    return requestJson(
+      "/mcp/tools",
+      { method: "GET" },
+      z.array(mcpToolSummarySchema)
+    );
+  },
+
+  createMcpServer(input: CreateMcpServerDto): Promise<McpOverview> {
+    return requestJson(
+      "/mcp/servers",
+      {
+        method: "POST",
+        body: JSON.stringify(input),
+      },
+      mcpOverviewSchema
+    );
+  },
+
+  updateMcpServer(params: {
+    serverId: string;
+    dto: UpdateMcpServerDto;
+  }): Promise<McpOverview> {
+    return requestJson(
+      `/mcp/servers/${encodeURIComponent(params.serverId)}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(params.dto),
+      },
+      mcpOverviewSchema
+    );
+  },
+
+  refreshMcpServer(serverId: string): Promise<McpOverview> {
+    return requestJson(
+      `/mcp/servers/${encodeURIComponent(serverId)}/refresh`,
+      { method: "POST" },
+      mcpOverviewSchema
+    );
+  },
+
+  deleteMcpServer(serverId: string): Promise<McpOverview> {
+    return requestJson(
+      `/mcp/servers/${encodeURIComponent(serverId)}`,
+      { method: "DELETE" },
+      mcpOverviewSchema
     );
   },
 };

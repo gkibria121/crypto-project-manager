@@ -92,6 +92,16 @@ export function mapPrismaProjectToDomain(
       const meta = toPlainRecord<unknown>(msg.metadata);
       const provider =
         typeof meta?.["provider"] === "string" ? meta["provider"] : undefined;
+      const mcpToolsUsed = Array.isArray(meta?.["mcpToolsUsed"])
+        ? meta["mcpToolsUsed"].filter(
+            (item): item is string => typeof item === "string"
+          )
+        : undefined;
+      const resolvedTags = Array.isArray(meta?.["resolvedTags"])
+        ? meta["resolvedTags"].filter(
+            (item): item is string => typeof item === "string"
+          )
+        : undefined;
       return {
         id: msg.id,
         sender: msg.sender,
@@ -102,6 +112,8 @@ export function mapPrismaProjectToDomain(
         appliedSystemPromptTitle: msg.appliedSystemPromptTitle ?? undefined,
         ...(msg.model ? { model: msg.model } : {}),
         ...(provider ? { provider } : {}),
+        ...(mcpToolsUsed && mcpToolsUsed.length > 0 ? { mcpToolsUsed } : {}),
+        ...(resolvedTags && resolvedTags.length > 0 ? { resolvedTags } : {}),
       };
     }),
     checklistState,

@@ -7,9 +7,11 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import {
   AlertCircle,
   ArrowLeft,
+  AtSign,
   Bot,
   Check,
   Copy,
+  Cpu,
   Info,
   KeyRound,
   Layers,
@@ -20,6 +22,7 @@ import {
   Send,
   Settings,
   Sparkles,
+  Wrench,
   X,
 } from "lucide-react";
 import {
@@ -30,9 +33,11 @@ import {
   BUSINESS_STATUS_ORDER,
   chatComposerFormSchema,
   type ChatComposerFormValues,
+  type ChatMentionSuggestion,
   type ChecklistItemConfig,
   type CryptoProject,
   hasPermission,
+  type McpOverview,
   type ProjectBusinessStatus,
   type PromptTemplate,
   USER_ROLE_META,
@@ -59,6 +64,8 @@ interface AiChatPaneProps {
   currentUser: AuthUser;
   aiConfig?: AiConfigurationSummary;
   isAiConfigLoading?: boolean;
+  mcpOverview?: McpOverview;
+  mentionSuggestions?: ChatMentionSuggestion[];
   promptTemplates: PromptTemplate[];
   checklistItems: ChecklistItemConfig[];
   draftPrompt: string;
@@ -78,6 +85,7 @@ interface AiChatPaneProps {
   onOpenChecklistModal: () => void;
   onOpenGlobalSettings: () => void;
   onOpenAiSettings?: () => void;
+  onOpenMcpSettings?: () => void;
   isContextPanelOpen: boolean;
   onToggleContextPanel: () => void;
   isAiTyping: boolean;
@@ -91,6 +99,8 @@ export function AiChatPane({
   currentUser,
   aiConfig,
   isAiConfigLoading = false,
+  mcpOverview,
+  mentionSuggestions = [],
   promptTemplates,
   checklistItems,
   draftPrompt,
@@ -110,6 +120,7 @@ export function AiChatPane({
   onOpenChecklistModal,
   onOpenGlobalSettings,
   onOpenAiSettings,
+  onOpenMcpSettings,
   isContextPanelOpen,
   onToggleContextPanel,
   isAiTyping,
@@ -127,8 +138,11 @@ export function AiChatPane({
   const chatInputId = useId();
   const statusSelectId = useId();
   const formRef = useRef<HTMLFormElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [isAttachMenuOpen, setIsAttachMenuOpen] = useState(false);
+  const [mentionQuery, setMentionQuery] = useState<string | null>(null);
+  const [mentionHighlightIdx, setMentionHighlightIdx] = useState(0);
 
   const { copiedId, copy } = useCopyToClipboard();
 
@@ -220,11 +234,106 @@ export function AiChatPane({
     formRef.current?.requestSubmit();
   }, []);
 
-  const { onCompositionEnd, onKeyDown } = useImeSafeSubmit(triggerSubmit);
+  const { onCompositionEnd, onKeyDown: imeKeyDown } =
+    useImeSafeSubmit(triggerSubmit);
+
+  const filteredMentions =
+    mentionQuery !== null
+      ? mentionSuggestions.filter((item) => {
+          const q = mentionQuery.toLowerCase();
+          return (
+            item.tag.toLowerCase().includes(q) ||
+            item.label.toLowerCase().includes(q) ||
+            item.description.toLowerCase().includes(q)
+          );
+        })
+      : [];
+
+  const updateMentionQueryFromValue = (val: string, cursorPos?: number) => {
+    const pos = cursorPos ?? val.length;
+    const beforeCursor = val.slice(0, pos);
+    const match = beforeCursor.match(/(?:^|[\s(,;])@([a-zA-Z0-9_-]*)$/);
+    if (match) {
+      setMentionQuery(match[1] ?? "");
+      setMentionHighlightIdx(0);
+    } else {
+      setMentionQuery(null);
+    }
+  };
+
+  const insertMentionTag = (tag: string) => {
+    const current = watchedContent;
+    const el = textareaRef.current;
+    const cursorPos = el?.selectionStart ?? current.length;
+    const beforeCursor = current.slice(0, cursorPos);
+    const afterCursor = current.slice(cursorPos);
+
+    let nextValue: string;
+    let nextCursor: number;
+    const match = beforeCursor.match(/(?:^|[\s(,;])@([a-zA-Z0-9_-]*)$/);
+    if (match) {
+      const replaceStart = beforeCursor.length - (match[1]?.length ?? 0) - 1;
+      const prefix = beforeCursor.slice(0, replaceStart);
+      nextValue = `${prefix}${tag} ${afterCursor}`;
+      nextCursor = prefix.length + tag.length + 1;
+    } else {
+      const needsSpace =
+        beforeCursor.length > 0 && !/\s$/.test(beforeCursor);
+      const inserted = `${needsSpace ? " " : ""}${tag} `;
+      nextValue = `${beforeCursor}${inserted}${afterCursor}`;
+      nextCursor = beforeCursor.length + inserted.length;
+    }
+
+    setValue("content", nextValue, { shouldValidate: true });
+    setDraftPrompt(nextValue);
+    setMentionQuery(null);
+
+    requestAnimationFrame(() => {
+      if (textareaRef.current) {
+        textareaRef.current.focus();
+        textareaRef.current.setSelectionRange(nextCursor, nextCursor);
+      }
+    });
+  };
+
+  const handleTextareaKeyDown = (
+    e: React.KeyboardEvent<HTMLTextAreaElement>
+  ) => {
+    if (mentionQuery !== null && filteredMentions.length > 0) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setMentionHighlightIdx((prev) => (prev + 1) % filteredMentions.length);
+        return;
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setMentionHighlightIdx(
+          (prev) =>
+            (prev - 1 + filteredMentions.length) % filteredMentions.length
+        );
+        return;
+      }
+      if (e.key === "Enter" || e.key === "Tab") {
+        e.preventDefault();
+        const chosen =
+          filteredMentions[mentionHighlightIdx] ?? filteredMentions[0];
+        if (chosen) insertMentionTag(chosen.tag);
+        return;
+      }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setMentionQuery(null);
+        return;
+      }
+    }
+    imeKeyDown(e);
+  };
 
   const contentRegister = register("content", {
     onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-      setDraftPrompt(e.target.value);
+      const next = e.target.value;
+      setDraftPrompt(next);
+      updateMentionQueryFromValue(next, e.target.selectionStart ?? next.length);
       if (sendMessageError) onClearSendError?.();
     },
   });
@@ -349,6 +458,26 @@ export function AiChatPane({
 
         {/* Right Header Icon Controls */}
         <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
+          {mcpOverview && (
+            <button
+              type="button"
+              onClick={
+                canWriteSettings
+                  ? onOpenMcpSettings ?? onOpenGlobalSettings
+                  : undefined
+              }
+              title={`MCP Servers active (${mcpOverview.totalTools} tools discovered). Click to inspect or manage MCP servers.`}
+              className={`hidden sm:inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-semibold bg-emerald-500/12 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300 transition ${
+                canWriteSettings
+                  ? "hover:bg-emerald-500/20 cursor-pointer"
+                  : "cursor-default"
+              }`}
+            >
+              <Cpu className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+              <span>MCP · {mcpOverview.totalTools} tools</span>
+            </button>
+          )}
+
           <button
             type="button"
             onClick={onOpenChecklistModal}
@@ -475,10 +604,34 @@ export function AiChatPane({
               </h3>
               <p className="text-xs text-[#65676b] dark:text-[#8696a0] max-w-md mx-auto leading-relaxed">
                 This session retains your conversation history automatically.
-                The AI has no hidden project context unless you write it here
-                or attach context from the composer below.
+                Type{" "}
+                <code className="font-mono text-[#0084ff]">@context</code> for
+                company info or{" "}
+                <code className="font-mono text-[#0084ff]">@linkedin</code>,{" "}
+                <code className="font-mono text-[#0084ff]">@website</code>,{" "}
+                <code className="font-mono text-[#0084ff]">@x</code>,{" "}
+                <code className="font-mono text-[#0084ff]">@scrape</code> to let
+                the chatbot fetch backend context and scrape links via MCP
+                tools.
               </p>
             </div>
+
+            {canWriteChat && (
+              <div className="flex flex-wrap items-center justify-center gap-1.5">
+                {["@context", "@linkedin", "@website", "@x", "@scrape"].map(
+                  (tag) => (
+                    <button
+                      key={tag}
+                      type="button"
+                      onClick={() => insertMentionTag(tag)}
+                      className="px-2.5 py-1 rounded-full text-[11px] font-mono font-medium bg-[#e7f3ff]/80 hover:bg-[#e7f3ff] dark:bg-[#0084ff]/15 dark:hover:bg-[#0084ff]/25 text-[#0084ff] dark:text-[#4599ff] transition cursor-pointer"
+                    >
+                      {tag}
+                    </button>
+                  )
+                )}
+              </div>
+            )}
 
             {canWriteChat && promptTemplates.length > 0 && (
               <div className="flex flex-wrap items-center justify-center gap-1.5 pt-2">
@@ -547,8 +700,22 @@ export function AiChatPane({
                         : "text-[#65676b] dark:text-[#8696a0] border-t border-[#f0f2f5] dark:border-[#2a3942]"
                     }`}
                   >
-                    {referencedContexts.length > 0 && (
+                    {(referencedContexts.length > 0 ||
+                      (msg.mcpToolsUsed && msg.mcpToolsUsed.length > 0) ||
+                      (msg.resolvedTags && msg.resolvedTags.length > 0)) && (
                       <div className="flex items-center gap-1 flex-wrap min-w-0">
+                        {msg.resolvedTags?.map((tag) => (
+                          <span
+                            key={`tag-${tag}`}
+                            className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-mono ${
+                              isAdmin
+                                ? "bg-white/15 text-white"
+                                : "bg-[#e7f3ff] dark:bg-[#0084ff]/20 text-[#0084ff] dark:text-[#4599ff]"
+                            }`}
+                          >
+                            {tag}
+                          </span>
+                        ))}
                         {referencedContexts.map((ctx) => (
                           <span
                             key={ctx.id}
@@ -565,6 +732,17 @@ export function AiChatPane({
                             </span>
                           </span>
                         ))}
+                        {!isAdmin &&
+                          msg.mcpToolsUsed?.map((tool) => (
+                            <span
+                              key={`mcp-${tool}`}
+                              title={`Executed via MCP tool: ${tool}`}
+                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono bg-emerald-500/12 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300"
+                            >
+                              <Wrench className="w-2.5 h-2.5" aria-hidden="true" />
+                              <span>{tool}</span>
+                            </span>
+                          ))}
                       </div>
                     )}
 
@@ -676,6 +854,71 @@ export function AiChatPane({
                 <X className="w-3.5 h-3.5" />
               </button>
             </div>
+          </div>
+        )}
+
+        {/* Live @Mention Autocomplete Popover */}
+        {mentionQuery !== null && canWriteChat && (
+          <div
+            role="listbox"
+            aria-label="Context and MCP tag suggestions"
+            className="absolute bottom-full left-3 right-3 sm:right-auto sm:w-md mb-2 rounded-2xl bg-white dark:bg-[#202c33] border border-[#e4e6eb] dark:border-[#2a3942] shadow-xl p-2 z-30 max-h-64 overflow-y-auto scroller space-y-1"
+          >
+            <div className="flex items-center justify-between px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-[#65676b] dark:text-[#8696a0]">
+              <span>Backend @Tags & MCP Tools</span>
+              <span>↑↓ Navigate · Enter to insert</span>
+            </div>
+            {filteredMentions.length === 0 ? (
+              <div className="px-2.5 py-2 text-xs text-[#65676b] dark:text-[#8696a0]">
+                No matching @tag found.
+              </div>
+            ) : (
+              filteredMentions.map((item, idx) => {
+                const isSelected = idx === mentionHighlightIdx;
+                return (
+                  <button
+                    key={item.tag}
+                    type="button"
+                    role="option"
+                    aria-selected={isSelected}
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      insertMentionTag(item.tag);
+                    }}
+                    className={`w-full text-left px-2.5 py-2 rounded-xl flex items-start justify-between gap-2 transition cursor-pointer ${
+                      isSelected
+                        ? "bg-[#e7f3ff] dark:bg-[#0084ff]/20"
+                        : "hover:bg-[#f0f2f5] dark:hover:bg-[#2a3942]"
+                    }`}
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-mono text-xs font-bold text-[#0084ff] dark:text-[#4599ff]">
+                          {item.tag}
+                        </span>
+                        <span className="text-xs font-semibold text-[#050505] dark:text-[#e9edef] truncate">
+                          {item.label}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-[#65676b] dark:text-[#8696a0] truncate">
+                        {item.description}
+                      </p>
+                    </div>
+                    <span
+                      className={`px-1.5 py-0.5 rounded text-[10px] font-medium shrink-0 ${
+                        item.isReady
+                          ? "bg-emerald-500/12 text-emerald-700 dark:text-emerald-300"
+                          : "bg-slate-500/12 text-slate-600 dark:text-slate-300"
+                      }`}
+                    >
+                      {item.availableCount > 0
+                        ? `${item.availableCount} ready`
+                        : item.category}
+                    </span>
+                  </button>
+                );
+              })
+            )}
           </div>
         )}
 
@@ -796,6 +1039,28 @@ export function AiChatPane({
           >
             <button
               type="button"
+              onClick={() => {
+                setIsAttachMenuOpen(false);
+                if (mentionQuery !== null) {
+                  setMentionQuery(null);
+                } else {
+                  setMentionQuery("");
+                  setMentionHighlightIdx(0);
+                }
+              }}
+              title="Insert @context, @linkedin, @website, @x, or @scrape tag"
+              aria-label="Browse @tags from backend"
+              className={`w-10 h-10 sm:w-9 sm:h-9 rounded-full flex items-center justify-center shrink-0 transition cursor-pointer ${
+                mentionQuery !== null
+                  ? "bg-[#e7f3ff] text-[#0084ff] dark:bg-[#0084ff]/20 dark:text-[#4599ff]"
+                  : "text-[#65676b] dark:text-[#8696a0] hover:bg-[#f0f2f5] dark:hover:bg-[#2a3942]"
+              }`}
+            >
+              <AtSign className="w-4 h-4" />
+            </button>
+
+            <button
+              type="button"
               onClick={() => setIsAttachMenuOpen((prev) => !prev)}
               title="Attach project context to this message"
               aria-label="Attach project context to this message"
@@ -828,12 +1093,16 @@ export function AiChatPane({
               <textarea
                 id={chatInputId}
                 {...contentRegister}
+                ref={(el) => {
+                  contentRegister.ref(el);
+                  textareaRef.current = el;
+                }}
                 onCompositionEnd={onCompositionEnd}
-                onKeyDown={onKeyDown}
+                onKeyDown={handleTextareaKeyDown}
                 placeholder={
                   totalAttachedCount > 0
                     ? `Message AI (${totalAttachedCount} context${totalAttachedCount > 1 ? "s" : ""} attached)...`
-                    : "Message AI..."
+                    : "Message AI... (type @ for @context, @linkedin, @website, @scrape)"
                 }
                 className="chat-auto-textarea bg-transparent text-base sm:text-[14px] text-[#050505] dark:text-[#e9edef] placeholder:text-[#65676b] dark:placeholder:text-[#8696a0] outline-none resize-none"
               />

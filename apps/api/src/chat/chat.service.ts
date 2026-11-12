@@ -4,6 +4,7 @@ import {
   HttpException,
   Injectable,
   Logger,
+  Optional,
   PreconditionFailedException,
 } from "@nestjs/common";
 import {
@@ -11,25 +12,43 @@ import {
   formatCurrentTimestamp,
   type AiProvider,
   type CryptoProject,
+  type McpToolSummary,
   type ProjectContextItem,
   type PromptTemplate,
   type SendMessageDto,
 } from "@repo/shared";
 import { randomUUID } from "crypto";
+import { McpService } from "../mcp/mcp.service.js";
 import { PrismaService } from "../prisma/prisma.service.js";
 import { computeActivatedProjectPatch } from "../projects/project-lifecycle.helper.js";
 import { findFullProjectOrThrow } from "../projects/project.mapper.js";
 import { AiProvidersService } from "../settings/ai-providers.service.js";
+import {
+  buildMcpSystemPromptSection,
+  isToolUnsupportedError,
+  safeParseToolArguments,
+  toAnthropicToolDefinition,
+  toGeminiFunctionDeclaration,
+  toOpenAiToolDefinition,
+} from "./mcp-tool-adapter.helper.js";
 
 export interface ConversationTurn {
   role: "user" | "assistant";
   content: string;
 }
 
+interface ProviderCompletionResult {
+  text: string;
+  toolsUsed: string[];
+  contextIdsUsed: string[];
+}
+
 const DEFAULT_SYSTEM_PROMPT =
   "You are a helpful AI assistant. Read the conversation history and the user's messages carefully, follow their instructions accurately, and respond clearly in Markdown when appropriate.";
 
 const MAX_SESSION_HISTORY_MESSAGES = 50;
+const MAX_TOOL_CALL_ITERATIONS = 6;
+const AI_REQUEST_TIMEOUT_MS = 90_000;
 
 export function normalizeConversationTurns(
   turns: ConversationTurn[]
@@ -104,7 +123,8 @@ export class ChatService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly aiProvidersService: AiProvidersService
+    private readonly aiProvidersService: AiProvidersService,
+    @Optional() private readonly mcpService?: McpService
   ) {}
 
   async sendMessage(
@@ -137,7 +157,7 @@ export class ChatService {
       }
     }
 
-    // Only include project contexts explicitly requested from the frontend
+    // Only include project contexts explicitly requested from the frontend or via @tags
     const requestedContextIds = new Set(dto.contextIds ?? []);
     const selectedContexts =
       requestedContextIds.size > 0
@@ -161,11 +181,31 @@ export class ChatService {
       }));
 
     const userText = dto.content.trim();
-    const attachedContextText = formatExplicitlyProvidedContext(
-      project,
-      selectedContexts,
-      includeProjectSummary
-    );
+
+    // Resolve @context, @linkedin, @website, @x, @telegram, @notes, @scraped, @checklist via MCP
+    const mentionResolution = this.mcpService
+      ? await this.mcpService.resolveMentionContext(projectId, userText)
+      : { resolvedTags: [], contextBlock: "", usedContextIds: [] };
+
+    // Discover MCP servers & tools in the beginning so the chatbot knows all tools
+    const [mcpOverview, mcpTools] = this.mcpService
+      ? await Promise.all([
+          this.mcpService.listServers(),
+          this.mcpService.getAvailableTools(),
+        ])
+      : [{ servers: [], totalTools: 0 }, [] as McpToolSummary[]];
+
+    const attachedContextText = [
+      formatExplicitlyProvidedContext(
+        project,
+        selectedContexts,
+        includeProjectSummary
+      ),
+      mentionResolution.contextBlock,
+    ]
+      .filter(Boolean)
+      .join("\n\n");
+
     const currentTurnPrompt = attachedContextText
       ? `${userText}\n\n${attachedContextText}`
       : userText;
@@ -175,22 +215,39 @@ export class ChatService {
       { role: "user", content: currentTurnPrompt },
     ]);
 
-    const systemPrompt = appliedTemplate?.systemPrompt?.trim()
+    const baseSystemPrompt = appliedTemplate?.systemPrompt?.trim()
       ? appliedTemplate.systemPrompt.trim()
       : DEFAULT_SYSTEM_PROMPT;
 
-    const aiReply = await this.callProvider(
+    const mcpSystemSection = buildMcpSystemPromptSection(
+      mcpOverview.servers,
+      mcpTools
+    );
+    const systemPrompt = mcpSystemSection
+      ? `${baseSystemPrompt}\n\n${mcpSystemSection}`
+      : baseSystemPrompt;
+
+    const completion = await this.callProvider(
       credential.provider,
       credential.apiKey,
       credential.model,
       systemPrompt,
-      conversation
+      conversation,
+      mcpTools,
+      projectId
     );
 
     const nowMs = Date.now();
     const timestamp = formatCurrentTimestamp();
     const suffix = randomUUID().slice(0, 6);
-    const usedContextIds = selectedContexts.map((c) => c.id);
+    const mergedContextIds = Array.from(
+      new Set([
+        ...selectedContexts.map((c) => c.id),
+        ...mentionResolution.usedContextIds,
+        ...completion.contextIdsUsed,
+      ])
+    );
+    const uniqueToolsUsed = Array.from(new Set(completion.toolsUsed));
 
     await this.prisma.db.transaction(async (tx) => {
       await tx.orm.public.ChatMessage.create({
@@ -199,8 +256,12 @@ export class ChatService {
         sender: "admin",
         content: userText,
         timestampLabel: timestamp,
-        usedContextIds,
+        usedContextIds: mergedContextIds,
         suggestedActions: [],
+        metadata:
+          mentionResolution.resolvedTags.length > 0
+            ? { resolvedTags: mentionResolution.resolvedTags }
+            : null,
         createdAt: new Date(nowMs),
       });
 
@@ -208,18 +269,24 @@ export class ChatService {
         id: `msg-ai-${nowMs + 1}-${suffix}`,
         projectId,
         sender: "ai",
-        content: aiReply,
+        content: completion.text,
         timestampLabel: formatCurrentTimestamp(),
-        usedContextIds,
+        usedContextIds: mergedContextIds,
         suggestedActions: [],
         appliedSystemPromptTitle: appliedTemplate?.label ?? null,
         model: credential.model,
         metadata: {
           provider: credential.provider,
-          attachedContextCount: usedContextIds.length,
+          attachedContextCount: mergedContextIds.length,
           includedProjectSummary: includeProjectSummary,
           historyLength: priorTurns.length,
           templateId: appliedTemplate?.id ?? null,
+          ...(uniqueToolsUsed.length > 0
+            ? { mcpToolsUsed: uniqueToolsUsed }
+            : {}),
+          ...(mentionResolution.resolvedTags.length > 0
+            ? { resolvedTags: mentionResolution.resolvedTags }
+            : {}),
         },
         createdAt: new Date(nowMs + 5),
       });
@@ -245,13 +312,41 @@ export class ChatService {
     return findFullProjectOrThrow(this.prisma, projectId);
   }
 
+  private async executeMcpToolCall(
+    toolName: string,
+    rawArgs: unknown,
+    projectId: string,
+    toolsUsed: string[],
+    contextIdsUsed: string[]
+  ): Promise<{ text: string; isError: boolean }> {
+    if (!this.mcpService) {
+      return {
+        text: JSON.stringify({ error: "MCP service is not available." }),
+        isError: true,
+      };
+    }
+
+    const args = safeParseToolArguments(rawArgs);
+    this.logger.log(
+      `Executing MCP tool "${toolName}" for project "${projectId}"`
+    );
+    const result = await this.mcpService.callTool(toolName, args, {
+      projectId,
+    });
+    toolsUsed.push(result.toolName);
+    contextIdsUsed.push(...result.contextIdsUsed);
+    return { text: result.text, isError: result.isError };
+  }
+
   private async callProvider(
     provider: AiProvider,
     apiKey: string,
     model: string,
     systemPrompt: string,
-    turns: ConversationTurn[]
-  ): Promise<string> {
+    turns: ConversationTurn[],
+    mcpTools: McpToolSummary[],
+    projectId: string
+  ): Promise<ProviderCompletionResult> {
     const providerLabel = AI_PROVIDER_META[provider].label;
 
     try {
@@ -261,10 +356,19 @@ export class ChatService {
             apiKey,
             model,
             systemPrompt,
-            turns
+            turns,
+            mcpTools,
+            projectId
           );
         case "anthropic":
-          return await this.callAnthropic(apiKey, model, systemPrompt, turns);
+          return await this.callAnthropic(
+            apiKey,
+            model,
+            systemPrompt,
+            turns,
+            mcpTools,
+            projectId
+          );
         case "openai":
           return await this.callOpenAiCompatible(
             "https://api.openai.com/v1/chat/completions",
@@ -272,7 +376,9 @@ export class ChatService {
             apiKey,
             model,
             systemPrompt,
-            turns
+            turns,
+            mcpTools,
+            projectId
           );
         case "groq":
           return await this.callOpenAiCompatible(
@@ -281,7 +387,9 @@ export class ChatService {
             apiKey,
             model,
             systemPrompt,
-            turns
+            turns,
+            mcpTools,
+            projectId
           );
         case "openrouter":
           return await this.callOpenAiCompatible(
@@ -290,7 +398,9 @@ export class ChatService {
             apiKey,
             model,
             systemPrompt,
-            turns
+            turns,
+            mcpTools,
+            projectId
           );
       }
     } catch (error) {
@@ -311,116 +421,267 @@ export class ChatService {
     apiKey: string,
     model: string,
     systemPrompt: string,
-    turns: ConversationTurn[]
-  ): Promise<string> {
+    turns: ConversationTurn[],
+    mcpTools: McpToolSummary[],
+    projectId: string
+  ): Promise<ProviderCompletionResult> {
     const cleanModel = model.replace(/^models\//, "");
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(cleanModel)}:generateContent`;
 
-    const response = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-goog-api-key": apiKey,
-      },
-      body: JSON.stringify({
+    const contents: Array<Record<string, unknown>> = turns.map((turn) => ({
+      role: turn.role === "assistant" ? "model" : "user",
+      parts: [{ text: turn.content }],
+    }));
+
+    const toolsUsed: string[] = [];
+    const contextIdsUsed: string[] = [];
+    let allowTools = mcpTools.length > 0 && Boolean(this.mcpService);
+
+    for (let iter = 0; iter <= MAX_TOOL_CALL_ITERATIONS; iter++) {
+      const body: Record<string, unknown> = {
         systemInstruction: {
           parts: [{ text: systemPrompt }],
         },
-        contents: turns.map((turn) => ({
-          role: turn.role === "assistant" ? "model" : "user",
-          parts: [{ text: turn.content }],
-        })),
+        contents,
         generationConfig: {
           temperature: 0.7,
         },
-      }),
-      signal: AbortSignal.timeout(45_000),
-    });
+      };
 
-    const payload = (await response.json().catch(() => null)) as {
-      candidates?: Array<{
-        finishReason?: string;
-        content?: { parts?: Array<{ text?: string }> };
-      }>;
-      error?: { message?: string; status?: string };
-    } | null;
-
-    if (!response.ok) {
-      const detail =
-        payload?.error?.message || `Google AI Studio HTTP ${response.status}`;
-      if (response.status >= 400 && response.status < 500) {
-        throw new BadRequestException(detail);
+      if (allowTools) {
+        body["tools"] = [
+          {
+            functionDeclarations: mcpTools.map(toGeminiFunctionDeclaration),
+          },
+        ];
       }
-      throw new BadGatewayException(detail);
-    }
 
-    const text = payload?.candidates?.[0]?.content?.parts
-      ?.map((p) => p.text ?? "")
-      .join("")
-      .trim();
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-goog-api-key": apiKey,
+        },
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(AI_REQUEST_TIMEOUT_MS),
+      });
 
-    if (!text) {
-      const reason = payload?.candidates?.[0]?.finishReason;
-      throw new BadGatewayException(
-        reason
-          ? `Google AI Studio returned an empty response (finish reason: ${reason}).`
-          : "Google AI Studio returned an empty response."
+      const payload = (await response.json().catch(() => null)) as {
+        candidates?: Array<{
+          finishReason?: string;
+          content?: {
+            role?: string;
+            parts?: Array<{
+              text?: string;
+              functionCall?: { name?: string; args?: Record<string, unknown> };
+            }>;
+          };
+        }>;
+        error?: { message?: string; status?: string };
+      } | null;
+
+      if (!response.ok) {
+        const detail =
+          payload?.error?.message || `Google AI Studio HTTP ${response.status}`;
+        if (
+          response.status === 400 &&
+          allowTools &&
+          iter === 0 &&
+          isToolUnsupportedError(detail)
+        ) {
+          allowTools = false;
+          continue;
+        }
+        if (response.status >= 400 && response.status < 500) {
+          throw new BadRequestException(detail);
+        }
+        throw new BadGatewayException(detail);
+      }
+
+      const candidateContent = payload?.candidates?.[0]?.content;
+      const parts = candidateContent?.parts ?? [];
+      const functionCalls = parts.filter(
+        (p): p is { functionCall: { name: string; args?: Record<string, unknown> } } =>
+          Boolean(p.functionCall?.name)
       );
+
+      if (
+        functionCalls.length > 0 &&
+        allowTools &&
+        iter < MAX_TOOL_CALL_ITERATIONS
+      ) {
+        contents.push({
+          role: candidateContent?.role || "model",
+          parts,
+        });
+
+        const responseParts: Array<Record<string, unknown>> = [];
+        for (const fcPart of functionCalls) {
+          const outcome = await this.executeMcpToolCall(
+            fcPart.functionCall.name,
+            fcPart.functionCall.args,
+            projectId,
+            toolsUsed,
+            contextIdsUsed
+          );
+          responseParts.push({
+            functionResponse: {
+              name: fcPart.functionCall.name,
+              response: outcome.isError
+                ? { error: outcome.text }
+                : { result: outcome.text },
+            },
+          });
+        }
+
+        contents.push({
+          role: "user",
+          parts: responseParts,
+        });
+        continue;
+      }
+
+      const text = parts
+        .map((p) => p.text ?? "")
+        .join("")
+        .trim();
+
+      if (!text) {
+        const reason = payload?.candidates?.[0]?.finishReason;
+        throw new BadGatewayException(
+          reason
+            ? `Google AI Studio returned an empty response (finish reason: ${reason}).`
+            : "Google AI Studio returned an empty response."
+        );
+      }
+
+      return { text, toolsUsed, contextIdsUsed };
     }
 
-    return text;
+    throw new BadGatewayException(
+      "Google AI Studio exceeded maximum MCP tool-calling iterations."
+    );
   }
 
   private async callAnthropic(
     apiKey: string,
     model: string,
     systemPrompt: string,
-    turns: ConversationTurn[]
-  ): Promise<string> {
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
+    turns: ConversationTurn[],
+    mcpTools: McpToolSummary[],
+    projectId: string
+  ): Promise<ProviderCompletionResult> {
+    const messages: Array<{ role: "user" | "assistant"; content: unknown }> =
+      turns.map((turn) => ({
+        role: turn.role,
+        content: turn.content,
+      }));
+
+    const toolsUsed: string[] = [];
+    const contextIdsUsed: string[] = [];
+    let allowTools = mcpTools.length > 0 && Boolean(this.mcpService);
+
+    for (let iter = 0; iter <= MAX_TOOL_CALL_ITERATIONS; iter++) {
+      const body: Record<string, unknown> = {
         model,
         max_tokens: 4096,
         system: systemPrompt,
-        messages: turns.map((turn) => ({
-          role: turn.role,
-          content: turn.content,
-        })),
-      }),
-      signal: AbortSignal.timeout(45_000),
-    });
-
-    const payload = (await response.json().catch(() => null)) as {
-      content?: Array<{ type?: string; text?: string }>;
-      error?: { message?: string };
-    } | null;
-
-    if (!response.ok) {
-      const detail =
-        payload?.error?.message || `Anthropic HTTP ${response.status}`;
-      if (response.status >= 400 && response.status < 500) {
-        throw new BadRequestException(detail);
+        messages,
+      };
+      if (allowTools) {
+        body["tools"] = mcpTools.map(toAnthropicToolDefinition);
       }
-      throw new BadGatewayException(detail);
+
+      const response = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": apiKey,
+          "anthropic-version": "2023-06-01",
+        },
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(AI_REQUEST_TIMEOUT_MS),
+      });
+
+      const payload = (await response.json().catch(() => null)) as {
+        content?: Array<{
+          type?: string;
+          text?: string;
+          id?: string;
+          name?: string;
+          input?: Record<string, unknown>;
+        }>;
+        error?: { message?: string };
+      } | null;
+
+      if (!response.ok) {
+        const detail =
+          payload?.error?.message || `Anthropic HTTP ${response.status}`;
+        if (
+          response.status === 400 &&
+          allowTools &&
+          iter === 0 &&
+          isToolUnsupportedError(detail)
+        ) {
+          allowTools = false;
+          continue;
+        }
+        if (response.status >= 400 && response.status < 500) {
+          throw new BadRequestException(detail);
+        }
+        throw new BadGatewayException(detail);
+      }
+
+      const blocks = payload?.content ?? [];
+      const toolUseBlocks = blocks.filter(
+        (b): b is { type: "tool_use"; id: string; name: string; input?: Record<string, unknown> } =>
+          b.type === "tool_use" && Boolean(b.id) && Boolean(b.name)
+      );
+
+      if (
+        toolUseBlocks.length > 0 &&
+        allowTools &&
+        iter < MAX_TOOL_CALL_ITERATIONS
+      ) {
+        messages.push({ role: "assistant", content: blocks });
+
+        const toolResults: Array<Record<string, unknown>> = [];
+        for (const block of toolUseBlocks) {
+          const outcome = await this.executeMcpToolCall(
+            block.name,
+            block.input,
+            projectId,
+            toolsUsed,
+            contextIdsUsed
+          );
+          toolResults.push({
+            type: "tool_result",
+            tool_use_id: block.id,
+            content: outcome.text,
+            ...(outcome.isError ? { is_error: true } : {}),
+          });
+        }
+
+        messages.push({ role: "user", content: toolResults });
+        continue;
+      }
+
+      const text = blocks
+        .filter((block) => block.type === "text")
+        .map((block) => block.text ?? "")
+        .join("")
+        .trim();
+
+      if (!text) {
+        throw new BadGatewayException("Anthropic returned an empty response.");
+      }
+
+      return { text, toolsUsed, contextIdsUsed };
     }
 
-    const text = payload?.content
-      ?.filter((block) => block.type === "text")
-      .map((block) => block.text ?? "")
-      .join("")
-      .trim();
-
-    if (!text) {
-      throw new BadGatewayException("Anthropic returned an empty response.");
-    }
-
-    return text;
+    throw new BadGatewayException(
+      "Anthropic exceeded maximum MCP tool-calling iterations."
+    );
   }
 
   private async callOpenAiCompatible(
@@ -429,51 +690,119 @@ export class ChatService {
     apiKey: string,
     model: string,
     systemPrompt: string,
-    turns: ConversationTurn[]
-  ): Promise<string> {
+    turns: ConversationTurn[],
+    mcpTools: McpToolSummary[],
+    projectId: string
+  ): Promise<ProviderCompletionResult> {
     const isReasoningModel = /^(o1|o3|o4)\b/i.test(model);
-    const body: Record<string, unknown> = {
-      model,
-      messages: [
-        { role: "system", content: systemPrompt },
-        ...turns.map((turn) => ({ role: turn.role, content: turn.content })),
-      ],
-    };
-    if (!isReasoningModel) {
-      body["temperature"] = 0.7;
-    }
+    const messages: Array<Record<string, unknown>> = [
+      { role: "system", content: systemPrompt },
+      ...turns.map((turn) => ({ role: turn.role, content: turn.content })),
+    ];
 
-    const response = await fetch(endpoint, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify(body),
-      signal: AbortSignal.timeout(45_000),
-    });
+    const toolsUsed: string[] = [];
+    const contextIdsUsed: string[] = [];
+    let allowTools = mcpTools.length > 0 && Boolean(this.mcpService);
 
-    const payload = (await response.json().catch(() => null)) as {
-      choices?: Array<{ message?: { content?: string } }>;
-      error?: { message?: string };
-    } | null;
-
-    if (!response.ok) {
-      const detail =
-        payload?.error?.message || `${providerLabel} HTTP ${response.status}`;
-      if (response.status >= 400 && response.status < 500) {
-        throw new BadRequestException(detail);
+    for (let iter = 0; iter <= MAX_TOOL_CALL_ITERATIONS; iter++) {
+      const body: Record<string, unknown> = {
+        model,
+        messages,
+      };
+      if (!isReasoningModel) {
+        body["temperature"] = 0.7;
       }
-      throw new BadGatewayException(detail);
+      if (allowTools) {
+        body["tools"] = mcpTools.map(toOpenAiToolDefinition);
+        body["tool_choice"] = "auto";
+      }
+
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(AI_REQUEST_TIMEOUT_MS),
+      });
+
+      const payload = (await response.json().catch(() => null)) as {
+        choices?: Array<{
+          message?: {
+            role?: string;
+            content?: string | null;
+            tool_calls?: Array<{
+              id: string;
+              type?: string;
+              function: { name: string; arguments?: string };
+            }>;
+          };
+        }>;
+        error?: { message?: string };
+      } | null;
+
+      if (!response.ok) {
+        const detail =
+          payload?.error?.message || `${providerLabel} HTTP ${response.status}`;
+        if (
+          response.status === 400 &&
+          allowTools &&
+          iter === 0 &&
+          isToolUnsupportedError(detail)
+        ) {
+          allowTools = false;
+          continue;
+        }
+        if (response.status >= 400 && response.status < 500) {
+          throw new BadRequestException(detail);
+        }
+        throw new BadGatewayException(detail);
+      }
+
+      const choiceMsg = payload?.choices?.[0]?.message;
+      const toolCalls = choiceMsg?.tool_calls ?? [];
+
+      if (
+        toolCalls.length > 0 &&
+        allowTools &&
+        iter < MAX_TOOL_CALL_ITERATIONS
+      ) {
+        messages.push({
+          role: "assistant",
+          content: choiceMsg?.content ?? null,
+          tool_calls: toolCalls,
+        });
+
+        for (const tc of toolCalls) {
+          const outcome = await this.executeMcpToolCall(
+            tc.function.name,
+            tc.function.arguments,
+            projectId,
+            toolsUsed,
+            contextIdsUsed
+          );
+          messages.push({
+            role: "tool",
+            tool_call_id: tc.id,
+            content: outcome.text,
+          });
+        }
+        continue;
+      }
+
+      const text = choiceMsg?.content?.trim();
+      if (!text) {
+        throw new BadGatewayException(
+          `${providerLabel} returned an empty response.`
+        );
+      }
+
+      return { text, toolsUsed, contextIdsUsed };
     }
 
-    const text = payload?.choices?.[0]?.message?.content?.trim();
-    if (!text) {
-      throw new BadGatewayException(
-        `${providerLabel} returned an empty response.`
-      );
-    }
-
-    return text;
+    throw new BadGatewayException(
+      `${providerLabel} exceeded maximum MCP tool-calling iterations.`
+    );
   }
 }

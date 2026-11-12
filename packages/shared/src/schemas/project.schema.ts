@@ -354,6 +354,8 @@ export const chatMessageSchema = z.object({
   appliedSystemPromptTitle: z.string().optional(),
   model: z.string().optional(),
   provider: z.string().optional(),
+  mcpToolsUsed: z.array(z.string()).optional(),
+  resolvedTags: z.array(z.string()).optional(),
 });
 
 export const promptTemplateSchema = z.object({
@@ -737,6 +739,81 @@ export const auditLogItemSchema = z.object({
 });
 
 /**
+ * MCP (Model Context Protocol) & Chat Mention Schemas
+ */
+export const mcpTransportSchema = z.enum(["builtin", "streamable_http", "sse"]);
+
+export const mcpToolSummarySchema = z.object({
+  name: z.string(),
+  qualifiedName: z.string(),
+  description: z.string().default(""),
+  inputSchema: z.record(z.string(), z.unknown()).default({}),
+  serverId: z.string(),
+  serverName: z.string(),
+});
+
+export const mcpServerStatusSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  description: z.string().nullable().optional(),
+  transport: mcpTransportSchema,
+  url: z.string().nullable().optional(),
+  hasAuthHeader: z.boolean().default(false),
+  maskedAuthHeader: z.string().nullable().optional(),
+  isBuiltIn: z.boolean(),
+  isEnabled: z.boolean(),
+  status: z.enum(["connected", "disconnected", "error", "disabled"]),
+  lastError: z.string().nullable().optional(),
+  lastSyncAt: z.string().nullable().optional(),
+  tools: z.array(mcpToolSummarySchema).default([]),
+});
+
+export const mcpOverviewSchema = z.object({
+  servers: z.array(mcpServerStatusSchema),
+  totalTools: z.number().int().nonnegative(),
+});
+
+export const createMcpServerDtoSchema = z.object({
+  name: z.string().trim().min(1, "Server name is required").max(120),
+  description: z.string().trim().max(400).optional(),
+  transport: z.enum(["streamable_http", "sse"]).default("streamable_http"),
+  url: z
+    .string()
+    .trim()
+    .url("Please enter a valid HTTP(S) MCP endpoint URL")
+    .max(1000),
+  authHeader: z.string().trim().max(2000).optional(),
+  isEnabled: z.boolean().default(true),
+});
+
+export const updateMcpServerDtoSchema = z.object({
+  name: z.string().trim().min(1).max(120).optional(),
+  description: z.string().trim().max(400).nullable().optional(),
+  transport: z.enum(["streamable_http", "sse"]).optional(),
+  url: z.string().trim().url().max(1000).optional(),
+  authHeader: z.string().trim().max(2000).nullable().optional(),
+  isEnabled: z.boolean().optional(),
+});
+
+export const callMcpToolDtoSchema = z.object({
+  toolName: z.string().trim().min(1, "Tool name is required"),
+  arguments: z.record(z.string(), z.unknown()).default({}),
+  projectId: z.string().trim().optional(),
+});
+
+export const chatMentionSuggestionSchema = z.object({
+  tag: z.string().min(1),
+  label: z.string().min(1),
+  description: z.string(),
+  category: z.enum(["company", "platform", "context_item", "tool"]),
+  contextType: contextTypeSchema.optional(),
+  contextId: z.string().optional(),
+  availableCount: z.number().int().nonnegative().default(0),
+  sampleValue: z.string().optional(),
+  isReady: z.boolean().default(true),
+});
+
+/**
  * Inferred TypeScript Types
  */
 export type ContextType = z.infer<typeof contextTypeSchema>;
@@ -825,3 +902,11 @@ export type CreateUserDto = z.infer<typeof createUserDtoSchema>;
 export type UpdateUserRoleDto = z.infer<typeof updateUserRoleDtoSchema>;
 export type UpdateUserStatusDto = z.infer<typeof updateUserStatusDtoSchema>;
 export type AuditLogItem = z.infer<typeof auditLogItemSchema>;
+export type McpTransport = z.infer<typeof mcpTransportSchema>;
+export type McpToolSummary = z.infer<typeof mcpToolSummarySchema>;
+export type McpServerStatus = z.infer<typeof mcpServerStatusSchema>;
+export type McpOverview = z.infer<typeof mcpOverviewSchema>;
+export type CreateMcpServerDto = z.infer<typeof createMcpServerDtoSchema>;
+export type UpdateMcpServerDto = z.infer<typeof updateMcpServerDtoSchema>;
+export type CallMcpToolDto = z.infer<typeof callMcpToolDtoSchema>;
+export type ChatMentionSuggestion = z.infer<typeof chatMentionSuggestionSchema>;
