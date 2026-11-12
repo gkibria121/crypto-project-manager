@@ -17,6 +17,7 @@ import {
   Users,
 } from "lucide-react";
 import {
+  COMPACT_PAGE_SIZE_OPTIONS,
   LEAD_PROVIDERS,
   LEAD_PROVIDER_META,
   type CryptoProject,
@@ -26,7 +27,8 @@ import {
   type LeadProviderStatus,
   type ProjectContextItem,
 } from "@/types/project";
-import { ModalDialog } from "@/components/ui";
+import { ModalDialog, PaginationBar } from "@/components/ui";
+import { usePagination } from "@/hooks/usePagination";
 
 interface FetchLeadsDialogProps {
   dialogRef: RefObject<HTMLDialogElement | null>;
@@ -89,6 +91,11 @@ export function FetchLeadsDialog({
   const [resultBanner, setResultBanner] = useState<string | null>(null);
 
   const availableLeads = project.contexts.filter((c) => c.type === "lead");
+  const leadsPagination = usePagination(availableLeads, {
+    initialPageSize: 5,
+    pageSizeOptions: COMPACT_PAGE_SIZE_OPTIONS,
+    resetKey: project.id,
+  });
   const statusMap = new Map(providerStatuses.map((s) => [s.provider, s]));
   const activeStatus = statusMap.get(selectedProvider);
   const activeMeta = LEAD_PROVIDER_META[selectedProvider];
@@ -261,8 +268,8 @@ export function FetchLeadsDialog({
                 )}
               </div>
             ) : (
-              <div className="space-y-2 max-h-[52dvh] overflow-y-auto scroller pr-1">
-                {availableLeads.map((ctx) => {
+              <div className="space-y-2 max-h-[48dvh] overflow-y-auto scroller pr-1">
+                {leadsPagination.items.map((ctx) => {
                   const pData = (ctx.scrapedMetadata?.platformData ?? {}) as Record<
                     string,
                     unknown
@@ -405,6 +412,19 @@ export function FetchLeadsDialog({
                 })}
               </div>
             )}
+
+            <PaginationBar
+              variant="compact"
+              meta={leadsPagination.meta}
+              pageSizeOptions={leadsPagination.pageSizeOptions}
+              onPageChange={leadsPagination.setPage}
+              onPageSizeChange={leadsPagination.setPageSize}
+              itemLabel="leads"
+              ariaLabel="Project leads pagination"
+              hideWhenSinglePage={
+                availableLeads.length <= COMPACT_PAGE_SIZE_OPTIONS[0]
+              }
+            />
 
             <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#e4e6eb] dark:border-[#2a3942]">
               <button

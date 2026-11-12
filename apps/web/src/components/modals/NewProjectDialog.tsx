@@ -191,7 +191,7 @@ export function NewProjectDialog({
                     ? "Custom photo uploaded"
                     : "Or paste image URL..."
                 }
-                className="flex-1 min-w-36 px-2.5 py-2 sm:py-1.5 text-xs rounded-lg bg-white dark:bg-[#202c33] outline-none"
+                className="w-full sm:flex-1 min-w-0 px-2.5 py-2 sm:py-1.5 text-xs rounded-lg bg-white dark:bg-[#202c33] outline-none"
               />
             </div>
 

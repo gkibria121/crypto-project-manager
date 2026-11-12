@@ -263,12 +263,12 @@ export function ContextInspector({
 
       {/* Project Contexts Section */}
       <div className="px-4 py-3 border-b border-[#e4e6eb] dark:border-[#222d34]">
-        <div className="flex items-center justify-between gap-2 mb-2.5">
-          <h3 className="text-[13px] font-semibold text-[#050505] dark:text-[#e9edef] truncate">
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-2.5">
+          <h3 className="text-[13px] font-semibold text-[#050505] dark:text-[#e9edef]">
             Context ({activeCount}/{project.contexts.length})
           </h3>
 
-          <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
+          <div className="flex items-center gap-2 flex-wrap">
             {onViewScrapedData && hasAnyScrapedData && (
               <button
                 type="button"
@@ -625,7 +625,7 @@ export function ContextInspector({
       </div>
 
       {filteredContexts.length > 0 && (
-        <div className="px-4 pb-3 border-t border-[#e4e6eb] dark:border-[#222d34] shrink-0">
+        <div className="px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] border-t border-[#e4e6eb] dark:border-[#222d34] shrink-0">
           <PaginationBar
             variant="compact"
             meta={contextsPagination.meta}

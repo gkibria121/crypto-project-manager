@@ -366,7 +366,7 @@ export function EditProjectDialog({
               <span className="block text-[11px] font-semibold mb-1.5 text-[#65676b] dark:text-[#8696a0]">
                 Preset Profile Logos
               </span>
-              <div className="grid grid-cols-4 gap-1.5">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
                 {PRESET_PROJECT_LOGOS.map((preset) => {
                   const isSelected = watchedLogoUrl === preset.url;
                   return (

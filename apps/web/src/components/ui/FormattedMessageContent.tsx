@@ -34,7 +34,7 @@ export function FormattedMessageContent({
   };
 
   return (
-    <div className="space-y-1.5 text-[14px] leading-relaxed">
+    <div className="space-y-1.5 text-[14px] leading-relaxed [overflow-wrap:anywhere]">
       {lines.map((line, idx) => {
         const trimmed = line.trim();
         if (!trimmed) return <div key={idx} className="h-1" />;

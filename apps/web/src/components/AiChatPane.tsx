@@ -457,7 +457,7 @@ export function AiChatPane({
         </div>
 
         {/* Right Header Icon Controls */}
-        <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
+        <div className="flex items-center gap-0.5 sm:gap-1.5 shrink-0">
           {mcpOverview && (
             <button
               type="button"
@@ -467,7 +467,7 @@ export function AiChatPane({
                   : undefined
               }
               title={`MCP Servers active (${mcpOverview.totalTools} tools discovered). Click to inspect or manage MCP servers.`}
-              className={`hidden sm:inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-semibold bg-emerald-500/12 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300 transition ${
+              className={`hidden md:inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-semibold bg-emerald-500/12 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300 transition ${
                 canWriteSettings
                   ? "hover:bg-emerald-500/20 cursor-pointer"
                   : "cursor-default"
@@ -482,9 +482,9 @@ export function AiChatPane({
             type="button"
             onClick={onOpenChecklistModal}
             title="Check project feature checklist"
-            className="inline-flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full text-xs font-semibold bg-[#f0f2f5] hover:bg-[#e4e6eb] dark:bg-[#2a3942] dark:hover:bg-[#374045] text-[#050505] dark:text-[#e9edef] transition cursor-pointer"
+            className="inline-flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 rounded-full text-[11px] sm:text-xs font-semibold bg-[#f0f2f5] hover:bg-[#e4e6eb] dark:bg-[#2a3942] dark:hover:bg-[#374045] text-[#050505] dark:text-[#e9edef] transition cursor-pointer"
           >
-            <ListChecks className="w-4 h-4 text-[#0084ff] shrink-0" />
+            <ListChecks className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#0084ff] shrink-0" />
             <span>
               <span className="hidden sm:inline">Checklist </span>(
               {checkedCount}/{checklistItems.length})
@@ -497,7 +497,7 @@ export function AiChatPane({
               onClick={onOpenGlobalSettings}
               title="AI providers, system prompts & global checklist"
               aria-label="Global settings"
-              className="w-9 h-9 rounded-full text-[#65676b] dark:text-[#8696a0] hover:bg-[#f0f2f5] dark:hover:bg-[#2a3942] flex items-center justify-center transition cursor-pointer"
+              className="w-8 h-8 sm:w-9 sm:h-9 rounded-full text-[#65676b] dark:text-[#8696a0] hover:bg-[#f0f2f5] dark:hover:bg-[#2a3942] flex items-center justify-center transition cursor-pointer"
             >
               <Settings className="w-4 h-4" />
             </button>
@@ -509,7 +509,7 @@ export function AiChatPane({
               onClick={onResetConversation}
               title="New chat / Clear conversation"
               aria-label="Clear chat"
-              className="w-9 h-9 rounded-full text-[#65676b] dark:text-[#8696a0] hover:bg-[#f0f2f5] dark:hover:bg-[#2a3942] flex items-center justify-center transition cursor-pointer"
+              className="w-8 h-8 sm:w-9 sm:h-9 rounded-full text-[#65676b] dark:text-[#8696a0] hover:bg-[#f0f2f5] dark:hover:bg-[#2a3942] flex items-center justify-center transition cursor-pointer"
             >
               <RotateCcw className="w-4 h-4" />
             </button>
@@ -520,13 +520,13 @@ export function AiChatPane({
             onClick={onToggleContextPanel}
             title={isContextPanelOpen ? "Hide project info" : "Show project info"}
             aria-label="Toggle project context panel"
-            className={`w-9 h-9 rounded-full flex items-center justify-center transition cursor-pointer ${
+            className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center transition cursor-pointer ${
               isContextPanelOpen
                 ? "bg-[#e7f3ff] text-[#0084ff] dark:bg-[#0084ff]/20 dark:text-[#4599ff]"
                 : "text-[#65676b] dark:text-[#8696a0] hover:bg-[#f0f2f5] dark:hover:bg-[#2a3942]"
             }`}
           >
-            <Info className="w-5 h-5" />
+            <Info className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
         </div>
       </header>
@@ -672,13 +672,13 @@ export function AiChatPane({
               }`}
             >
               {!isAdmin && (
-                <div className="hidden xs:block sm:block shrink-0 w-7 h-7 rounded-full bg-[#0084ff]/15 text-[#0084ff] flex items-center justify-center">
+                <div className="hidden sm:flex shrink-0 w-7 h-7 rounded-full bg-[#0084ff]/15 text-[#0084ff] items-center justify-center">
                   <Bot className="w-4 h-4" aria-hidden="true" />
                 </div>
               )}
 
               <div
-                className={`max-w-[90%] sm:max-w-xl min-w-0 flex flex-col ${
+                className={`max-w-[92%] sm:max-w-xl min-w-0 flex flex-col ${
                   isAdmin ? "items-end" : "items-start"
                 }`}
               >
@@ -864,9 +864,9 @@ export function AiChatPane({
             aria-label="Context and MCP tag suggestions"
             className="absolute bottom-full left-3 right-3 sm:right-auto sm:w-md mb-2 rounded-2xl bg-white dark:bg-[#202c33] border border-[#e4e6eb] dark:border-[#2a3942] shadow-xl p-2 z-30 max-h-64 overflow-y-auto scroller space-y-1"
           >
-            <div className="flex items-center justify-between px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-[#65676b] dark:text-[#8696a0]">
+            <div className="flex items-center justify-between gap-2 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-[#65676b] dark:text-[#8696a0]">
               <span>Backend @Tags & MCP Tools</span>
-              <span>↑↓ Navigate · Enter to insert</span>
+              <span className="hidden sm:inline">↑↓ Navigate · Enter to insert</span>
             </div>
             {filteredMentions.length === 0 ? (
               <div className="px-2.5 py-2 text-xs text-[#65676b] dark:text-[#8696a0]">
@@ -1035,7 +1035,7 @@ export function AiChatPane({
             ref={formRef}
             onSubmit={handleFormSubmit}
             noValidate
-            className="flex items-end gap-1.5 sm:gap-2"
+            className="flex items-end gap-1 sm:gap-2"
           >
             <button
               type="button"
@@ -1050,7 +1050,7 @@ export function AiChatPane({
               }}
               title="Insert @context, @linkedin, @website, @x, or @scrape tag"
               aria-label="Browse @tags from backend"
-              className={`w-10 h-10 sm:w-9 sm:h-9 rounded-full flex items-center justify-center shrink-0 transition cursor-pointer ${
+              className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 transition cursor-pointer ${
                 mentionQuery !== null
                   ? "bg-[#e7f3ff] text-[#0084ff] dark:bg-[#0084ff]/20 dark:text-[#4599ff]"
                   : "text-[#65676b] dark:text-[#8696a0] hover:bg-[#f0f2f5] dark:hover:bg-[#2a3942]"
@@ -1065,7 +1065,7 @@ export function AiChatPane({
               title="Attach project context to this message"
               aria-label="Attach project context to this message"
               aria-expanded={isAttachMenuOpen}
-              className={`w-10 h-10 sm:w-9 sm:h-9 rounded-full flex items-center justify-center shrink-0 transition cursor-pointer ${
+              className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 transition cursor-pointer ${
                 totalAttachedCount > 0 || isAttachMenuOpen
                   ? "bg-[#e7f3ff] text-[#0084ff] dark:bg-[#0084ff]/20 dark:text-[#4599ff]"
                   : "text-[#65676b] dark:text-[#8696a0] hover:bg-[#f0f2f5] dark:hover:bg-[#2a3942]"
@@ -1080,13 +1080,13 @@ export function AiChatPane({
                 onClick={onOpenAddContextModal}
                 title="Save new project link or note"
                 aria-label="Add project context or link"
-                className="w-10 h-10 sm:w-9 sm:h-9 rounded-full text-[#0084ff] hover:bg-[#f0f2f5] dark:hover:bg-[#2a3942] flex items-center justify-center shrink-0 transition cursor-pointer"
+                className="w-9 h-9 rounded-full text-[#0084ff] hover:bg-[#f0f2f5] dark:hover:bg-[#2a3942] flex items-center justify-center shrink-0 transition cursor-pointer"
               >
                 <Plus className="w-5 h-5" />
               </button>
             )}
 
-            <div className="flex-1 min-w-0 rounded-3xl bg-[#f0f2f5] dark:bg-[#2a3942] px-3.5 sm:px-4 py-2 flex items-center">
+            <div className="flex-1 min-w-0 rounded-3xl bg-[#f0f2f5] dark:bg-[#2a3942] px-3 sm:px-4 py-1.5 sm:py-2 flex items-center">
               <label htmlFor={chatInputId} className="sr-only">
                 Type a message
               </label>
@@ -1101,8 +1101,8 @@ export function AiChatPane({
                 onKeyDown={handleTextareaKeyDown}
                 placeholder={
                   totalAttachedCount > 0
-                    ? `Message AI (${totalAttachedCount} context${totalAttachedCount > 1 ? "s" : ""} attached)...`
-                    : "Message AI... (type @ for @context, @linkedin, @website, @scrape)"
+                    ? `Message AI (${totalAttachedCount} attached)...`
+                    : "Message AI... (@tags)"
                 }
                 className="chat-auto-textarea bg-transparent text-base sm:text-[14px] text-[#050505] dark:text-[#e9edef] placeholder:text-[#65676b] dark:placeholder:text-[#8696a0] outline-none resize-none"
               />
@@ -1112,7 +1112,7 @@ export function AiChatPane({
               type="submit"
               disabled={!watchedContent.trim() || isAiTyping}
               aria-label="Send message"
-              className="w-10 h-10 sm:w-9 sm:h-9 rounded-full bg-[#0084ff] hover:bg-[#0073e6] disabled:opacity-40 disabled:pointer-events-none text-white flex items-center justify-center shrink-0 transition cursor-pointer"
+              className="w-9 h-9 rounded-full bg-[#0084ff] hover:bg-[#0073e6] disabled:opacity-40 disabled:pointer-events-none text-white flex items-center justify-center shrink-0 transition cursor-pointer"
             >
               <Send className="w-4 h-4" />
             </button>

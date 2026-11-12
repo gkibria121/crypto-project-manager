@@ -93,7 +93,7 @@ export function PaginationBar({
               disabled={!meta.hasPreviousPage}
               onClick={() => onPageChange(meta.currentPage - 1)}
               aria-label="Previous page"
-              className="min-w-6 min-h-6 p-1 rounded-lg bg-[#f0f2f5] hover:bg-[#e4e6eb] dark:bg-[#202c33] dark:hover:bg-[#2a3942] text-[#050505] dark:text-[#e9edef] disabled:opacity-40 disabled:pointer-events-none inline-flex items-center justify-center transition cursor-pointer"
+              className="min-w-8 min-h-8 sm:min-w-6 sm:min-h-6 p-1.5 sm:p-1 rounded-lg bg-[#f0f2f5] hover:bg-[#e4e6eb] dark:bg-[#202c33] dark:hover:bg-[#2a3942] text-[#050505] dark:text-[#e9edef] disabled:opacity-40 disabled:pointer-events-none inline-flex items-center justify-center transition cursor-pointer"
             >
               <ChevronLeft className="w-3.5 h-3.5" aria-hidden="true" />
             </button>
@@ -107,7 +107,7 @@ export function PaginationBar({
               disabled={!meta.hasNextPage}
               onClick={() => onPageChange(meta.currentPage + 1)}
               aria-label="Next page"
-              className="min-w-6 min-h-6 p-1 rounded-lg bg-[#f0f2f5] hover:bg-[#e4e6eb] dark:bg-[#202c33] dark:hover:bg-[#2a3942] text-[#050505] dark:text-[#e9edef] disabled:opacity-40 disabled:pointer-events-none inline-flex items-center justify-center transition cursor-pointer"
+              className="min-w-8 min-h-8 sm:min-w-6 sm:min-h-6 p-1.5 sm:p-1 rounded-lg bg-[#f0f2f5] hover:bg-[#e4e6eb] dark:bg-[#202c33] dark:hover:bg-[#2a3942] text-[#050505] dark:text-[#e9edef] disabled:opacity-40 disabled:pointer-events-none inline-flex items-center justify-center transition cursor-pointer"
             >
               <ChevronRight className="w-3.5 h-3.5" aria-hidden="true" />
             </button>
@@ -166,7 +166,7 @@ export function PaginationBar({
             disabled={!meta.hasPreviousPage}
             onClick={() => onPageChange(1)}
             aria-label="First page"
-            className="min-w-7 min-h-7 p-1.5 rounded-lg bg-[#f0f2f5] hover:bg-[#e4e6eb] dark:bg-[#111b21] dark:hover:bg-[#2a3942] text-[#050505] dark:text-[#e9edef] disabled:opacity-40 disabled:pointer-events-none inline-flex items-center justify-center transition cursor-pointer"
+            className="min-w-8 min-h-8 sm:min-w-7 sm:min-h-7 p-1.5 rounded-lg bg-[#f0f2f5] hover:bg-[#e4e6eb] dark:bg-[#111b21] dark:hover:bg-[#2a3942] text-[#050505] dark:text-[#e9edef] disabled:opacity-40 disabled:pointer-events-none inline-flex items-center justify-center transition cursor-pointer"
           >
             <ChevronsLeft className="w-3.5 h-3.5" aria-hidden="true" />
           </button>
@@ -176,7 +176,7 @@ export function PaginationBar({
             disabled={!meta.hasPreviousPage}
             onClick={() => onPageChange(meta.currentPage - 1)}
             aria-label="Previous page"
-            className="min-w-7 min-h-7 px-2 py-1 rounded-lg bg-[#f0f2f5] hover:bg-[#e4e6eb] dark:bg-[#111b21] dark:hover:bg-[#2a3942] text-[#050505] dark:text-[#e9edef] font-semibold disabled:opacity-40 disabled:pointer-events-none inline-flex items-center gap-1 transition cursor-pointer"
+            className="min-w-8 min-h-8 sm:min-w-7 sm:min-h-7 px-2 py-1 rounded-lg bg-[#f0f2f5] hover:bg-[#e4e6eb] dark:bg-[#111b21] dark:hover:bg-[#2a3942] text-[#050505] dark:text-[#e9edef] font-semibold disabled:opacity-40 disabled:pointer-events-none inline-flex items-center gap-1 transition cursor-pointer"
           >
             <ChevronLeft className="w-3.5 h-3.5" aria-hidden="true" />
             <span className="hidden xs:inline">Prev</span>
@@ -187,7 +187,7 @@ export function PaginationBar({
               <span
                 key={`ellipsis-${idx}`}
                 aria-hidden="true"
-                className="px-1.5 text-xs text-[#65676b] dark:text-[#8696a0] select-none"
+                className="px-1 text-xs text-[#65676b] dark:text-[#8696a0] select-none"
               >
                 …
               </span>
@@ -198,7 +198,7 @@ export function PaginationBar({
                 onClick={() => onPageChange(item)}
                 aria-current={item === meta.currentPage ? "page" : undefined}
                 aria-label={`Page ${item}`}
-                className={`min-w-7 min-h-7 px-2.5 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                className={`min-w-8 min-h-8 sm:min-w-7 sm:min-h-7 px-2.5 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
                   item === meta.currentPage
                     ? "bg-[#0084ff] text-white"
                     : "bg-[#f0f2f5] hover:bg-[#e4e6eb] dark:bg-[#111b21] dark:hover:bg-[#2a3942] text-[#050505] dark:text-[#e9edef]"
@@ -214,7 +214,7 @@ export function PaginationBar({
             disabled={!meta.hasNextPage}
             onClick={() => onPageChange(meta.currentPage + 1)}
             aria-label="Next page"
-            className="min-w-7 min-h-7 px-2 py-1 rounded-lg bg-[#f0f2f5] hover:bg-[#e4e6eb] dark:bg-[#111b21] dark:hover:bg-[#2a3942] text-[#050505] dark:text-[#e9edef] font-semibold disabled:opacity-40 disabled:pointer-events-none inline-flex items-center gap-1 transition cursor-pointer"
+            className="min-w-8 min-h-8 sm:min-w-7 sm:min-h-7 px-2 py-1 rounded-lg bg-[#f0f2f5] hover:bg-[#e4e6eb] dark:bg-[#111b21] dark:hover:bg-[#2a3942] text-[#050505] dark:text-[#e9edef] font-semibold disabled:opacity-40 disabled:pointer-events-none inline-flex items-center gap-1 transition cursor-pointer"
           >
             <span className="hidden xs:inline">Next</span>
             <ChevronRight className="w-3.5 h-3.5" aria-hidden="true" />
@@ -225,7 +225,7 @@ export function PaginationBar({
             disabled={!meta.hasNextPage}
             onClick={() => onPageChange(meta.totalPages)}
             aria-label="Last page"
-            className="min-w-7 min-h-7 p-1.5 rounded-lg bg-[#f0f2f5] hover:bg-[#e4e6eb] dark:bg-[#111b21] dark:hover:bg-[#2a3942] text-[#050505] dark:text-[#e9edef] disabled:opacity-40 disabled:pointer-events-none inline-flex items-center justify-center transition cursor-pointer"
+            className="min-w-8 min-h-8 sm:min-w-7 sm:min-h-7 p-1.5 rounded-lg bg-[#f0f2f5] hover:bg-[#e4e6eb] dark:bg-[#111b21] dark:hover:bg-[#2a3942] text-[#050505] dark:text-[#e9edef] disabled:opacity-40 disabled:pointer-events-none inline-flex items-center justify-center transition cursor-pointer"
           >
             <ChevronsRight className="w-3.5 h-3.5" aria-hidden="true" />
           </button>

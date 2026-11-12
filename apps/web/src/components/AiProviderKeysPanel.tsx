@@ -426,7 +426,7 @@ export function AiProviderKeysPanel({
               </div>
 
               {isCustomMode && canEdit && (
-                <div className="flex items-center gap-2">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                   <label htmlFor={customModelInputId} className="sr-only">
                     Custom model ID for {meta.shortLabel}
                   </label>
@@ -441,28 +441,30 @@ export function AiProviderKeysPanel({
                       }))
                     }
                     placeholder={`Enter custom ${meta.shortLabel} model ID...`}
-                    className="flex-1 px-3 py-1.5 text-xs font-mono rounded-lg bg-white dark:bg-[#202c33] text-[#050505] dark:text-[#e9edef] border border-[#e4e6eb] dark:border-[#2a3942] outline-none"
+                    className="flex-1 min-w-0 px-3 py-1.5 text-xs font-mono rounded-lg bg-white dark:bg-[#202c33] text-[#050505] dark:text-[#e9edef] border border-[#e4e6eb] dark:border-[#2a3942] outline-none"
                   />
-                  <button
-                    type="button"
-                    disabled={isBusy}
-                    onClick={() => void handleSaveCustomModel(provider)}
-                    className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#0084ff] hover:bg-[#0073e6] disabled:opacity-50 text-white transition cursor-pointer"
-                  >
-                    Apply Model
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setCustomModelMode((prev) => ({
-                        ...prev,
-                        [provider]: false,
-                      }))
-                    }
-                    className="px-2.5 py-1.5 rounded-lg text-xs font-medium text-[#65676b] dark:text-[#8696a0] hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer"
-                  >
-                    Cancel
-                  </button>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      disabled={isBusy}
+                      onClick={() => void handleSaveCustomModel(provider)}
+                      className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#0084ff] hover:bg-[#0073e6] disabled:opacity-50 text-white transition cursor-pointer"
+                    >
+                      Apply Model
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setCustomModelMode((prev) => ({
+                          ...prev,
+                          [provider]: false,
+                        }))
+                      }
+                      className="px-2.5 py-1.5 rounded-lg text-xs font-medium text-[#65676b] dark:text-[#8696a0] hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                  </div>
                 </div>
               )}
 

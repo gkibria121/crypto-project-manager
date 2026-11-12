@@ -1200,13 +1200,24 @@ export function AdminDashboard() {
             </div>
           </div>
 
-          <Link
-            href="/"
-            className="md:hidden inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-[#f0f2f5] dark:bg-[#202c33] text-[#050505] dark:text-[#e9edef]"
-          >
-            <MessageSquare className="w-3.5 h-3.5" aria-hidden="true" />
-            <span>Workspace</span>
-          </Link>
+          <div className="md:hidden flex items-center gap-1.5 shrink-0">
+            <Link
+              href="/"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-[#f0f2f5] dark:bg-[#202c33] text-[#050505] dark:text-[#e9edef]"
+            >
+              <MessageSquare className="w-3.5 h-3.5" aria-hidden="true" />
+              <span>Workspace</span>
+            </Link>
+            <button
+              type="button"
+              onClick={() => logoutMutation.mutate()}
+              aria-label="Sign out"
+              title="Sign out"
+              className="p-2 rounded-lg bg-[#f0f2f5] dark:bg-[#202c33] text-[#65676b] hover:text-rose-600 dark:text-[#8696a0] dark:hover:text-rose-400 transition cursor-pointer"
+            >
+              <LogOut className="w-3.5 h-3.5" aria-hidden="true" />
+            </button>
+          </div>
         </div>
 
         {/* Left-Hand Menu Navigation Landmark */}
@@ -1338,7 +1349,7 @@ export function AdminDashboard() {
       </aside>
 
       {/* RIGHT-HAND CONTENT PANE: Contextual Header + Active Section View */}
-      <div className="flex-1 min-w-0 flex flex-col h-full overflow-hidden">
+      <div className="flex-1 min-w-0 min-h-0 flex flex-col md:h-full overflow-hidden">
         {/* Right-Pane Sticky Header */}
         <header className="shrink-0 bg-white dark:bg-[#111b21] border-b border-[#e4e6eb] dark:border-[#222d34] px-4 sm:px-6 py-3.5">
           <div
@@ -1426,8 +1437,8 @@ export function AdminDashboard() {
         <main
           className={
             isProjectsSection
-              ? "flex-1 min-h-0 flex flex-col overflow-y-auto md:overflow-hidden p-3 sm:p-4"
-              : "flex-1 overflow-y-auto scroller p-4 sm:p-6"
+              ? "flex-1 min-h-0 flex flex-col overflow-y-auto md:overflow-hidden p-3 sm:p-4 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+              : "flex-1 min-h-0 overflow-y-auto scroller p-3.5 sm:p-6 pb-[max(1rem,env(safe-area-inset-bottom))]"
           }
         >
           <div
@@ -1754,7 +1765,7 @@ export function AdminDashboard() {
                     </div>
 
                     {/* Microservice Status Strip */}
-                    <div className="grid grid-cols-3 gap-2.5">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                       <div className="rounded-xl bg-[#f0f2f5] dark:bg-[#111b21] p-2.5 border border-[#e4e6eb] dark:border-[#2a3942]">
                         <div className="flex items-center gap-1.5 text-[11px] text-[#65676b] dark:text-[#8696a0]">
                           <Server
@@ -1935,7 +1946,7 @@ export function AdminDashboard() {
                         </FilterChip>
                       </div>
 
-                      <search className="relative min-w-56">
+                      <search className="relative w-full sm:w-64 sm:min-w-56">
                         <label
                           htmlFor={userSearchInputId}
                           className="visually-hidden"
@@ -2115,6 +2126,17 @@ export function AdminDashboard() {
                       </div>
                     </form>
                   )}
+
+                  <PaginationBar
+                    variant="compact"
+                    meta={usersPagination.meta}
+                    pageSizeOptions={usersPagination.pageSizeOptions}
+                    onPageChange={usersPagination.setPage}
+                    onPageSizeChange={usersPagination.setPageSize}
+                    itemLabel="users"
+                    ariaLabel="Users directory mobile pagination"
+                    className="md:hidden pb-2 border-b border-[#e4e6eb] dark:border-[#2a3942]"
+                  />
 
                   {/* Semantic Responsive Data Table for Users */}
                   <div
@@ -2396,8 +2418,8 @@ export function AdminDashboard() {
                       </p>
                     </div>
 
-                    <div className="flex items-center gap-2 shrink-0">
-                      <search className="relative min-w-56 flex-1 sm:w-64 sm:flex-none">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 shrink-0 w-full sm:w-auto">
+                      <search className="relative w-full sm:w-64 sm:min-w-56">
                         <label
                           htmlFor={projectSearchInputId}
                           className="visually-hidden"
@@ -2623,6 +2645,17 @@ export function AdminDashboard() {
                     </div>
                   </div>
                 )}
+
+                <PaginationBar
+                  variant="compact"
+                  meta={projectsPagination.meta}
+                  pageSizeOptions={projectsPagination.pageSizeOptions}
+                  onPageChange={projectsPagination.setPage}
+                  onPageSizeChange={projectsPagination.setPageSize}
+                  itemLabel="projects"
+                  ariaLabel="Crypto projects mobile pagination"
+                  className="md:hidden pb-2 border-b border-[#e4e6eb] dark:border-[#2a3942]"
+                />
 
                 {/* Semantic Responsive Data Table for Projects */}
                 <div
@@ -3565,7 +3598,7 @@ export function AdminDashboard() {
                       ))}
                     </div>
 
-                    <search className="relative min-w-56">
+                    <search className="relative w-full sm:w-64 sm:min-w-56">
                       <label
                         htmlFor={auditSearchInputId}
                         className="visually-hidden"
@@ -3597,6 +3630,17 @@ export function AdminDashboard() {
                   </p>
                 ) : (
                   <>
+                    <PaginationBar
+                      variant="compact"
+                      meta={auditLogsPagination.meta}
+                      pageSizeOptions={auditLogsPagination.pageSizeOptions}
+                      onPageChange={auditLogsPagination.setPage}
+                      onPageSizeChange={auditLogsPagination.setPageSize}
+                      itemLabel="audit events"
+                      ariaLabel="Security audit logs mobile pagination"
+                      className="md:hidden pb-2 border-b border-[#e4e6eb] dark:border-[#2a3942]"
+                    />
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
                       {auditLogsPagination.items.map((log) => (
                         <div

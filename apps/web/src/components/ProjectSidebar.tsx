@@ -124,7 +124,7 @@ export function ProjectSidebar({
     );
 
   const sidebarPagination = usePagination(filteredProjects, {
-    initialPageSize: 15,
+    initialPageSize: 10,
     pageSizeOptions: COMPACT_PAGE_SIZE_OPTIONS,
     resetKey: `${activeFilter}:${searchQuery}`,
   });
@@ -134,10 +134,10 @@ export function ProjectSidebar({
       aria-label="Projects"
       className={`${
         isMobileHidden ? "hidden md:flex" : "flex"
-      } w-full md:w-76 lg:w-88 shrink-0 h-full border-r border-[#e4e6eb] dark:border-[#222d34] bg-white dark:bg-[#111b21] flex-col min-w-0`}
+      } w-full md:w-76 lg:w-88 shrink-0 h-full min-h-0 border-r border-[#e4e6eb] dark:border-[#222d34] bg-white dark:bg-[#111b21] flex-col min-w-0`}
     >
       {/* WhatsApp / Messenger Top Header */}
-      <div className="px-3.5 sm:px-4 pt-3.5 pb-2.5">
+      <div className="shrink-0 px-3.5 sm:px-4 pt-3.5 pb-2.5">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2 min-w-0">
             <h1 className="text-xl font-bold tracking-tight text-[#050505] dark:text-[#e9edef]">
@@ -158,7 +158,7 @@ export function ProjectSidebar({
                 className="relative h-10 sm:h-9 px-2.5 rounded-full bg-[#e7f3ff] hover:bg-[#d0e7ff] dark:bg-[#0084ff]/20 dark:hover:bg-[#0084ff]/30 text-[#0084ff] dark:text-[#4599ff] flex items-center gap-1.5 text-xs font-semibold transition"
               >
                 <LayoutDashboard className="w-4 h-4" aria-hidden="true" />
-                <span className="hidden lg:inline">Admin</span>
+                <span className="xs:inline sm:hidden lg:inline">Admin</span>
               
               </Link>
             )} 
@@ -225,7 +225,7 @@ export function ProjectSidebar({
       </div>
 
       {/* Chat List */}
-      <div className="flex-1 overflow-y-auto scroller px-2 py-1 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+      <div className="flex-1 min-h-0 overflow-y-auto scroller px-2 py-1">
         {filteredProjects.length === 0 ? (
           <div className="text-center py-12 px-4">
             <p className="text-sm text-[#65676b] dark:text-[#8696a0]">
@@ -342,7 +342,7 @@ export function ProjectSidebar({
 
       {/* Shared Sidebar Pagination Bar */}
       {filteredProjects.length > 0 && (
-        <div className="px-3 pb-2 border-t border-[#e4e6eb] dark:border-[#222d34] bg-white dark:bg-[#111b21]">
+        <div className="shrink-0 px-3 pb-2 border-t border-[#e4e6eb] dark:border-[#222d34] bg-white dark:bg-[#111b21]">
           <PaginationBar
             variant="compact"
             meta={sidebarPagination.meta}
@@ -357,7 +357,7 @@ export function ProjectSidebar({
       )}
 
       {/* Authenticated User Profile & RBAC Footer */}
-      <div className="px-3.5 py-2.5 border-t border-[#e4e6eb] dark:border-[#222d34] bg-[#f0f2f5]/50 dark:bg-[#202c33]/60 flex items-center justify-between gap-2">
+      <div className="shrink-0 px-3.5 pt-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))] border-t border-[#e4e6eb] dark:border-[#222d34] bg-[#f0f2f5]/50 dark:bg-[#202c33]/60 flex items-center justify-between gap-2">
         <button
           type="button"
           onClick={onOpenTeamRbacModal}
