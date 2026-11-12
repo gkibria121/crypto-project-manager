@@ -297,14 +297,39 @@ export const scanSingleChecklistDtoSchema = z.object({
   item: checklistItemConfigSchema.optional(),
 });
 
+export const syncLogLevelSchema = z.enum([
+  "info",
+  "success",
+  "update",
+  "warn",
+  "error",
+]);
+
+export const syncLogEntrySchema = z.object({
+  id: z.string(),
+  timestamp: z.string(),
+  level: syncLogLevelSchema,
+  message: z.string(),
+  ticker: z.string().optional(),
+  projectName: z.string().optional(),
+});
+
 export const syncProjectsDtoSchema = z.object({
   provider: syncProviderSchema,
   limit: z.coerce
     .number()
     .int()
-    .min(1, "Sync limit must be at least 1")
-    .max(25, "Sync limit must be 25 or fewer")
-    .default(5),
+    .min(1, "Sync limit must be at least 1 per minute")
+    .max(1000, "Sync limit must be 1000 or fewer per minute")
+    .default(10),
+  page: z.coerce
+    .number()
+    .int()
+    .min(1, "Page must be at least 1")
+    .max(10000, "Page must be 10000 or fewer")
+    .default(1),
+  noLimit: z.boolean().optional().default(false),
+  continuous: z.boolean().optional().default(true),
 });
 
 export const syncProviderStatusSchema = z.object({
@@ -315,15 +340,35 @@ export const syncProviderStatusSchema = z.object({
   configured: z.boolean(),
 });
 
+export const syncJobStateSchema = z.object({
+  isRunning: z.boolean(),
+  isFetchingBatch: z.boolean(),
+  provider: syncProviderSchema.nullable(),
+  providerName: z.string().nullable(),
+  limit: z.number().int().positive(),
+  noLimit: z.boolean(),
+  continuous: z.boolean(),
+  currentPage: z.number().int().positive(),
+  countdownSeconds: z.number().int().nonnegative().nullable(),
+  totalCreated: z.number().int().nonnegative(),
+  totalUpdated: z.number().int().nonnegative(),
+  pagesCompleted: z.number().int().nonnegative(),
+  lastError: z.string().nullable(),
+  logs: z.array(syncLogEntrySchema).default([]),
+});
+
 export const syncProjectsResponseSchema = z.object({
   provider: syncProviderSchema,
   providerName: z.string(),
+  page: z.number().int().positive().default(1),
+  hasMore: z.boolean().default(false),
   syncedCount: z.number().int().nonnegative(),
   updatedCount: z.number().int().nonnegative().default(0),
   skippedCount: z.number().int().nonnegative(),
-  createdProjects: z.array(cryptoProjectSchema),
+  createdProjects: z.array(cryptoProjectSchema).default([]),
   updatedProjects: z.array(cryptoProjectSchema).default([]),
-  projects: z.array(cryptoProjectSchema),
+  projects: z.array(cryptoProjectSchema).default([]),
+  logs: z.array(syncLogEntrySchema).default([]),
   message: z.string(),
 });
 
@@ -430,8 +475,11 @@ export type ProjectChain = z.infer<typeof projectChainSchema>;
 export type MessageSender = z.infer<typeof messageSenderSchema>;
 export type ScrapeStatus = z.infer<typeof scrapeStatusSchema>;
 export type SyncProvider = z.infer<typeof syncProviderSchema>;
+export type SyncLogLevel = z.infer<typeof syncLogLevelSchema>;
+export type SyncLogEntry = z.infer<typeof syncLogEntrySchema>;
 export type SyncProjectsDto = z.infer<typeof syncProjectsDtoSchema>;
 export type SyncProviderStatus = z.infer<typeof syncProviderStatusSchema>;
+export type SyncJobState = z.infer<typeof syncJobStateSchema>;
 export type SyncProjectsResponse = z.infer<typeof syncProjectsResponseSchema>;
 export type UserRole = z.infer<typeof userRoleSchema>;
 export type Permission = z.infer<typeof permissionSchema>;

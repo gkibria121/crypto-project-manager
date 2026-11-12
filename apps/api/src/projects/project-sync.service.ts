@@ -12,15 +12,20 @@ import {
   type CryptoProject,
   type ProjectChain,
   type ProjectStage,
+  type SyncJobState,
+  type SyncLogEntry,
+  type SyncLogLevel,
   type SyncProjectsDto,
   type SyncProjectsResponse,
   type SyncProvider,
   type SyncProviderStatus,
 } from "@repo/shared";
+import { Optional } from "@nestjs/common";
 import { randomUUID } from "crypto";
 import type { AuthenticatedUser } from "../auth/auth.decorators.js";
 import type { AppEnv } from "../config/env.js";
 import { PrismaService } from "../prisma/prisma.service.js";
+import { ProjectSyncWsService } from "./project-sync-ws.service.js";
 import {
   fullProjectQuery,
   mapPrismaProjectToDomain,
@@ -239,10 +244,389 @@ function findUrlMatchingDomain(
 
 @Injectable()
 export class ProjectSyncService {
+  private jobState: Omit<SyncJobState, "logs"> = {
+    isRunning: false,
+    isFetchingBatch: false,
+    provider: null,
+    providerName: null,
+    limit: 50,
+    noLimit: false,
+    continuous: true,
+    currentPage: 1,
+    countdownSeconds: null,
+    totalCreated: 0,
+    totalUpdated: 0,
+    pagesCompleted: 0,
+    lastError: null,
+  };
+  private logHistory: SyncLogEntry[] = [];
+  private stopRequested = false;
+  private countdownTimer: ReturnType<typeof setInterval> | null = null;
+  private wakeNextPageResolver: (() => void) | null = null;
+
   constructor(
     private readonly prisma: PrismaService,
-    private readonly config: ConfigService<AppEnv, true>
+    private readonly config: ConfigService<AppEnv, true>,
+    @Optional() private readonly wsHub?: ProjectSyncWsService
   ) {}
+
+  getJobState(): SyncJobState {
+    return {
+      ...this.jobState,
+      logs: [...this.logHistory],
+    };
+  }
+
+  private appendJobLog(
+    level: SyncLogLevel,
+    message: string,
+    opts?: {
+      ticker?: string;
+      projectName?: string;
+      projectsChanged?: boolean;
+      immediate?: boolean;
+    }
+  ): SyncLogEntry {
+    const entry: SyncLogEntry = {
+      id: `log-${Date.now()}-${randomUUID().slice(0, 8)}`,
+      timestamp: new Date().toISOString(),
+      level,
+      message,
+      ticker: opts?.ticker,
+      projectName: opts?.projectName,
+    };
+    this.logHistory.push(entry);
+    if (this.logHistory.length > 200) {
+      this.logHistory = this.logHistory.slice(-200);
+    }
+    this.wsHub?.queueUpdate(
+      { ...this.jobState },
+      [entry],
+      Boolean(opts?.projectsChanged),
+      Boolean(opts?.immediate)
+    );
+    return entry;
+  }
+
+  private clearJobTimer(): void {
+    if (this.countdownTimer) {
+      clearInterval(this.countdownTimer);
+      this.countdownTimer = null;
+    }
+    this.jobState.countdownSeconds = null;
+  }
+
+  startAsyncSync(
+    dto: SyncProjectsDto,
+    actor?: AuthenticatedUser
+  ): SyncJobState {
+    const provider = dto.provider;
+    // Validate API key immediately so missing key errors return 400 synchronously
+    this.requireProviderApiKey(provider);
+
+    if (this.jobState.isRunning) {
+      return this.getJobState();
+    }
+
+    const noLimit = Boolean(dto.noLimit);
+    const limit = noLimit
+      ? 1000
+      : Math.min(Math.max(dto.limit ?? 50, 1), 1000);
+    const continuous = dto.continuous ?? true;
+    const startPage = Math.max(dto.page ?? this.jobState.currentPage ?? 1, 1);
+    const meta = SYNC_PROVIDER_META[provider];
+
+    this.stopRequested = false;
+    this.clearJobTimer();
+
+    this.jobState = {
+      ...this.jobState,
+      isRunning: true,
+      isFetchingBatch: true,
+      provider,
+      providerName: meta.shortLabel,
+      limit,
+      noLimit,
+      continuous,
+      currentPage: startPage,
+      countdownSeconds: null,
+      lastError: null,
+    };
+
+    const rateLabel = noLimit
+      ? "No Limit (unlimited speed)"
+      : `${limit} projects/minute`;
+
+    this.appendJobLog(
+      "info",
+      continuous
+        ? `Started asynchronous background sync from ${meta.shortLabel} at ${rateLabel} (page #${startPage}).`
+        : `Started single-page async sync from ${meta.shortLabel} (${rateLabel}, page #${startPage}).`,
+      { immediate: true }
+    );
+
+    setImmediate(() => {
+      void this.runBackgroundSyncLoop(actor);
+    });
+
+    return this.getJobState();
+  }
+
+  stopAsyncSync(): SyncJobState {
+    this.stopRequested = true;
+    this.clearJobTimer();
+    if (this.wakeNextPageResolver) {
+      const wake = this.wakeNextPageResolver;
+      this.wakeNextPageResolver = null;
+      wake();
+    }
+    if (this.jobState.isRunning) {
+      this.jobState = {
+        ...this.jobState,
+        isRunning: false,
+        isFetchingBatch: false,
+        countdownSeconds: null,
+      };
+      this.appendJobLog(
+        "warn",
+        `Sync stopped by administrator (+${this.jobState.totalCreated} new added, ~${this.jobState.totalUpdated} existing synced across ${this.jobState.pagesCompleted} ${this.jobState.pagesCompleted === 1 ? "page" : "pages"}).`,
+        { immediate: true, projectsChanged: true }
+      );
+    }
+    return this.getJobState();
+  }
+
+  triggerNextPageNow(): SyncJobState {
+    if (this.wakeNextPageResolver) {
+      this.clearJobTimer();
+      const wake = this.wakeNextPageResolver;
+      this.wakeNextPageResolver = null;
+      wake();
+    }
+    return this.getJobState();
+  }
+
+  resetSyncCursor(): SyncJobState {
+    if (this.jobState.isRunning) {
+      return this.getJobState();
+    }
+    this.jobState = {
+      ...this.jobState,
+      currentPage: 1,
+      totalCreated: 0,
+      totalUpdated: 0,
+      pagesCompleted: 0,
+      lastError: null,
+      countdownSeconds: null,
+    };
+    this.appendJobLog("info", "Reset pagination cursor back to page #1.", {
+      immediate: true,
+    });
+    return this.getJobState();
+  }
+
+  clearSyncLogs(): SyncJobState {
+    this.logHistory = [];
+    const snapshot = this.getJobState();
+    this.wsHub?.broadcastCleared(snapshot);
+    return snapshot;
+  }
+
+  private async runBackgroundSyncLoop(
+    actor?: AuthenticatedUser
+  ): Promise<void> {
+    while (!this.stopRequested && this.jobState.isRunning) {
+      const provider = this.jobState.provider ?? "coingecko";
+      const pageToFetch = this.jobState.currentPage;
+      const limit = this.jobState.limit;
+      const noLimit = this.jobState.noLimit;
+      const continuous = this.jobState.continuous;
+      const meta = SYNC_PROVIDER_META[provider];
+
+      this.jobState = {
+        ...this.jobState,
+        isFetchingBatch: true,
+        countdownSeconds: null,
+        lastError: null,
+      };
+      this.wsHub?.queueUpdate({ ...this.jobState }, [], false, true);
+
+      try {
+        const result = await this.syncFromProvider(
+          {
+            provider,
+            limit,
+            page: pageToFetch,
+            noLimit,
+            continuous,
+          },
+          actor,
+          fetch,
+          {
+            skipFullProjectReload: true,
+            onProgress: (entry, delta) => {
+              this.jobState = {
+                ...this.jobState,
+                totalCreated: this.jobState.totalCreated + delta.createdDelta,
+                totalUpdated: this.jobState.totalUpdated + delta.updatedDelta,
+              };
+              this.logHistory.push(entry);
+              if (this.logHistory.length > 200) {
+                this.logHistory = this.logHistory.slice(-200);
+              }
+              this.wsHub?.queueUpdate(
+                { ...this.jobState },
+                [entry],
+                delta.createdDelta > 0 || delta.updatedDelta > 0
+              );
+            },
+          }
+        );
+
+        if (this.stopRequested) {
+          break;
+        }
+
+        const nextPage = pageToFetch + 1;
+        this.jobState = {
+          ...this.jobState,
+          isFetchingBatch: false,
+          currentPage: nextPage,
+          pagesCompleted: this.jobState.pagesCompleted + 1,
+        };
+        this.wsHub?.queueUpdate({ ...this.jobState }, [], true, true);
+
+        if (!continuous) {
+          this.jobState = {
+            ...this.jobState,
+            isRunning: false,
+            isFetchingBatch: false,
+          };
+          this.appendJobLog(
+            "info",
+            `Single-batch sync completed on page #${pageToFetch}.`,
+            { immediate: true, projectsChanged: true }
+          );
+          break;
+        }
+
+        if (!result.hasMore) {
+          this.jobState = {
+            ...this.jobState,
+            isRunning: false,
+            isFetchingBatch: false,
+          };
+          this.appendJobLog(
+            "info",
+            `All available projects from ${meta.shortLabel} have been synced (reached end of catalog at page #${pageToFetch}).`,
+            { immediate: true, projectsChanged: true }
+          );
+          break;
+        }
+
+        if (noLimit) {
+          this.appendJobLog(
+            "info",
+            `No Limit active — advancing to page #${nextPage}...`
+          );
+          await new Promise((r) => setTimeout(r, 80));
+          continue;
+        }
+
+        const waitSeconds = 60;
+        this.appendJobLog(
+          "info",
+          `Rate limit pacing (${limit}/min): waiting ${waitSeconds}s before syncing page #${nextPage} (or click "Sync Next Page Now")...`,
+          { immediate: true }
+        );
+        await this.waitWithCountdown(waitSeconds);
+      } catch (err) {
+        if (this.stopRequested) {
+          break;
+        }
+        const errMsg =
+          err instanceof Error
+            ? err.message
+            : "Failed to sync projects from the selected provider.";
+        const isCredentialError =
+          errMsg.toLowerCase().includes("api key") ||
+          errMsg.toLowerCase().includes("rejected");
+
+        this.jobState = {
+          ...this.jobState,
+          isFetchingBatch: false,
+          lastError: errMsg,
+        };
+        this.appendJobLog("error", errMsg, { immediate: true });
+
+        if (isCredentialError || !continuous) {
+          this.jobState = {
+            ...this.jobState,
+            isRunning: false,
+            isFetchingBatch: false,
+          };
+          this.wsHub?.queueUpdate({ ...this.jobState }, [], false, true);
+          break;
+        }
+
+        const retryWait = 60;
+        this.appendJobLog(
+          "warn",
+          `Will retry page #${pageToFetch} in ${retryWait}s (or click "Stop Syncing" to cancel)...`,
+          { immediate: true }
+        );
+        await this.waitWithCountdown(retryWait);
+      }
+    }
+
+    this.clearJobTimer();
+    if (this.jobState.isRunning) {
+      this.jobState = {
+        ...this.jobState,
+        isRunning: false,
+        isFetchingBatch: false,
+        countdownSeconds: null,
+      };
+      this.wsHub?.queueUpdate({ ...this.jobState }, [], true, true);
+    }
+  }
+
+  private waitWithCountdown(seconds: number): Promise<void> {
+    this.clearJobTimer();
+    this.jobState = {
+      ...this.jobState,
+      countdownSeconds: seconds,
+    };
+    this.wsHub?.queueUpdate({ ...this.jobState }, [], false, true);
+
+    return new Promise<void>((resolve) => {
+      this.wakeNextPageResolver = () => {
+        this.clearJobTimer();
+        resolve();
+      };
+
+      this.countdownTimer = setInterval(() => {
+        if (this.stopRequested) {
+          this.clearJobTimer();
+          this.wakeNextPageResolver = null;
+          resolve();
+          return;
+        }
+        const current = this.jobState.countdownSeconds ?? 0;
+        if (current <= 1) {
+          this.clearJobTimer();
+          this.wakeNextPageResolver = null;
+          resolve();
+          return;
+        }
+        this.jobState = {
+          ...this.jobState,
+          countdownSeconds: current - 1,
+        };
+        this.wsHub?.queueUpdate({ ...this.jobState }, [], false, true);
+      }, 1000);
+    });
+  }
 
   listProvidersStatus(): SyncProviderStatus[] {
     return SYNC_PROVIDERS.map((providerId) => {
@@ -301,12 +685,58 @@ export class ProjectSyncService {
   async syncFromProvider(
     dto: SyncProjectsDto,
     actor?: AuthenticatedUser,
-    fetchImpl: typeof fetch = fetch
+    fetchImpl: typeof fetch = fetch,
+    options?: {
+      skipFullProjectReload?: boolean;
+      onProgress?: (
+        entry: SyncLogEntry,
+        delta: { createdDelta: number; updatedDelta: number }
+      ) => void;
+    }
   ): Promise<SyncProjectsResponse> {
     const provider = dto.provider;
-    const limit = dto.limit ?? 5;
+    const noLimit = Boolean(dto.noLimit);
+    const limit = noLimit
+      ? 1000
+      : Math.min(Math.max(dto.limit ?? 10, 1), 1000);
+    const page = Math.max(dto.page ?? 1, 1);
     const meta = SYNC_PROVIDER_META[provider];
     const apiKey = this.requireProviderApiKey(provider);
+
+    const logs: SyncLogEntry[] = [];
+    const pushLog = (
+      level: SyncLogLevel,
+      message: string,
+      opts?: {
+        ticker?: string;
+        projectName?: string;
+        createdDelta?: number;
+        updatedDelta?: number;
+      }
+    ) => {
+      const entry: SyncLogEntry = {
+        id: `log-${Date.now()}-${randomUUID().slice(0, 8)}`,
+        timestamp: new Date().toISOString(),
+        level,
+        message,
+        ticker: opts?.ticker,
+        projectName: opts?.projectName,
+      };
+      logs.push(entry);
+      options?.onProgress?.(entry, {
+        createdDelta: opts?.createdDelta ?? 0,
+        updatedDelta: opts?.updatedDelta ?? 0,
+      });
+    };
+
+    const rateLabel = noLimit
+      ? "rate limit: No Limit (unlimited)"
+      : `rate limit: ${limit} projects/min`;
+
+    pushLog(
+      "info",
+      `Connecting to ${meta.label} — requesting page #${page} (${rateLabel})...`
+    );
 
     const existingProjects = await fullProjectQuery(this.prisma.db.orm)
       .orderBy((p) => p.createdAt.desc())
@@ -329,41 +759,60 @@ export class ProjectSyncService {
     const existingTickers = new Set(existingByTicker.keys());
     const existingNames = new Set(existingByName.keys());
 
-    const fetchCandidateCount = Math.min(Math.max(limit * 2, 10), 40);
-
     let candidates: NormalizedThirdPartyProject[];
     switch (provider) {
-      case "coingecko":
+      case "coingecko": {
+        const cgPerPage = Math.min(limit, 250);
+        const detailFetchQuota =
+          noLimit || cgPerPage > 15 ? 0 : Math.min(cgPerPage, 5);
         candidates = await this.fetchFromCoinGecko(
           apiKey,
-          fetchCandidateCount,
-          limit,
+          cgPerPage,
+          page,
+          detailFetchQuota,
           existingTickers,
           existingNames,
           fetchImpl
         );
         break;
+      }
       case "coinmarketcap":
         candidates = await this.fetchFromCoinMarketCap(
           apiKey,
-          fetchCandidateCount,
+          limit,
+          page,
           fetchImpl
         );
         break;
       case "livecoinwatch":
         candidates = await this.fetchFromLiveCoinWatch(
           apiKey,
-          fetchCandidateCount,
+          limit,
+          page,
           fetchImpl
         );
         break;
       case "coincap":
         candidates = await this.fetchFromCoinCap(
           apiKey,
-          fetchCandidateCount,
+          limit,
+          page,
           fetchImpl
         );
         break;
+    }
+
+    const hasMore = candidates.length > 0;
+    if (candidates.length === 0) {
+      pushLog(
+        "warn",
+        `Page #${page} returned 0 projects from ${meta.shortLabel}. Reached end of provider catalog.`
+      );
+    } else {
+      pushLog(
+        "info",
+        `Received ${candidates.length} ${candidates.length === 1 ? "project" : "projects"} from ${meta.shortLabel} on page #${page}. Synchronizing with database...`
+      );
     }
 
     let skippedCount = 0;
@@ -420,12 +869,22 @@ export class ProjectSyncService {
     const createdProjectIds: string[] = [];
     const updatedProjectIds: string[] = [];
     const baseTime = Date.now();
+    const CHUNK_SIZE = 20;
 
-    if (toCreate.length > 0 || toUpdate.length > 0) {
+    // 1. Update existing DB projects in non-blocking chunks
+    for (
+      let chunkStart = 0;
+      chunkStart < toUpdate.length;
+      chunkStart += CHUNK_SIZE
+    ) {
+      if (options?.skipFullProjectReload && this.stopRequested) {
+        break;
+      }
+      const chunk = toUpdate.slice(chunkStart, chunkStart + CHUNK_SIZE);
       await this.prisma.db.transaction(async (tx) => {
-        // 1. Update existing DB projects with latest provider data
-        for (let idx = 0; idx < toUpdate.length; idx++) {
-          const { existing, candidate: item } = toUpdate[idx];
+        for (let offset = 0; offset < chunk.length; offset++) {
+          const idx = chunkStart + offset;
+          const { existing, candidate: item } = chunk[offset]!;
           const suffix = randomUUID().slice(0, 8);
           const itemTime = baseTime + idx * 50;
           const cleanSymbol = item.symbol
@@ -618,11 +1077,34 @@ export class ProjectSyncService {
           }
 
           updatedProjectIds.push(existing.id);
+          pushLog(
+            "update",
+            `Synced existing project ${existing.name} (${cleanTicker}) — Rank #${item.rank}, Market Cap ${mcapLabel}, contexts updated.`,
+            {
+              ticker: cleanTicker,
+              projectName: existing.name,
+              updatedDelta: 1,
+            }
+          );
         }
+      });
+      await new Promise((r) => setImmediate(r));
+    }
 
-        // 2. Create missing projects in DB and tag them "new"
-        for (let idx = 0; idx < toCreate.length; idx++) {
-          const item = toCreate[idx];
+    // 2. Create missing projects in DB in non-blocking chunks and tag them "new"
+    for (
+      let chunkStart = 0;
+      chunkStart < toCreate.length;
+      chunkStart += CHUNK_SIZE
+    ) {
+      if (options?.skipFullProjectReload && this.stopRequested) {
+        break;
+      }
+      const chunk = toCreate.slice(chunkStart, chunkStart + CHUNK_SIZE);
+      await this.prisma.db.transaction(async (tx) => {
+        for (let offset = 0; offset < chunk.length; offset++) {
+          const idx = chunkStart + offset;
+          const item = chunk[offset]!;
           const suffix = randomUUID().slice(0, 8);
           const itemTime = baseTime + 5000 + idx * 100;
           const projectId = `proj-sync-${itemTime}-${suffix}`;
@@ -794,65 +1276,94 @@ export class ProjectSyncService {
           });
 
           createdProjectIds.push(projectId);
+          pushLog(
+            "success",
+            `Added new project ${item.name} (${cleanTicker}) tagged 'new' — Rank #${item.rank}, Market Cap ${mcapLabel} [Website, X, LinkedIn linked].`,
+            {
+              ticker: cleanTicker,
+              projectName: item.name,
+              createdDelta: 1,
+            }
+          );
         }
+      });
+      await new Promise((r) => setImmediate(r));
+    }
 
-        if (actor) {
-          await tx.orm.public.AuditLog.create({
-            id: `aud-${Date.now()}-${randomUUID().slice(0, 8)}`,
-            actorId: actor.id,
-            actorEmail: actor.email,
-            actorRole: actor.role,
-            action: "projects.synced",
-            resource: "project",
-            resourceId: createdProjectIds[0] ?? updatedProjectIds[0] ?? null,
-            details: {
-              provider,
-              providerName: meta.shortLabel,
-              syncedCount: createdProjectIds.length,
-              updatedCount: updatedProjectIds.length,
-              skippedCount,
-            },
-            ipAddress: null,
-          });
-        }
+    if (
+      actor &&
+      (createdProjectIds.length > 0 || updatedProjectIds.length > 0)
+    ) {
+      await this.prisma.db.transaction(async (tx) => {
+        await tx.orm.public.AuditLog.create({
+          id: `aud-${Date.now()}-${randomUUID().slice(0, 8)}`,
+          actorId: actor.id,
+          actorEmail: actor.email,
+          actorRole: actor.role,
+          action: "projects.synced",
+          resource: "project",
+          resourceId: createdProjectIds[0] ?? updatedProjectIds[0] ?? null,
+          details: {
+            provider,
+            providerName: meta.shortLabel,
+            syncedCount: createdProjectIds.length,
+            updatedCount: updatedProjectIds.length,
+            skippedCount,
+          },
+          ipAddress: null,
+        });
       });
     }
 
-    const updatedRows = await fullProjectQuery(this.prisma.db.orm)
-      .orderBy((p) => p.createdAt.desc())
-      .all();
+    let allProjects: CryptoProject[] = [];
+    let createdProjects: CryptoProject[] = [];
+    let updatedProjects: CryptoProject[] = [];
 
-    const allProjects: CryptoProject[] = [...updatedRows]
-      .sort((a, b) => Number(b.isPinned) - Number(a.isPinned))
-      .map(mapPrismaProjectToDomain);
+    if (!options?.skipFullProjectReload) {
+      const updatedRows = await fullProjectQuery(this.prisma.db.orm)
+        .orderBy((p) => p.createdAt.desc())
+        .all();
 
-    const createdProjects = allProjects.filter((p) =>
-      createdProjectIds.includes(p.id)
-    );
-    const updatedProjects = allProjects.filter((p) =>
-      updatedProjectIds.includes(p.id)
-    );
+      allProjects = [...updatedRows]
+        .sort((a, b) => Number(b.isPinned) - Number(a.isPinned))
+        .map(mapPrismaProjectToDomain);
+
+      createdProjects = allProjects.filter((p) =>
+        createdProjectIds.includes(p.id)
+      );
+      updatedProjects = allProjects.filter((p) =>
+        updatedProjectIds.includes(p.id)
+      );
+    }
+
+    const createdTotal = createdProjectIds.length;
+    const updatedTotal = updatedProjectIds.length;
 
     let message: string;
-    if (createdProjects.length > 0 && updatedProjects.length > 0) {
-      message = `Added ${createdProjects.length} new ${createdProjects.length === 1 ? "project" : "projects"} (tagged "new") and synced ${updatedProjects.length} existing ${updatedProjects.length === 1 ? "project" : "projects"} from ${meta.shortLabel}.`;
-    } else if (createdProjects.length > 0) {
-      message = `Added ${createdProjects.length} new crypto ${createdProjects.length === 1 ? "project" : "projects"} from ${meta.shortLabel} into New status and tagged "new".`;
-    } else if (updatedProjects.length > 0) {
-      message = `Synced latest market data and context links for ${updatedProjects.length} existing ${updatedProjects.length === 1 ? "project" : "projects"} from ${meta.shortLabel} (no new projects found).`;
+    if (createdTotal > 0 && updatedTotal > 0) {
+      message = `Page #${page}: Added ${createdTotal} new ${createdTotal === 1 ? "project" : "projects"} (tagged "new") and synced ${updatedTotal} existing ${updatedTotal === 1 ? "project" : "projects"} from ${meta.shortLabel}.`;
+    } else if (createdTotal > 0) {
+      message = `Page #${page}: Added ${createdTotal} new crypto ${createdTotal === 1 ? "project" : "projects"} from ${meta.shortLabel} into New status and tagged "new".`;
+    } else if (updatedTotal > 0) {
+      message = `Page #${page}: Synced latest market data and context links for ${updatedTotal} existing ${updatedTotal === 1 ? "project" : "projects"} from ${meta.shortLabel}.`;
     } else {
-      message = `No projects returned by ${meta.shortLabel} to sync.`;
+      message = `Page #${page}: No new or matching projects returned by ${meta.shortLabel}.`;
     }
+
+    pushLog("info", message);
 
     return {
       provider,
       providerName: meta.shortLabel,
-      syncedCount: createdProjects.length,
-      updatedCount: updatedProjects.length,
+      page,
+      hasMore,
+      syncedCount: createdTotal,
+      updatedCount: updatedTotal,
       skippedCount,
       createdProjects,
       updatedProjects,
       projects: allProjects,
+      logs,
       message,
     };
   }
@@ -860,12 +1371,13 @@ export class ProjectSyncService {
   private async fetchFromCoinGecko(
     apiKey: string,
     perPage: number,
+    page: number,
     targetNewLimit: number,
     existingTickers: Set<string>,
     existingNames: Set<string>,
     fetchImpl: typeof fetch
   ): Promise<NormalizedThirdPartyProject[]> {
-    const marketsUrl = `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=${perPage}&page=1&sparkline=false`;
+    const marketsUrl = `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=${perPage}&page=${page}&sparkline=false`;
     const headers: Record<string, string> = {
       Accept: "application/json",
       "x-cg-demo-api-key": apiKey,
@@ -1003,9 +1515,11 @@ export class ProjectSyncService {
   private async fetchFromCoinMarketCap(
     apiKey: string,
     limit: number,
+    page: number,
     fetchImpl: typeof fetch
   ): Promise<NormalizedThirdPartyProject[]> {
-    const listingsUrl = `https://pro-api.coinmarketcap.com/v1/cryptocurrency/listings/latest?start=1&limit=${limit}&convert=USD`;
+    const start = (page - 1) * limit + 1;
+    const listingsUrl = `https://pro-api.coinmarketcap.com/v1/cryptocurrency/listings/latest?start=${start}&limit=${limit}&convert=USD`;
     const headers: Record<string, string> = {
       Accept: "application/json",
       "X-CMC_PRO_API_KEY": apiKey,
@@ -1143,8 +1657,10 @@ export class ProjectSyncService {
   private async fetchFromLiveCoinWatch(
     apiKey: string,
     limit: number,
+    page: number,
     fetchImpl: typeof fetch
   ): Promise<NormalizedThirdPartyProject[]> {
+    const offset = (page - 1) * limit;
     const url = "https://api.livecoinwatch.com/coins/list";
     const response = await this.performProviderFetch(
       "LiveCoinWatch",
@@ -1160,7 +1676,7 @@ export class ProjectSyncService {
           currency: "USD",
           sort: "rank",
           order: "ascending",
-          offset: 0,
+          offset,
           limit,
           meta: true,
         }),
@@ -1247,9 +1763,11 @@ export class ProjectSyncService {
   private async fetchFromCoinCap(
     apiKey: string,
     limit: number,
+    page: number,
     fetchImpl: typeof fetch
   ): Promise<NormalizedThirdPartyProject[]> {
-    const url = `https://rest.coincap.io/v3/assets?limit=${limit}`;
+    const offset = (page - 1) * limit;
+    const url = `https://rest.coincap.io/v3/assets?limit=${limit}&offset=${offset}`;
     const payload = (await this.performProviderFetch(
       "CoinCap",
       url,

@@ -7,6 +7,7 @@ import {
   cryptoProjectSchema,
   promptTemplateSchema,
   scrapeJobSchema,
+  syncJobStateSchema,
   syncProjectsResponseSchema,
   syncProviderStatusSchema,
   systemHealthSchema,
@@ -24,6 +25,7 @@ import {
   type PromptTemplate,
   type RegisterDto,
   type ScrapeJob,
+  type SyncJobState,
   type SyncProjectsDto,
   type SyncProjectsResponse,
   type SyncProviderStatus,
@@ -34,6 +36,26 @@ import {
 import { z } from "zod";
 
 const API_BASE = "/api/v1";
+
+export function getSyncWebSocketUrl(): string {
+  if (typeof window === "undefined") {
+    return "ws://localhost:4000/ws/sync";
+  }
+  const explicitWs = process.env.NEXT_PUBLIC_WS_URL?.trim();
+  if (explicitWs) {
+    return explicitWs.endsWith("/ws/sync")
+      ? explicitWs
+      : `${explicitWs.replace(/\/$/, "")}/ws/sync`;
+  }
+  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+  const hostname = window.location.hostname || "localhost";
+  const currentPort = window.location.port;
+  const apiPort =
+    process.env.NEXT_PUBLIC_API_PORT?.trim() ||
+    (currentPort === "3000" || currentPort === "" ? "4000" : currentPort);
+
+  return `${protocol}//${hostname}:${apiPort}/ws/sync`;
+}
 
 export class ApiClientError extends Error {
   constructor(
@@ -222,6 +244,57 @@ export const apiClient = {
       "/projects/sync/providers",
       { method: "GET" },
       z.array(syncProviderStatusSchema)
+    );
+  },
+
+  fetchSyncStatus(): Promise<SyncJobState> {
+    return requestJson(
+      "/projects/sync/status",
+      { method: "GET" },
+      syncJobStateSchema
+    );
+  },
+
+  startAsyncProjectSync(input: SyncProjectsDto): Promise<SyncJobState> {
+    return requestJson(
+      "/projects/sync/start",
+      {
+        method: "POST",
+        body: JSON.stringify(input),
+      },
+      syncJobStateSchema
+    );
+  },
+
+  stopAsyncProjectSync(): Promise<SyncJobState> {
+    return requestJson(
+      "/projects/sync/stop",
+      { method: "POST" },
+      syncJobStateSchema
+    );
+  },
+
+  triggerNextSyncPage(): Promise<SyncJobState> {
+    return requestJson(
+      "/projects/sync/next",
+      { method: "POST" },
+      syncJobStateSchema
+    );
+  },
+
+  resetProjectSyncCursor(): Promise<SyncJobState> {
+    return requestJson(
+      "/projects/sync/reset",
+      { method: "POST" },
+      syncJobStateSchema
+    );
+  },
+
+  clearProjectSyncLogs(): Promise<SyncJobState> {
+    return requestJson(
+      "/projects/sync/logs/clear",
+      { method: "POST" },
+      syncJobStateSchema
     );
   },
 

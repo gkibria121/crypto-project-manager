@@ -14,6 +14,8 @@ import { AppModule } from "./app.module.js";
 import { GlobalExceptionFilter } from "./common/filters/http-exception.filter.js";
 import { LoggingInterceptor } from "./common/interceptors/logging.interceptor.js";
 import type { AppEnv } from "./config/env.js";
+import { ProjectSyncWsService } from "./projects/project-sync-ws.service.js";
+import { ProjectSyncService } from "./projects/project-sync.service.js";
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -65,6 +67,12 @@ async function bootstrap() {
     .build();
   const document = SwaggerModule.createDocument(app, swaggerConfig);
   SwaggerModule.setup("docs", app, document);
+
+  const syncWsService = app.get(ProjectSyncWsService);
+  const syncService = app.get(ProjectSyncService);
+  syncWsService.attachServer(app.getHttpServer(), () =>
+    syncService.getJobState()
+  );
 
   await app.listen(port, "0.0.0.0");
   logger.log(`PulseOS Core API listening on http://0.0.0.0:${port}`);

@@ -74,12 +74,12 @@ import {
   useDeleteUserMutation,
   useLoginMutation,
   useLogoutMutation,
+  useProjectSyncSocket,
   useProjectsQuery,
   usePromptTemplatesQuery,
   useRegisterMutation,
   useSaveChecklistItemMutation,
   useSavePromptTemplateMutation,
-  useSyncProjectsMutation,
   useSyncProvidersQuery,
   useSystemHealthQuery,
   useUpdateBusinessStatusMutation,
@@ -183,10 +183,19 @@ export function AdminDashboard() {
   const deleteUserMutation = useDeleteUserMutation();
 
   const createProjectMutation = useCreateProjectMutation();
-  const syncProjectsMutation = useSyncProjectsMutation();
   const updateProjectMutation = useUpdateProjectMutation();
   const updateBusinessStatusMutation = useUpdateBusinessStatusMutation();
   const deleteProjectMutation = useDeleteProjectMutation();
+
+  const {
+    jobState: syncJobState,
+    wsConnected: syncWsConnected,
+    startSync: startAsyncSync,
+    stopSync: stopAsyncSync,
+    triggerNextPage: triggerNextSyncPage,
+    resetCursor: resetSyncCursor,
+    clearLogs: clearSyncLogs,
+  } = useProjectSyncSocket(isAuthenticated && isAdmin);
 
   const savePromptTemplateMutation = useSavePromptTemplateMutation();
   const deletePromptTemplateMutation = useDeletePromptTemplateMutation();
@@ -217,6 +226,7 @@ export function AdminDashboard() {
   const [projectSearchQuery, setProjectSearchQuery] = useState("");
   const [projectFilter, setProjectFilter] =
     useState<ProjectFilterStatus>("all");
+  const [visibleProjectsCount, setVisibleProjectsCount] = useState(100);
 
   const [auditSearchQuery, setAuditSearchQuery] = useState("");
   const [auditRoleFilter, setAuditRoleFilter] =
@@ -557,12 +567,14 @@ export function AdminDashboard() {
     }
   };
 
-  const handleSyncProjects = async (dto: SyncProjectsDto) => {
+  const handleStartProjectSync = async (dto: SyncProjectsDto) => {
     setActionError(null);
     setStatusAnnouncement(null);
-    const result = await syncProjectsMutation.mutateAsync(dto);
-    setStatusAnnouncement(result.message);
-    return result;
+    const snapshot = await startAsyncSync(dto);
+    setStatusAnnouncement(
+      `Started background sync from ${dto.provider} (Page #${snapshot.currentPage}).`
+    );
+    return snapshot;
   };
 
   const handleOpenEditProject = (project: CryptoProject) => {
@@ -1965,11 +1977,26 @@ export function AdminDashboard() {
                         onClick={openSyncProjectsModal}
                         className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-[#00a884] hover:bg-[#008f6f] text-white transition cursor-pointer shrink-0"
                       >
-                        <CloudDownload
-                          className="w-3.5 h-3.5"
-                          aria-hidden="true"
-                        />
-                        <span>Sync</span>
+                        {syncJobState.isRunning ? (
+                          <>
+                            <RefreshCw
+                              className="w-3.5 h-3.5 animate-spin"
+                              aria-hidden="true"
+                            />
+                            <span>
+                              Syncing Page #{syncJobState.currentPage} (+
+                              {syncJobState.totalCreated} new)
+                            </span>
+                          </>
+                        ) : (
+                          <>
+                            <CloudDownload
+                              className="w-3.5 h-3.5"
+                              aria-hidden="true"
+                            />
+                            <span>Sync</span>
+                          </>
+                        )}
                       </button>
                     </div>
                   </div>
@@ -2033,7 +2060,9 @@ export function AdminDashboard() {
                           </td>
                         </tr>
                       ) : (
-                        filteredProjects.map((project) => {
+                        filteredProjects
+                          .slice(0, visibleProjectsCount)
+                          .map((project) => {
                           const statusMeta =
                             BUSINESS_STATUS_META[project.businessStatus];
                           const activeContextsCount = project.contexts.filter(
@@ -2234,6 +2263,24 @@ export function AdminDashboard() {
                     </tbody>
                   </table>
                 </div>
+
+                {filteredProjects.length > visibleProjectsCount && (
+                  <div className="flex items-center justify-between gap-3 pt-1 text-xs text-[#65676b] dark:text-[#8696a0]">
+                    <span>
+                      Showing {visibleProjectsCount} of {filteredProjects.length}{" "}
+                      projects
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setVisibleProjectsCount((prev) => prev + 100)
+                      }
+                      className="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-[#f0f2f5] hover:bg-[#e4e6eb] dark:bg-[#111b21] dark:hover:bg-[#2a3942] text-[#050505] dark:text-[#e9edef] transition cursor-pointer"
+                    >
+                      Load 100 More Projects
+                    </button>
+                  </div>
+                )}
               </section>
             )}
 
@@ -2784,7 +2831,13 @@ export function AdminDashboard() {
       <SyncProjectsDialog
         dialogRef={syncProjectsDialogRef}
         providerStatuses={syncProviders}
-        onSyncProjects={handleSyncProjects}
+        jobState={syncJobState}
+        wsConnected={syncWsConnected}
+        onStartSync={handleStartProjectSync}
+        onStopSync={stopAsyncSync}
+        onTriggerNextPage={triggerNextSyncPage}
+        onResetCursor={resetSyncCursor}
+        onClearLogs={clearSyncLogs}
       />
 
       <EditProjectDialog

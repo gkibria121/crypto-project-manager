@@ -55,6 +55,67 @@ export class ProjectsController {
     return this.projectSyncService.listProvidersStatus();
   }
 
+  @Get("sync/status")
+  @RequirePermissions("projects:create")
+  @ApiOperation({
+    summary:
+      "Get current asynchronous background sync job status, progress counters, and recent logs",
+  })
+  getSyncStatus() {
+    return this.projectSyncService.getJobState();
+  }
+
+  @Post("sync/start")
+  @RequirePermissions("projects:create")
+  @ApiOperation({
+    summary:
+      "Start an asynchronous background crypto project sync job with live WebSocket streaming",
+  })
+  startAsyncSync(
+    @CurrentUser() user: AuthenticatedUser | undefined,
+    @Body(new ZodValidationPipe(syncProjectsDtoSchema))
+    body: SyncProjectsDto
+  ) {
+    return this.projectSyncService.startAsyncSync(body, user);
+  }
+
+  @Post("sync/stop")
+  @RequirePermissions("projects:create")
+  @ApiOperation({
+    summary: "Stop the running asynchronous background crypto project sync job",
+  })
+  stopAsyncSync() {
+    return this.projectSyncService.stopAsyncSync();
+  }
+
+  @Post("sync/next")
+  @RequirePermissions("projects:create")
+  @ApiOperation({
+    summary:
+      "Skip the current inter-page rate-limit wait and trigger the next sync batch immediately",
+  })
+  triggerNextSyncPage() {
+    return this.projectSyncService.triggerNextPageNow();
+  }
+
+  @Post("sync/reset")
+  @RequirePermissions("projects:create")
+  @ApiOperation({
+    summary: "Reset the background sync pagination cursor and counters back to Page 1",
+  })
+  resetSyncCursor() {
+    return this.projectSyncService.resetSyncCursor();
+  }
+
+  @Post("sync/logs/clear")
+  @RequirePermissions("projects:create")
+  @ApiOperation({
+    summary: "Clear the background sync activity log buffer",
+  })
+  clearSyncLogs() {
+    return this.projectSyncService.clearSyncLogs();
+  }
+
   @Post("sync")
   @RequirePermissions("projects:create")
   @ApiOperation({

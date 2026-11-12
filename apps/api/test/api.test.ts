@@ -487,10 +487,14 @@ describe("NestJS Core Backend Unit Tests", () => {
     const syncPipe = new ZodValidationPipe(syncProjectsDtoSchema);
     const parsedSyncDto = syncPipe.transform({
       provider: "coingecko",
-      limit: 2,
+      limit: 1000,
+      page: 1,
+      noLimit: true,
     });
     expect(parsedSyncDto.provider).toBe("coingecko");
-    expect(parsedSyncDto.limit).toBe(2);
+    expect(parsedSyncDto.limit).toBe(1000);
+    expect(parsedSyncDto.page).toBe(1);
+    expect(parsedSyncDto.noLimit).toBe(true);
 
     const projectsStore: Array<Record<string, unknown>> = [];
     const contextsStore: Array<Record<string, unknown>> = [];
@@ -676,13 +680,16 @@ describe("NestJS Core Backend Unit Tests", () => {
     }) as unknown as typeof fetch;
 
     const result = await syncService.syncFromProvider(
-      { provider: "coingecko", limit: 2 },
+      { provider: "coingecko", limit: 2, page: 1 },
       undefined,
       mockFetch
     );
 
+    expect(result.page).toBe(1);
+    expect(result.hasMore).toBe(true);
     expect(result.syncedCount).toBe(1);
     expect(result.createdProjects).toHaveLength(1);
+    expect(result.logs.some((l) => l.level === "success")).toBe(true);
 
     const syncedProject = result.createdProjects[0];
     expect(syncedProject?.name).toBe("Render Network");
@@ -713,12 +720,13 @@ describe("NestJS Core Backend Unit Tests", () => {
 
     // 3. Re-syncing when project already exists in DB updates existing project with fresh data
     const secondSync = await syncService.syncFromProvider(
-      { provider: "coingecko", limit: 2 },
+      { provider: "coingecko", limit: 2, page: 1 },
       undefined,
       mockFetch
     );
     expect(secondSync.syncedCount).toBe(0);
     expect(secondSync.updatedCount).toBe(1);
     expect(secondSync.updatedProjects[0]?.id).toBe(syncedProject?.id);
+    expect(secondSync.logs.some((l) => l.level === "update")).toBe(true);
   });
 });
