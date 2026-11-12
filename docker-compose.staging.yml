@@ -1,0 +1,211 @@
+name: pulseos-staging
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: pulseos-staging-postgres
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-pulseos}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-pulseos_secret}
+      POSTGRES_DB: ${POSTGRES_DB:-pulseos}
+    volumes:
+      - postgres_staging_data:/var/lib/postgresql/data
+    networks:
+      app-network:
+        aliases:
+          - pulseos-staging-postgres
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-pulseos} -d ${POSTGRES_DB:-pulseos}",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+
+  db-init:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: pulseos-staging-db-init
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-pulseos}:${POSTGRES_PASSWORD:-pulseos_secret}@pulseos-staging-postgres:5432/${POSTGRES_DB:-pulseos}
+    command:
+      [
+        "sh",
+        "-c",
+        "bun --filter @repo/database db:migrate:deploy && node packages/database/dist/prisma/seed.js",
+      ]
+    networks:
+      - app-network
+    restart: "no"
+
+  scraper:
+    build:
+      context: .
+      dockerfile: apps/scraper/Dockerfile
+    container_name: pulseos-staging-scraper
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      SCRAPER_PORT: 8000
+      SCRAPER_API_KEY: ${SCRAPER_API_KEY:-pulseos-internal-scraper-key}
+      SCRAPER_TIMEOUT_SECONDS: ${SCRAPER_TIMEOUT_SECONDS:-15}
+      SCRAPER_MAX_CONTENT_BYTES: ${SCRAPER_MAX_CONTENT_BYTES:-3145728}
+      ALLOW_PRIVATE_NETWORKS: ${ALLOW_PRIVATE_NETWORKS:-false}
+      X_API_BEARER_TOKEN: ${X_API_BEARER_TOKEN:-}
+      LINKEDIN_API_KEY: ${LINKEDIN_API_KEY:-}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+    networks:
+      app-network:
+        aliases:
+          - pulseos-staging-scraper
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: pulseos-staging-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
+      scraper:
+        condition: service_healthy
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-pulseos}:${POSTGRES_PASSWORD:-pulseos_secret}@pulseos-staging-postgres:5432/${POSTGRES_DB:-pulseos}
+      CORS_ORIGINS: ${CORS_ORIGINS:-https://crypto.gkibria121.com,https://api-crypto.gkibria121.com}
+      SCRAPER_SERVICE_URL: http://pulseos-staging-scraper:8000
+      SCRAPER_API_KEY: ${SCRAPER_API_KEY:-pulseos-internal-scraper-key}
+      SCRAPER_TIMEOUT_MS: ${SCRAPER_TIMEOUT_MS:-60000}
+      X_API_BEARER_TOKEN: ${X_API_BEARER_TOKEN:-}
+      LINKEDIN_API_KEY: ${LINKEDIN_API_KEY:-}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      JWT_SECRET: ${JWT_SECRET:-pulseos-jwt-secret-key-2026-default-secure}
+      SESSION_TTL_SECONDS: ${SESSION_TTL_SECONDS:-604800}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.5-flash-lite}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-sonnet-4-20250514}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      GROQ_MODEL: ${GROQ_MODEL:-llama-3.3-70b-versatile}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      OPENROUTER_MODEL: ${OPENROUTER_MODEL:-openai/gpt-4o-mini}
+      COINGECKO_API_KEY: ${COINGECKO_API_KEY:-}
+      COINMARKETCAP_API_KEY: ${COINMARKETCAP_API_KEY:-}
+      LIVECOINWATCH_API_KEY: ${LIVECOINWATCH_API_KEY:-}
+      COINCAP_API_KEY: ${COINCAP_API_KEY:-}
+      APOLLO_API_KEY: ${APOLLO_API_KEY:-}
+      HUNTER_API_KEY: ${HUNTER_API_KEY:-}
+      SNOV_API_KEY: ${SNOV_API_KEY:-}
+      LUSHA_API_KEY: ${LUSHA_API_KEY:-}
+    networks:
+      app-network:
+        aliases:
+          - pulseos-staging-api
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=app-network"
+      - "traefik.http.routers.pulseos-api.rule=Host(`${API_DOMAIN:-api-crypto.gkibria121.com}`)"
+      - "traefik.http.routers.pulseos-api.entrypoints=${TRAEFIK_ENTRYPOINT:-websecure}"
+      - "traefik.http.routers.pulseos-api.tls=${TRAEFIK_TLS_ENABLE:-true}"
+      - "traefik.http.routers.pulseos-api.tls.certresolver=${TRAEFIK_CERT_RESOLVER:-le}"
+      - "traefik.http.services.pulseos-api.loadbalancer.server.port=4000"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:4000/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_WS_URL: wss://${API_DOMAIN:-api-crypto.gkibria121.com}/ws/sync
+    container_name: pulseos-staging-web
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      API_INTERNAL_URL: http://pulseos-staging-api:4000
+      NEXT_PUBLIC_WS_URL: wss://${API_DOMAIN:-api-crypto.gkibria121.com}/ws/sync
+    networks:
+      app-network:
+        aliases:
+          - pulseos-staging-web
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=app-network"
+      - "traefik.http.routers.pulseos-web.rule=Host(`${WEB_DOMAIN:-crypto.gkibria121.com}`)"
+      - "traefik.http.routers.pulseos-web.entrypoints=${TRAEFIK_ENTRYPOINT:-websecure}"
+      - "traefik.http.routers.pulseos-web.tls=${TRAEFIK_TLS_ENABLE:-true}"
+      - "traefik.http.routers.pulseos-web.tls.certresolver=${TRAEFIK_CERT_RESOLVER:-le}"
+      - "traefik.http.services.pulseos-web.loadbalancer.server.port=3000"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/api/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+volumes:
+  postgres_staging_data:
+
+networks:
+  app-network:
+    external: true

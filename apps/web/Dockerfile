@@ -20,7 +20,9 @@ COPY packages/typescript-config ./packages/typescript-config
 COPY packages/shared ./packages/shared
 COPY apps/web ./apps/web
 
-ENV NEXT_TELEMETRY_DISABLED=1
+ARG NEXT_PUBLIC_WS_URL=
+ENV NEXT_TELEMETRY_DISABLED=1 \
+    NEXT_PUBLIC_WS_URL=${NEXT_PUBLIC_WS_URL}
 RUN bun --filter @repo/shared build \
     && bun --filter @repo/web build
 
