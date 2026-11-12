@@ -26,6 +26,7 @@ enum ProjectStage {
 enum ProjectBusinessStatus {
   @@type("pg/text@1")
   new          = "new"
+  active       = "active"
   contacted    = "contacted"
   collaborated = "collaborated"
   completed    = "completed"

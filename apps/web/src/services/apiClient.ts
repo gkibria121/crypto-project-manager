@@ -16,6 +16,7 @@ import {
   type AuthRegisterResponse,
   type AuthSessionResponse,
   type AuthUser,
+  type BulkUpdateBusinessStatusDto,
   type ChecklistItemConfig,
   type CreateUserDto,
   type CryptoProject,
@@ -370,6 +371,17 @@ export const apiClient = {
       },
       cryptoProjectSchema
     );
+  },
+
+  bulkUpdateBusinessStatus(input: BulkUpdateBusinessStatusDto): Promise<{
+    updatedCount: number;
+    updatedIds: string[];
+    status: ProjectBusinessStatus;
+  }> {
+    return requestJson("/projects/bulk/status", {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    });
   },
 
   updateProjectLogo(params: {

@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import {
   ALL_PERMISSIONS,
+  COMPACT_PAGE_SIZE_OPTIONS,
   PERMISSION_LABELS,
   ROLE_PERMISSIONS,
   USER_ROLES,
@@ -30,7 +31,8 @@ import {
   type CreateUserDto,
   type UserRole,
 } from "@/types/project";
-import { ModalDialog } from "@/components/ui";
+import { ModalDialog, PaginationBar } from "@/components/ui";
+import { usePagination } from "@/hooks/usePagination";
 
 interface TeamRbacDialogProps {
   dialogRef: RefObject<HTMLDialogElement | null>;
@@ -69,6 +71,19 @@ export function TeamRbacDialog({
   );
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+
+  const membersPagination = usePagination(users, {
+    initialPageSize: 6,
+    pageSizeOptions: COMPACT_PAGE_SIZE_OPTIONS,
+  });
+  const permissionsPagination = usePagination(ALL_PERMISSIONS, {
+    initialPageSize: 8,
+    pageSizeOptions: [8, 12, 25],
+  });
+  const auditPagination = usePagination(auditLogs, {
+    initialPageSize: 8,
+    pageSizeOptions: COMPACT_PAGE_SIZE_OPTIONS,
+  });
 
   const nameId = useId();
   const emailId = useId();
@@ -443,7 +458,7 @@ export function TeamRbacDialog({
 
             {/* Members Directory List */}
             <div className="divide-y divide-[#e4e6eb] dark:divide-[#2a3942] rounded-xl border border-[#e4e6eb] dark:border-[#2a3942] overflow-hidden">
-              {users.map((member) => {
+              {membersPagination.items.map((member) => {
                 const isSelf = member.id === currentUser.id;
                 const roleMeta = USER_ROLE_META[member.role];
 
@@ -571,6 +586,17 @@ export function TeamRbacDialog({
                 );
               })}
             </div>
+
+            <PaginationBar
+              variant="compact"
+              meta={membersPagination.meta}
+              pageSizeOptions={membersPagination.pageSizeOptions}
+              onPageChange={membersPagination.setPage}
+              onPageSizeChange={membersPagination.setPageSize}
+              itemLabel="members"
+              ariaLabel="Team members pagination"
+              hideWhenSinglePage
+            />
           </div>
         )}
 
@@ -603,7 +629,7 @@ export function TeamRbacDialog({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#e4e6eb] dark:divide-[#2a3942]">
-                  {ALL_PERMISSIONS.map((perm) => {
+                  {permissionsPagination.items.map((perm) => {
                     const meta = PERMISSION_LABELS[perm];
                     return (
                       <tr
@@ -647,53 +673,77 @@ export function TeamRbacDialog({
                 </tbody>
               </table>
             </div>
+
+            <PaginationBar
+              variant="compact"
+              meta={permissionsPagination.meta}
+              pageSizeOptions={permissionsPagination.pageSizeOptions}
+              onPageChange={permissionsPagination.setPage}
+              onPageSizeChange={permissionsPagination.setPageSize}
+              itemLabel="permissions"
+              ariaLabel="RBAC permissions pagination"
+              hideWhenSinglePage
+            />
           </div>
         )}
 
         {/* Tab 3: Security Audit Logs */}
         {activeTab === "audit" && canReadUsers && (
-          <div className="space-y-2.5 max-h-80 overflow-y-auto scroller">
-            {auditLogs.length === 0 ? (
-              <p className="text-xs text-center py-8 text-[#65676b] dark:text-[#8696a0]">
-                No security audit events recorded yet.
-              </p>
-            ) : (
-              auditLogs.map((log) => (
-                <div
-                  key={log.id}
-                  className="rounded-xl border border-[#e4e6eb] dark:border-[#2a3942] bg-white dark:bg-[#202c33] px-3.5 py-2.5 flex items-center justify-between gap-3 text-xs"
-                >
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-mono font-semibold text-[#0084ff]">
-                        {log.action}
-                      </span>
-                      <span
-                        className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${
-                          USER_ROLE_META[log.actorRole].badgeClass
-                        }`}
-                      >
-                        {log.actorRole}
-                      </span>
-                      <span className="text-[#65676b] dark:text-[#8696a0] truncate">
-                        by {log.actorEmail}
-                      </span>
+          <div className="space-y-3">
+            <div className="space-y-2.5 max-h-80 overflow-y-auto scroller">
+              {auditLogs.length === 0 ? (
+                <p className="text-xs text-center py-8 text-[#65676b] dark:text-[#8696a0]">
+                  No security audit events recorded yet.
+                </p>
+              ) : (
+                auditPagination.items.map((log) => (
+                  <div
+                    key={log.id}
+                    className="rounded-xl border border-[#e4e6eb] dark:border-[#2a3942] bg-white dark:bg-[#202c33] px-3.5 py-2.5 flex items-center justify-between gap-3 text-xs"
+                  >
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-mono font-semibold text-[#0084ff]">
+                          {log.action}
+                        </span>
+                        <span
+                          className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${
+                            USER_ROLE_META[log.actorRole].badgeClass
+                          }`}
+                        >
+                          {log.actorRole}
+                        </span>
+                        <span className="text-[#65676b] dark:text-[#8696a0] truncate">
+                          by {log.actorEmail}
+                        </span>
+                      </div>
+                      {log.details && (
+                        <p className="text-[11px] text-[#65676b] dark:text-[#8696a0] font-mono mt-0.5 truncate">
+                          {JSON.stringify(log.details)}
+                        </p>
+                      )}
                     </div>
-                    {log.details && (
-                      <p className="text-[11px] text-[#65676b] dark:text-[#8696a0] font-mono mt-0.5 truncate">
-                        {JSON.stringify(log.details)}
-                      </p>
-                    )}
+                    <span className="text-[11px] text-[#65676b] dark:text-[#8696a0] shrink-0">
+                      {new Date(log.createdAt).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </span>
                   </div>
-                  <span className="text-[11px] text-[#65676b] dark:text-[#8696a0] shrink-0">
-                    {new Date(log.createdAt).toLocaleTimeString([], {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </span>
-                </div>
-              ))
-            )}
+                ))
+              )}
+            </div>
+
+            <PaginationBar
+              variant="compact"
+              meta={auditPagination.meta}
+              pageSizeOptions={auditPagination.pageSizeOptions}
+              onPageChange={auditPagination.setPage}
+              onPageSizeChange={auditPagination.setPageSize}
+              itemLabel="events"
+              ariaLabel="Modal audit logs pagination"
+              hideWhenSinglePage
+            />
           </div>
         )}
       </div>

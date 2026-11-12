@@ -15,13 +15,19 @@ import {
   type AuthUser,
   BUSINESS_STATUS_META,
   BUSINESS_STATUS_ORDER,
+  COMPACT_PAGE_SIZE_OPTIONS,
   type CryptoProject,
   hasPermission,
   type ProjectBusinessStatus,
   type ProjectContextItem,
 } from "@/types/project";
 import { ProjectAvatar } from "@/components/ProjectAvatar";
-import { ContextTypeIcon, FilterChip } from "@/components/ui";
+import {
+  ContextTypeIcon,
+  FilterChip,
+  PaginationBar,
+} from "@/components/ui";
+import { usePagination } from "@/hooks/usePagination";
 
 interface ContextInspectorProps {
   project: CryptoProject;
@@ -82,6 +88,12 @@ export function ContextInspector({
     if (filterTab === "links") return ctx.type !== "message";
     if (filterTab === "messages") return ctx.type === "message";
     return true;
+  });
+
+  const contextsPagination = usePagination(filteredContexts, {
+    initialPageSize: 6,
+    pageSizeOptions: COMPACT_PAGE_SIZE_OPTIONS,
+    resetKey: `${project.id}:${filterTab}`,
   });
 
   const inspectorContent = (
@@ -192,6 +204,12 @@ export function ContextInspector({
               );
             })}
           </div>
+          {project.businessStatus === "new" && (
+            <p className="mt-1.5 text-[10px] text-[#65676b] dark:text-[#8696a0]">
+              New project — chatting, scraping, or updating contexts/checklist
+              automatically moves it to <strong>Active</strong>.
+            </p>
+          )}
 
           {canDeleteProject && onDeleteProject && (
             <div className="mt-3 pt-2.5 border-t border-[#e4e6eb] dark:border-[#222d34] flex justify-end">
@@ -294,7 +312,7 @@ export function ContextInspector({
             )}
           </div>
         ) : (
-          filteredContexts.map((ctx) => (
+          contextsPagination.items.map((ctx) => (
             <div
               key={ctx.id}
               className={`px-4 py-3 transition ${
@@ -460,6 +478,23 @@ export function ContextInspector({
           ))
         )}
       </div>
+
+      {filteredContexts.length > 0 && (
+        <div className="px-4 pb-3 border-t border-[#e4e6eb] dark:border-[#222d34] shrink-0">
+          <PaginationBar
+            variant="compact"
+            meta={contextsPagination.meta}
+            pageSizeOptions={contextsPagination.pageSizeOptions}
+            onPageChange={contextsPagination.setPage}
+            onPageSizeChange={contextsPagination.setPageSize}
+            itemLabel="contexts"
+            ariaLabel="Project contexts pagination"
+            hideWhenSinglePage={
+              filteredContexts.length <= COMPACT_PAGE_SIZE_OPTIONS[0]
+            }
+          />
+        </div>
+      )}
     </>
   );
 

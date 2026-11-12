@@ -202,12 +202,35 @@ export const PROJECT_STAGES: readonly ProjectStage[] = [
 
 export const BUSINESS_STATUS_ORDER: readonly ProjectBusinessStatus[] = [
   "new",
+  "active",
   "contacted",
   "collaborated",
   "completed",
   "unresponsive",
   "archived",
 ] as const;
+
+export const CREATABLE_BUSINESS_STATUS_ORDER: readonly ProjectBusinessStatus[] =
+  BUSINESS_STATUS_ORDER.filter((status) => status !== "active");
+
+export function shouldAutoActivateOnActivity(
+  currentStatus: ProjectBusinessStatus
+): boolean {
+  return currentStatus === "new";
+}
+
+export const SUGGESTED_NEXT_STATUSES: Record<
+  ProjectBusinessStatus,
+  readonly ProjectBusinessStatus[]
+> = {
+  new: ["contacted", "archived"],
+  active: ["contacted", "collaborated", "unresponsive", "archived"],
+  contacted: ["collaborated", "unresponsive", "completed", "archived"],
+  collaborated: ["completed", "contacted", "unresponsive", "archived"],
+  completed: ["collaborated", "archived"],
+  unresponsive: ["contacted", "active", "archived"],
+  archived: ["active", "new"],
+};
 
 export const SOLID_AVATAR_COLORS = [
   "bg-[#1d4ed8]",
@@ -231,11 +254,22 @@ export const BUSINESS_STATUS_META: Record<
   new: {
     label: "New",
     shortLabel: "New",
-    description: "New project lead",
+    description:
+      "Newly added project — becomes Active automatically on first chat, scrape, checklist, or edit action",
     badgeClass:
       "bg-[#e7f3ff] text-[#0084ff] dark:bg-[#0084ff]/15 dark:text-[#4599ff]",
     dotClass: "bg-[#0084ff]",
     sortPriority: 0,
+  },
+  active: {
+    label: "Active",
+    shortLabel: "Active",
+    description:
+      "In progress — activated automatically when an admin or team member interacts with this project",
+    badgeClass:
+      "bg-indigo-500/12 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-300",
+    dotClass: "bg-indigo-500",
+    sortPriority: 1,
   },
   contacted: {
     label: "Contacted",
@@ -243,7 +277,7 @@ export const BUSINESS_STATUS_META: Record<
     description: "Outreach sent, awaiting reply",
     badgeClass: "bg-amber-500/10 text-amber-700 dark:text-amber-400",
     dotClass: "bg-amber-500",
-    sortPriority: 1,
+    sortPriority: 2,
   },
   collaborated: {
     label: "Collaborated",
@@ -251,7 +285,7 @@ export const BUSINESS_STATUS_META: Record<
     description: "Active partnership",
     badgeClass: "bg-emerald-500/12 text-emerald-700 dark:text-emerald-400",
     dotClass: "bg-[#00a884]",
-    sortPriority: 2,
+    sortPriority: 3,
   },
   completed: {
     label: "Completed",
@@ -260,7 +294,7 @@ export const BUSINESS_STATUS_META: Record<
     badgeClass:
       "bg-slate-200/80 text-slate-700 dark:bg-[#2a3942] dark:text-[#d1d7db]",
     dotClass: "bg-slate-500",
-    sortPriority: 3,
+    sortPriority: 4,
   },
   unresponsive: {
     label: "Unresponsive",
@@ -268,7 +302,7 @@ export const BUSINESS_STATUS_META: Record<
     description: "No response after follow-up",
     badgeClass: "bg-rose-500/10 text-rose-700 dark:text-rose-400",
     dotClass: "bg-rose-500",
-    sortPriority: 4,
+    sortPriority: 5,
   },
   archived: {
     label: "Archived",
@@ -277,7 +311,7 @@ export const BUSINESS_STATUS_META: Record<
     badgeClass:
       "bg-slate-200/60 text-slate-500 dark:bg-[#202c33] dark:text-[#8696a0]",
     dotClass: "bg-slate-400",
-    sortPriority: 5,
+    sortPriority: 6,
   },
 };
 

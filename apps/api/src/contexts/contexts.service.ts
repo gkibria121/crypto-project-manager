@@ -6,6 +6,7 @@ import {
 } from "@repo/shared";
 import { randomUUID } from "crypto";
 import { PrismaService } from "../prisma/prisma.service.js";
+import { activateProjectOnActivity } from "../projects/project-lifecycle.helper.js";
 import { findFullProjectOrThrow } from "../projects/project.mapper.js";
 
 @Injectable()
@@ -31,6 +32,7 @@ export class ContextsService {
       updatedAtLabel: "Now",
     });
 
+    await activateProjectOnActivity(this.prisma.db.orm, projectId, "Now");
     return findFullProjectOrThrow(this.prisma, projectId);
   }
 
@@ -53,6 +55,7 @@ export class ContextsService {
       id: contextId,
     }).update({ isActive: !ctx.isActive });
 
+    await activateProjectOnActivity(this.prisma.db.orm, projectId, "Now");
     return findFullProjectOrThrow(this.prisma, projectId);
   }
 
@@ -66,6 +69,7 @@ export class ContextsService {
       projectId,
     }).updateAll({ isActive: enable });
 
+    await activateProjectOnActivity(this.prisma.db.orm, projectId, "Now");
     return findFullProjectOrThrow(this.prisma, projectId);
   }
 
@@ -84,6 +88,7 @@ export class ContextsService {
       );
     }
 
+    await activateProjectOnActivity(this.prisma.db.orm, projectId, "Now");
     return findFullProjectOrThrow(this.prisma, projectId);
   }
 }

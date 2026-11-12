@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import {
   BUSINESS_STATUS_META,
+  COMPACT_PAGE_SIZE_OPTIONS,
   USER_ROLE_META,
   hasPermission,
   type AuthUser,
@@ -22,7 +23,8 @@ import {
   type SystemHealthStatus,
 } from "@/types/project";
 import { ProjectAvatar } from "@/components/ProjectAvatar";
-import { FilterChip } from "@/components/ui";
+import { FilterChip, PaginationBar } from "@/components/ui";
+import { usePagination } from "@/hooks/usePagination";
 
 interface ProjectSidebarProps {
   currentUser: AuthUser;
@@ -42,9 +44,10 @@ interface ProjectSidebarProps {
   isMobileHidden?: boolean;
 }
 
-type SidebarFilter = "active" | ProjectBusinessStatus;
+type SidebarFilter = "all" | ProjectBusinessStatus;
 
 const FILTER_TABS: { id: SidebarFilter; label: string }[] = [
+  { id: "all", label: "All" },
   { id: "new", label: "New" },
   { id: "active", label: "Active" },
   { id: "contacted", label: "Contacted" },
@@ -70,7 +73,7 @@ export function ProjectSidebar({
 }: ProjectSidebarProps) {
   const searchInputId = useId();
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeFilter, setActiveFilter] = useState<SidebarFilter>("active");
+  const [activeFilter, setActiveFilter] = useState<SidebarFilter>("all");
 
   const isAdmin =
     currentUser.role === "admin" || hasPermission(currentUser, "users:write");
@@ -79,7 +82,7 @@ export function ProjectSidebar({
   const canWriteSettings = hasPermission(currentUser, "settings:write");
 
   const countByStatus = (status: SidebarFilter) => {
-    if (status === "active") {
+    if (status === "all") {
       return projects.filter((p) => p.businessStatus !== "archived").length;
     }
     return projects.filter((p) => p.businessStatus === status).length;
@@ -94,7 +97,7 @@ export function ProjectSidebar({
 
       if (!matchesQuery) return false;
 
-      if (activeFilter === "active") {
+      if (activeFilter === "all") {
         return searchQuery.trim()
           ? true
           : project.businessStatus !== "archived";
@@ -106,6 +109,12 @@ export function ProjectSidebar({
         BUSINESS_STATUS_META[a.businessStatus].sortPriority -
         BUSINESS_STATUS_META[b.businessStatus].sortPriority
     );
+
+  const sidebarPagination = usePagination(filteredProjects, {
+    initialPageSize: 15,
+    pageSizeOptions: COMPACT_PAGE_SIZE_OPTIONS,
+    resetKey: `${activeFilter}:${searchQuery}`,
+  });
 
   return (
     <aside
@@ -244,14 +253,14 @@ export function ProjectSidebar({
           <div className="text-center py-12 px-4">
             <p className="text-sm text-[#65676b] dark:text-[#8696a0]">
               No projects in{" "}
-              {activeFilter === "active"
-                ? "Active"
+              {activeFilter === "all"
+                ? "All Projects"
                 : BUSINESS_STATUS_META[activeFilter].label}
               .
             </p>
           </div>
         ) : (
-          filteredProjects.map((project) => {
+          sidebarPagination.items.map((project) => {
             const isSelected = project.id === selectedProjectId;
             const lastMsg = project.messages[project.messages.length - 1];
             const statusMeta = BUSINESS_STATUS_META[project.businessStatus];
@@ -325,7 +334,7 @@ export function ProjectSidebar({
                     onClick={() =>
                       onUpdateBusinessStatus(
                         project.id,
-                        isArchived ? "new" : "archived"
+                        isArchived ? "active" : "archived"
                       )
                     }
                     aria-label={
@@ -348,6 +357,22 @@ export function ProjectSidebar({
           })
         )}
       </div>
+
+      {/* Shared Sidebar Pagination Bar */}
+      {filteredProjects.length > 0 && (
+        <div className="px-3 pb-2 border-t border-[#e4e6eb] dark:border-[#222d34] bg-white dark:bg-[#111b21]">
+          <PaginationBar
+            variant="compact"
+            meta={sidebarPagination.meta}
+            pageSizeOptions={sidebarPagination.pageSizeOptions}
+            onPageChange={sidebarPagination.setPage}
+            onPageSizeChange={sidebarPagination.setPageSize}
+            itemLabel="projects"
+            ariaLabel="Sidebar projects pagination"
+            hideWhenSinglePage={filteredProjects.length <= COMPACT_PAGE_SIZE_OPTIONS[0]}
+          />
+        </div>
+      )}
 
       {/* Authenticated User Profile & RBAC Footer */}
       <div className="px-3.5 py-2.5 border-t border-[#e4e6eb] dark:border-[#222d34] bg-[#f0f2f5]/50 dark:bg-[#202c33]/60 flex items-center justify-between gap-2">

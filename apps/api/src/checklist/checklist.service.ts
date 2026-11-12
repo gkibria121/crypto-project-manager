@@ -7,6 +7,7 @@ import {
 } from "@repo/shared";
 import { randomUUID } from "crypto";
 import { PrismaService } from "../prisma/prisma.service.js";
+import { computeActivatedProjectPatch } from "../projects/project-lifecycle.helper.js";
 import { findFullProjectOrThrow } from "../projects/project.mapper.js";
 
 @Injectable()
@@ -17,7 +18,7 @@ export class ChecklistService {
     projectId: string,
     itemId: string
   ): Promise<CryptoProject> {
-    await findFullProjectOrThrow(this.prisma, projectId);
+    const project = await findFullProjectOrThrow(this.prisma, projectId);
 
     const itemExists = await this.prisma.db.orm.public.ChecklistItem.select(
       "id"
@@ -34,19 +35,25 @@ export class ChecklistService {
         checklistItemId: itemId,
       }).first();
 
-    await this.prisma.db.orm.public.ProjectChecklistState.upsert({
-      create: {
-        projectId,
-        checklistItemId: itemId,
-        checked: true,
-      },
-      update: {
-        checked: !existingState?.checked,
-      },
-      conflictOn: {
-        projectId,
-        checklistItemId: itemId,
-      },
+    await this.prisma.db.transaction(async (tx) => {
+      await tx.orm.public.ProjectChecklistState.upsert({
+        create: {
+          projectId,
+          checklistItemId: itemId,
+          checked: true,
+        },
+        update: {
+          checked: !existingState?.checked,
+        },
+        conflictOn: {
+          projectId,
+          checklistItemId: itemId,
+        },
+      });
+
+      await tx.orm.public.Project.where({ id: projectId }).update(
+        computeActivatedProjectPatch(project, "Just now")
+      );
     });
 
     return findFullProjectOrThrow(this.prisma, projectId);
@@ -108,9 +115,9 @@ export class ChecklistService {
         model: "pulseos-engine",
       });
 
-      await tx.orm.public.Project.where({ id: projectId }).update({
-        lastActivityTime: "Just now",
-      });
+      await tx.orm.public.Project.where({ id: projectId }).update(
+        computeActivatedProjectPatch(project, "Just now")
+      );
     });
 
     return findFullProjectOrThrow(this.prisma, projectId);
@@ -189,9 +196,9 @@ export class ChecklistService {
         createdAt: new Date(now + 5),
       });
 
-      await tx.orm.public.Project.where({ id: projectId }).update({
-        lastActivityTime: "Just now",
-      });
+      await tx.orm.public.Project.where({ id: projectId }).update(
+        computeActivatedProjectPatch(project, "Just now")
+      );
     });
 
     return findFullProjectOrThrow(this.prisma, projectId);

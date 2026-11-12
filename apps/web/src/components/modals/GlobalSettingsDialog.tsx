@@ -12,7 +12,13 @@ import {
   type PromptTemplate,
   type PromptTemplateFormValues,
 } from "@/types/project";
-import { FilterChip, FormField, ModalDialog } from "@/components/ui";
+import {
+  FilterChip,
+  FormField,
+  ModalDialog,
+  PaginationBar,
+} from "@/components/ui";
+import { usePagination } from "@/hooks/usePagination";
 
 interface GlobalSettingsDialogProps {
   dialogRef: RefObject<HTMLDialogElement | null>;
@@ -36,6 +42,16 @@ export function GlobalSettingsDialog({
   const [activeTab, setActiveTab] = useState<"prompts" | "checklist">(
     "prompts"
   );
+
+  const promptsPagination = usePagination(promptTemplates, {
+    initialPageSize: 4,
+    pageSizeOptions: [4, 8, 15, 25],
+  });
+
+  const checklistPagination = usePagination(checklistItems, {
+    initialPageSize: 4,
+    pageSizeOptions: [4, 8, 15, 25],
+  });
 
   const promptForm = useForm<PromptTemplateFormValues>({
     resolver: zodResolver(promptTemplateFormSchema),
@@ -104,7 +120,7 @@ export function GlobalSettingsDialog({
       {activeTab === "prompts" ? (
         <div className="mt-4 space-y-4">
           <div className="max-h-72 overflow-y-auto scroller space-y-3 pr-1">
-            {promptTemplates.map((tpl) => (
+            {promptsPagination.items.map((tpl) => (
               <div
                 key={tpl.id}
                 className="p-3 rounded-xl bg-[#f0f2f5] dark:bg-[#2a3942] space-y-2"
@@ -149,6 +165,17 @@ export function GlobalSettingsDialog({
               </div>
             ))}
           </div>
+
+          <PaginationBar
+            variant="compact"
+            meta={promptsPagination.meta}
+            pageSizeOptions={promptsPagination.pageSizeOptions}
+            onPageChange={promptsPagination.setPage}
+            onPageSizeChange={promptsPagination.setPageSize}
+            itemLabel="prompts"
+            ariaLabel="System prompt templates pagination"
+            hideWhenSinglePage
+          />
 
           <form
             onSubmit={handleAddPromptSubmit}
@@ -210,7 +237,7 @@ export function GlobalSettingsDialog({
       ) : (
         <div className="mt-4 space-y-4">
           <div className="max-h-72 overflow-y-auto scroller space-y-2.5 pr-1">
-            {checklistItems.map((item) => (
+            {checklistPagination.items.map((item) => (
               <div
                 key={item.id}
                 className="p-3 rounded-xl bg-[#f0f2f5] dark:bg-[#2a3942] space-y-2"
@@ -255,6 +282,17 @@ export function GlobalSettingsDialog({
               </div>
             ))}
           </div>
+
+          <PaginationBar
+            variant="compact"
+            meta={checklistPagination.meta}
+            pageSizeOptions={checklistPagination.pageSizeOptions}
+            onPageChange={checklistPagination.setPage}
+            onPageSizeChange={checklistPagination.setPageSize}
+            itemLabel="checklist items"
+            ariaLabel="Global checklist items pagination"
+            hideWhenSinglePage
+          />
 
           <form
             onSubmit={handleAddChecklistSubmit}

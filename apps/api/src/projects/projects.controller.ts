@@ -9,11 +9,13 @@ import {
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import {
+  bulkUpdateBusinessStatusDtoSchema,
   newProjectFormSchema,
   syncProjectsDtoSchema,
   updateBusinessStatusDtoSchema,
   updateProjectFormSchema,
   updateProjectLogoDtoSchema,
+  type BulkUpdateBusinessStatusDto,
   type NewProjectFormValues,
   type SyncProjectsDto,
   type UpdateBusinessStatusDto,
@@ -128,6 +130,19 @@ export class ProjectsController {
     body: SyncProjectsDto
   ) {
     return this.projectSyncService.syncFromProvider(body, user);
+  }
+
+  @Patch("bulk/status")
+  @RequirePermissions("projects:update")
+  @ApiOperation({ summary: "Bulk-update pipeline business status for selected projects" })
+  bulkUpdateStatus(
+    @Body(new ZodValidationPipe(bulkUpdateBusinessStatusDtoSchema))
+    body: BulkUpdateBusinessStatusDto
+  ) {
+    return this.projectsService.bulkUpdateBusinessStatus(
+      body.projectIds,
+      body.status
+    );
   }
 
   @Get(":projectId")

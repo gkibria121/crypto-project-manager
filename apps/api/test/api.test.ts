@@ -13,14 +13,21 @@ import {
   verifyPassword,
 } from "@repo/database";
 import {
+  CREATABLE_BUSINESS_STATUS_ORDER,
   addContextFormSchema,
   type AuthUser,
   buildContextualAiResponse,
+  buildPaginationWindow,
+  calculatePaginationMeta,
+  clampPage,
   evaluateChecklistItemAgainstProject,
   getPermissionsForRole,
   hasAnyRole,
   hasPermission,
+  newProjectFormSchema,
+  paginateItems,
   type Permission,
+  shouldAutoActivateOnActivity,
   syncProjectsDtoSchema,
   updateProjectFormSchema,
   type UserRole,
@@ -35,8 +42,10 @@ import { AuthService } from "../src/auth/auth.service.js";
 import { RbacGuard } from "../src/auth/rbac.guard.js";
 import { ZodValidationPipe } from "../src/common/pipes/zod-validation.pipe.js";
 import { validateEnv } from "../src/config/env.js";
+import { computeActivatedProjectPatch } from "../src/projects/project-lifecycle.helper.js";
 import { mapPrismaProjectToDomain } from "../src/projects/project.mapper.js";
 import { ProjectSyncService } from "../src/projects/project-sync.service.js";
+import { ProjectsService } from "../src/projects/projects.service.js";
 import { UsersService } from "../src/users/users.service.js";
 
 describe("NestJS Core Backend Unit Tests", () => {
@@ -728,5 +737,225 @@ describe("NestJS Core Backend Unit Tests", () => {
     expect(secondSync.updatedCount).toBe(1);
     expect(secondSync.updatedProjects[0]?.id).toBe(syncedProject?.id);
     expect(secondSync.logs.some((l) => l.level === "update")).toBe(true);
+  });
+
+  it("enforces project business status lifecycle rules and blocks direct creation into active", async () => {
+    expect(CREATABLE_BUSINESS_STATUS_ORDER).not.toContain("active");
+    expect(CREATABLE_BUSINESS_STATUS_ORDER).toContain("new");
+
+    const createPipe = new ZodValidationPipe(newProjectFormSchema);
+    expect(() =>
+      createPipe.transform({
+        name: "Direct Active Test",
+        ticker: "$ACT",
+        chain: "Solana",
+        stage: "Pre-TGE",
+        businessStatus: "active" as never,
+        tagline: "",
+        logoUrl: "",
+        website: "",
+        xHandle: "",
+        linkedin: "",
+      })
+    ).toThrow(BadRequestException);
+
+    const projectsStore: Array<Record<string, unknown>> = [
+      {
+        id: "proj-new-1",
+        name: "Fresh Lead",
+        ticker: "$FRSH",
+        chain: "Solana",
+        stage: "Pre-TGE",
+        businessStatus: "new",
+        avatarBg: "bg-[#1d4ed8]",
+        logoUrl: null,
+        tagline: "Fresh synced project",
+        campaignBudget: "$25,000 / mo",
+        sentimentScore: 85,
+        tags: ["new", "solana"],
+        isPinned: false,
+        unreadInsights: 2,
+        lastActivityTime: "Now",
+        lastScrapedAt: null,
+        archivedAt: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      {
+        id: "proj-collab-1",
+        name: "Partner Co",
+        ticker: "$PRTN",
+        chain: "Base",
+        stage: "Mainnet Live",
+        businessStatus: "collaborated",
+        avatarBg: "bg-[#00a884]",
+        logoUrl: null,
+        tagline: "Existing partner",
+        campaignBudget: "$50,000 / mo",
+        sentimentScore: 95,
+        tags: ["base"],
+        isPinned: true,
+        unreadInsights: 0,
+        lastActivityTime: "1h",
+        lastScrapedAt: null,
+        archivedAt: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    ];
+
+    const buildProject = (row: Record<string, unknown>) => ({
+      ...row,
+      contexts: [],
+      messages: [],
+      checklistStates: [],
+    });
+
+    const ormMock = {
+      public: {
+        Project: {
+          where: ({ id }: { id: string }) => ({
+            first: async () => projectsStore.find((p) => p["id"] === id) ?? null,
+            update: async (patch: Record<string, unknown>) => {
+              const target = projectsStore.find((p) => p["id"] === id);
+              if (target) Object.assign(target, patch);
+              return target ?? null;
+            },
+          }),
+          select: () => ({
+            where: ({ id }: { id: string }) => ({
+              first: async () =>
+                projectsStore.find((p) => p["id"] === id) ?? null,
+            }),
+          }),
+          include: () => ({
+            include: () => ({
+              include: () => ({
+                where: ({ id }: { id: string }) => ({
+                  first: async () => {
+                    const row = projectsStore.find((p) => p["id"] === id);
+                    return row ? buildProject(row) : null;
+                  },
+                }),
+              }),
+            }),
+          }),
+        },
+      },
+    };
+
+    const prismaMock = {
+      db: {
+        orm: ormMock,
+        transaction: async (
+          fn: (tx: { orm: typeof ormMock }) => Promise<unknown>
+        ) => fn({ orm: ormMock }),
+      },
+    };
+
+    const projectsService = new ProjectsService(prismaMock as never);
+
+    // 1. Service also rejects creating directly into active
+    await expect(
+      projectsService.create({
+        name: "Direct Active",
+        ticker: "$DIR",
+        chain: "Solana",
+        stage: "Pre-TGE",
+        businessStatus: "active" as never,
+        tagline: "",
+        logoUrl: "",
+        website: "",
+        xHandle: "",
+        linkedin: "",
+      })
+    ).rejects.toThrow(BadRequestException);
+
+    // 2. Viewing / marking unread insights as read must NOT change "new" -> "active"
+    const viewed = await projectsService.markAsRead("proj-new-1");
+    expect(viewed.businessStatus).toBe("new");
+    expect(viewed.unreadInsights).toBe(0);
+
+    // 3. Auto-activation rules: "new" -> "active" on admin/user activity; other states preserved
+    expect(shouldAutoActivateOnActivity("new")).toBe(true);
+    expect(shouldAutoActivateOnActivity("active")).toBe(false);
+    expect(shouldAutoActivateOnActivity("collaborated")).toBe(false);
+
+    const newPatch = computeActivatedProjectPatch({
+      businessStatus: "new",
+      tags: ["new", "solana"],
+    });
+    expect(newPatch.businessStatus).toBe("active");
+    expect(newPatch.tags).toEqual(["solana"]);
+
+    const collabPatch = computeActivatedProjectPatch({
+      businessStatus: "collaborated",
+      tags: ["base"],
+    });
+    expect(collabPatch.businessStatus).toBeUndefined();
+    expect(collabPatch.lastActivityTime).toBe("Just now");
+
+    // 4. Performing a real activity (updating logo) promotes "new" -> "active"
+    const afterLogoEdit = await projectsService.updateLogo(
+      "proj-new-1",
+      "https://example.com/fresh.png"
+    );
+    expect(afterLogoEdit.businessStatus).toBe("active");
+    expect(afterLogoEdit.tags).not.toContain("new");
+
+    // 5. Performing an activity on "collaborated" preserves "collaborated"
+    const afterPartnerLogoEdit = await projectsService.updateLogo(
+      "proj-collab-1",
+      "https://example.com/partner.png"
+    );
+    expect(afterPartnerLogoEdit.businessStatus).toBe("collaborated");
+
+    // 6. Bulk state transition updates multiple projects cleanly
+    const bulkResult = await projectsService.bulkUpdateBusinessStatus(
+      ["proj-new-1", "proj-collab-1"],
+      "contacted"
+    );
+    expect(bulkResult.updatedCount).toBe(2);
+    expect(projectsStore[0]?.["businessStatus"]).toBe("contacted");
+    expect(projectsStore[1]?.["businessStatus"]).toBe("contacted");
+  });
+
+  it("computes pagination metadata, slices items, and builds balanced page windows", () => {
+    const sample = Array.from({ length: 53 }, (_, i) => `item-${i + 1}`);
+
+    const page2 = paginateItems(sample, 2, 10);
+    expect(page2.items).toHaveLength(10);
+    expect(page2.items[0]).toBe("item-11");
+    expect(page2.meta).toEqual({
+      currentPage: 2,
+      pageSize: 10,
+      totalItems: 53,
+      totalPages: 6,
+      startIndex: 10,
+      endIndex: 20,
+      hasPreviousPage: true,
+      hasNextPage: true,
+    });
+
+    // Clamps out-of-range page numbers safely
+    expect(clampPage(99, 6)).toBe(6);
+    expect(clampPage(-5, 6)).toBe(1);
+    const emptyMeta = calculatePaginationMeta(0, 3, 25);
+    expect(emptyMeta.currentPage).toBe(1);
+    expect(emptyMeta.totalPages).toBe(1);
+    expect(emptyMeta.startIndex).toBe(0);
+    expect(emptyMeta.endIndex).toBe(0);
+
+    // Builds window with ellipsis for large page counts
+    expect(buildPaginationWindow(1, 5)).toEqual([1, 2, 3, 4, 5]);
+    expect(buildPaginationWindow(6, 12, 1)).toEqual([
+      1,
+      "ellipsis",
+      5,
+      6,
+      7,
+      "ellipsis",
+      12,
+    ]);
   });
 });

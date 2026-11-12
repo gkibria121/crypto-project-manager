@@ -1,6 +1,11 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
 import {
   SOLID_AVATAR_COLORS,
+  shouldAutoActivateOnActivity,
   type ContextType,
   type CryptoProject,
   type NewProjectFormValues,
@@ -9,6 +14,7 @@ import {
 } from "@repo/shared";
 import { randomUUID } from "crypto";
 import { PrismaService } from "../prisma/prisma.service.js";
+import { computeActivatedProjectPatch } from "./project-lifecycle.helper.js";
 import {
   findFullProjectOrThrow,
   fullProjectQuery,
@@ -33,6 +39,12 @@ export class ProjectsService {
   }
 
   async create(input: NewProjectFormValues): Promise<CryptoProject> {
+    if ((input.businessStatus as ProjectBusinessStatus) === "active") {
+      throw new BadRequestException(
+        "New projects cannot be added directly to the Active state. Add projects in New state and interact with them to mark them Active."
+      );
+    }
+
     const cleanTicker = input.ticker.startsWith("$")
       ? input.ticker.toUpperCase()
       : `$${input.ticker.toUpperCase()}`;
@@ -193,6 +205,12 @@ export class ProjectsService {
     const normalizedTagline =
       input.tagline.trim() || `${input.chain} project (${input.stage})`;
 
+    const effectiveStatus: ProjectBusinessStatus =
+      input.businessStatus === existing.businessStatus &&
+      shouldAutoActivateOnActivity(existing.businessStatus)
+        ? "active"
+        : input.businessStatus;
+
     const preservedTags = existing.tags.filter(
       (tag) =>
         tag !== "new" &&
@@ -201,7 +219,7 @@ export class ProjectsService {
     );
     const tags = Array.from(
       new Set([
-        ...(input.businessStatus === "new" ? ["new"] : []),
+        ...(effectiveStatus === "new" ? ["new"] : []),
         input.chain.toLowerCase(),
         input.stage.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
         ...preservedTags,
@@ -209,7 +227,7 @@ export class ProjectsService {
     );
 
     const archivedAt =
-      input.businessStatus === "archived"
+      effectiveStatus === "archived"
         ? existing.archivedAt ?? new Date()
         : null;
 
@@ -280,7 +298,7 @@ export class ProjectsService {
         ticker: cleanTicker,
         chain: input.chain.trim(),
         stage: input.stage,
-        businessStatus: input.businessStatus,
+        businessStatus: effectiveStatus,
         avatarBg: input.avatarBg.trim() || existing.avatarBg,
         logoUrl: normalizedLogoUrl,
         tagline: normalizedTagline,
@@ -391,18 +409,79 @@ export class ProjectsService {
     return findFullProjectOrThrow(this.prisma, projectId);
   }
 
+  async bulkUpdateBusinessStatus(
+    projectIds: readonly string[],
+    status: ProjectBusinessStatus
+  ): Promise<{
+    updatedCount: number;
+    updatedIds: string[];
+    status: ProjectBusinessStatus;
+  }> {
+    const uniqueIds = Array.from(
+      new Set(projectIds.map((id) => id.trim()).filter(Boolean))
+    );
+    if (uniqueIds.length === 0) {
+      throw new BadRequestException("Select at least one project to update.");
+    }
+
+    const updatedIds: string[] = [];
+    const archivedAt = status === "archived" ? new Date() : null;
+
+    await this.prisma.db.transaction(async (tx) => {
+      for (const id of uniqueIds) {
+        const existing = await tx.orm.public.Project.select(
+          "id",
+          "tags",
+          "archivedAt"
+        )
+          .where({ id })
+          .first();
+        if (!existing) continue;
+
+        const baseTags = existing.tags.filter((t) => t !== "new");
+        const nextTags = status === "new" ? ["new", ...baseTags] : baseTags;
+
+        await tx.orm.public.Project.where({ id }).update({
+          businessStatus: status,
+          tags: nextTags,
+          archivedAt:
+            status === "archived" ? existing.archivedAt ?? archivedAt : null,
+          lastActivityTime: "Now",
+        });
+        updatedIds.push(id);
+      }
+    });
+
+    return {
+      updatedCount: updatedIds.length,
+      updatedIds,
+      status,
+    };
+  }
+
   async updateLogo(
     projectId: string,
     logoUrl: string | null | undefined
   ): Promise<CryptoProject> {
-    const updated = await this.prisma.db.orm.public.Project.where({
+    const existing = await this.prisma.db.orm.public.Project.select(
+      "id",
+      "businessStatus",
+      "tags"
+    )
+      .where({ id: projectId })
+      .first();
+
+    if (!existing) {
+      throw new NotFoundException(`Project "${projectId}" not found.`);
+    }
+
+    const activityPatch = computeActivatedProjectPatch(existing, "Now");
+    await this.prisma.db.orm.public.Project.where({
       id: projectId,
     }).update({
       logoUrl: logoUrl && logoUrl.trim().length > 0 ? logoUrl.trim() : null,
+      ...activityPatch,
     });
-    if (!updated) {
-      throw new NotFoundException(`Project "${projectId}" not found.`);
-    }
     return findFullProjectOrThrow(this.prisma, projectId);
   }
 

@@ -3,7 +3,8 @@
 import React, { type RefObject } from "react";
 import { CheckCheck, Play, Settings } from "lucide-react";
 import type { ChecklistItemConfig, CryptoProject } from "@/types/project";
-import { ModalDialog } from "@/components/ui";
+import { ModalDialog, PaginationBar } from "@/components/ui";
+import { usePagination } from "@/hooks/usePagination";
 
 interface ProjectChecklistDialogProps {
   dialogRef: RefObject<HTMLDialogElement | null>;
@@ -31,6 +32,12 @@ export function ProjectChecklistDialog({
   const completedCount = checklistItems.filter(
     (item) => project.checklistState?.[item.id]?.checked
   ).length;
+
+  const checklistPagination = usePagination(checklistItems, {
+    initialPageSize: 6,
+    pageSizeOptions: [6, 12, 25],
+    resetKey: project.id,
+  });
 
   return (
     <ModalDialog
@@ -65,7 +72,7 @@ export function ProjectChecklistDialog({
             No checklist items configured. Add items in Global Settings.
           </div>
         ) : (
-          checklistItems.map((item) => {
+          checklistPagination.items.map((item) => {
             const state = project.checklistState?.[item.id];
             const isChecked = Boolean(state?.checked);
 
@@ -129,6 +136,17 @@ export function ProjectChecklistDialog({
           })
         )}
       </div>
+
+      <PaginationBar
+        variant="compact"
+        meta={checklistPagination.meta}
+        pageSizeOptions={checklistPagination.pageSizeOptions}
+        onPageChange={checklistPagination.setPage}
+        onPageSizeChange={checklistPagination.setPageSize}
+        itemLabel="checklist items"
+        ariaLabel="Project checklist pagination"
+        hideWhenSinglePage
+      />
 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 mt-2 border-t border-[#e4e6eb] dark:border-[#2a3942]">
         {canWriteSettings ? (

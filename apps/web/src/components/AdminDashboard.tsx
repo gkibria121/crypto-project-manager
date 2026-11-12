@@ -42,6 +42,8 @@ import {
   ALL_PERMISSIONS,
   BUSINESS_STATUS_META,
   BUSINESS_STATUS_ORDER,
+  COMPACT_PAGE_SIZE_OPTIONS,
+  DEFAULT_PAGE_SIZE_OPTIONS,
   PERMISSION_LABELS,
   ROLE_PERMISSIONS,
   USER_ROLES,
@@ -63,6 +65,7 @@ import {
 } from "@/types/project";
 import {
   useAuditLogsQuery,
+  useBulkUpdateBusinessStatusMutation,
   useChecklistItemsQuery,
   useCreateProjectMutation,
   useCreateUserMutation,
@@ -74,6 +77,7 @@ import {
   useDeleteUserMutation,
   useLoginMutation,
   useLogoutMutation,
+  usePagination,
   useProjectSyncSocket,
   useProjectsQuery,
   usePromptTemplatesQuery,
@@ -95,7 +99,7 @@ import {
   NewProjectDialog,
   SyncProjectsDialog,
 } from "@/components/modals";
-import { FilterChip, FormField } from "@/components/ui";
+import { FilterChip, FormField, PaginationBar } from "@/components/ui";
 
 type AdminSectionId =
   | "overview"
@@ -185,6 +189,8 @@ export function AdminDashboard() {
   const createProjectMutation = useCreateProjectMutation();
   const updateProjectMutation = useUpdateProjectMutation();
   const updateBusinessStatusMutation = useUpdateBusinessStatusMutation();
+  const bulkUpdateBusinessStatusMutation =
+    useBulkUpdateBusinessStatusMutation();
   const deleteProjectMutation = useDeleteProjectMutation();
 
   const {
@@ -226,7 +232,9 @@ export function AdminDashboard() {
   const [projectSearchQuery, setProjectSearchQuery] = useState("");
   const [projectFilter, setProjectFilter] =
     useState<ProjectFilterStatus>("all");
-  const [visibleProjectsCount, setVisibleProjectsCount] = useState(100);
+  const [selectedProjectIds, setSelectedProjectIds] = useState<string[]>([]);
+  const [bulkStatusTarget, setBulkStatusTarget] =
+    useState<ProjectBusinessStatus>("contacted");
 
   const [auditSearchQuery, setAuditSearchQuery] = useState("");
   const [auditRoleFilter, setAuditRoleFilter] =
@@ -242,6 +250,7 @@ export function AdminDashboard() {
   const rbacCaptionId = useId();
   const userSearchInputId = useId();
   const projectSearchInputId = useId();
+  const bulkStatusSelectId = useId();
   const auditSearchInputId = useId();
   const createNameId = useId();
   const createEmailId = useId();
@@ -280,6 +289,113 @@ export function AdminDashboard() {
       label: "",
       scanPrompt: "",
     },
+  });
+
+  const inactiveUsers = users.filter((u) => !u.isActive);
+  const activeUsers = users.filter((u) => u.isActive);
+  const newProjectsCount = projects.filter(
+    (p) => p.businessStatus === "new"
+  ).length;
+  const activeStateProjectsCount = projects.filter(
+    (p) => p.businessStatus === "active"
+  ).length;
+  const nonArchivedProjectsCount = projects.filter(
+    (p) => p.businessStatus !== "archived"
+  ).length;
+  const totalContextsCount = projects.reduce(
+    (acc, p) => acc + p.contexts.length,
+    0
+  );
+  const totalMessagesCount = projects.reduce(
+    (acc, p) => acc + p.messages.length,
+    0
+  );
+
+  const filteredUsers = users.filter((user) => {
+    const query = userSearchQuery.trim().toLowerCase();
+    const matchesSearch =
+      !query ||
+      user.name.toLowerCase().includes(query) ||
+      user.email.toLowerCase().includes(query) ||
+      user.title.toLowerCase().includes(query) ||
+      user.role.toLowerCase().includes(query);
+
+    if (!matchesSearch) return false;
+    if (userFilter === "pending") return !user.isActive;
+    if (userFilter === "active") return user.isActive;
+    return true;
+  });
+
+  const filteredProjects = projects.filter((project) => {
+    const query = projectSearchQuery.trim().toLowerCase();
+    const matchesSearch =
+      !query ||
+      project.name.toLowerCase().includes(query) ||
+      project.ticker.toLowerCase().includes(query) ||
+      project.chain.toLowerCase().includes(query) ||
+      project.tagline.toLowerCase().includes(query) ||
+      (project.tags ?? []).some((tag) => tag.toLowerCase().includes(query));
+
+    if (!matchesSearch) return false;
+    if (projectFilter === "all") return true;
+    return project.businessStatus === projectFilter;
+  });
+
+  const filteredAuditLogs = auditLogs.filter((log) => {
+    if (auditRoleFilter !== "all" && log.actorRole !== auditRoleFilter) {
+      return false;
+    }
+    const query = auditSearchQuery.trim().toLowerCase();
+    if (!query) return true;
+    return (
+      log.actorEmail.toLowerCase().includes(query) ||
+      log.action.toLowerCase().includes(query) ||
+      log.resource.toLowerCase().includes(query) ||
+      JSON.stringify(log.details ?? {})
+        .toLowerCase()
+        .includes(query)
+    );
+  });
+
+  // Shared pagination hooks across all Admin Dashboard lists & tables
+  const overviewProjectsPagination = usePagination(projects, {
+    initialPageSize: 5,
+    pageSizeOptions: COMPACT_PAGE_SIZE_OPTIONS,
+  });
+  const overviewAuditPagination = usePagination(auditLogs, {
+    initialPageSize: 4,
+    pageSizeOptions: [4, 8, 15],
+  });
+  const pendingUsersPagination = usePagination(inactiveUsers, {
+    initialPageSize: 6,
+    pageSizeOptions: [4, 6, 12, 24],
+  });
+  const usersPagination = usePagination(filteredUsers, {
+    initialPageSize: 10,
+    pageSizeOptions: DEFAULT_PAGE_SIZE_OPTIONS,
+    resetKey: `${userFilter}:${userSearchQuery}`,
+  });
+  const projectsPagination = usePagination(filteredProjects, {
+    initialPageSize: 25,
+    pageSizeOptions: DEFAULT_PAGE_SIZE_OPTIONS,
+    resetKey: `${projectFilter}:${projectSearchQuery}`,
+  });
+  const rbacPermissionsPagination = usePagination(ALL_PERMISSIONS, {
+    initialPageSize: 8,
+    pageSizeOptions: [8, 12, 25],
+  });
+  const settingsPromptsPagination = usePagination(promptTemplates, {
+    initialPageSize: 5,
+    pageSizeOptions: COMPACT_PAGE_SIZE_OPTIONS,
+  });
+  const settingsChecklistPagination = usePagination(checklistItems, {
+    initialPageSize: 5,
+    pageSizeOptions: COMPACT_PAGE_SIZE_OPTIONS,
+  });
+  const auditLogsPagination = usePagination(filteredAuditLogs, {
+    initialPageSize: 12,
+    pageSizeOptions: [12, 24, 50, 100],
+    resetKey: `${auditRoleFilter}:${auditSearchQuery}`,
   });
 
   if (currentUserQuery.isLoading) {
@@ -344,66 +460,6 @@ export function AdminDashboard() {
       </div>
     );
   }
-
-  const inactiveUsers = users.filter((u) => !u.isActive);
-  const activeUsers = users.filter((u) => u.isActive);
-  const activeProjectsCount = projects.filter(
-    (p) => p.businessStatus !== "archived"
-  ).length;
-  const totalContextsCount = projects.reduce(
-    (acc, p) => acc + p.contexts.length,
-    0
-  );
-  const totalMessagesCount = projects.reduce(
-    (acc, p) => acc + p.messages.length,
-    0
-  );
-
-  const filteredUsers = users.filter((user) => {
-    const query = userSearchQuery.trim().toLowerCase();
-    const matchesSearch =
-      !query ||
-      user.name.toLowerCase().includes(query) ||
-      user.email.toLowerCase().includes(query) ||
-      user.title.toLowerCase().includes(query) ||
-      user.role.toLowerCase().includes(query);
-
-    if (!matchesSearch) return false;
-    if (userFilter === "pending") return !user.isActive;
-    if (userFilter === "active") return user.isActive;
-    return true;
-  });
-
-  const filteredProjects = projects.filter((project) => {
-    const query = projectSearchQuery.trim().toLowerCase();
-    const matchesSearch =
-      !query ||
-      project.name.toLowerCase().includes(query) ||
-      project.ticker.toLowerCase().includes(query) ||
-      project.chain.toLowerCase().includes(query) ||
-      project.tagline.toLowerCase().includes(query) ||
-      (project.tags ?? []).some((tag) => tag.toLowerCase().includes(query));
-
-    if (!matchesSearch) return false;
-    if (projectFilter === "all") return true;
-    return project.businessStatus === projectFilter;
-  });
-
-  const filteredAuditLogs = auditLogs.filter((log) => {
-    if (auditRoleFilter !== "all" && log.actorRole !== auditRoleFilter) {
-      return false;
-    }
-    const query = auditSearchQuery.trim().toLowerCase();
-    if (!query) return true;
-    return (
-      log.actorEmail.toLowerCase().includes(query) ||
-      log.action.toLowerCase().includes(query) ||
-      log.resource.toLowerCase().includes(query) ||
-      JSON.stringify(log.details ?? {})
-        .toLowerCase()
-        .includes(query)
-    );
-  });
 
   const handleSelectSection = (
     sectionId: AdminSectionId,
@@ -532,6 +588,52 @@ export function AdminDashboard() {
     } catch (err) {
       setActionError(
         err instanceof Error ? err.message : "Failed to update project status."
+      );
+    }
+  };
+
+  const handleBulkUpdateProjectStatus = async () => {
+    if (selectedProjectIds.length === 0) return;
+    setActionError(null);
+    setStatusAnnouncement(null);
+    try {
+      const result = await bulkUpdateBusinessStatusMutation.mutateAsync({
+        projectIds: selectedProjectIds,
+        status: bulkStatusTarget,
+      });
+      setSelectedProjectIds([]);
+      setStatusAnnouncement(
+        `Updated ${result.updatedCount} selected ${result.updatedCount === 1 ? "project" : "projects"} to ${BUSINESS_STATUS_META[result.status].label}.`
+      );
+    } catch (err) {
+      setActionError(
+        err instanceof Error
+          ? err.message
+          : "Failed to bulk-update project statuses."
+      );
+    }
+  };
+
+  const toggleProjectSelection = (projectId: string) => {
+    setSelectedProjectIds((prev) =>
+      prev.includes(projectId)
+        ? prev.filter((id) => id !== projectId)
+        : [...prev, projectId]
+    );
+  };
+
+  const currentPageProjectIds = projectsPagination.items.map((p) => p.id);
+  const allCurrentPageSelected =
+    currentPageProjectIds.length > 0 &&
+    currentPageProjectIds.every((id) => selectedProjectIds.includes(id));
+
+  const handleToggleSelectCurrentPage = () => {
+    if (allCurrentPageSelected) {
+      const pageSet = new Set(currentPageProjectIds);
+      setSelectedProjectIds((prev) => prev.filter((id) => !pageSet.has(id)));
+    } else {
+      setSelectedProjectIds((prev) =>
+        Array.from(new Set([...prev, ...currentPageProjectIds]))
       );
     }
   };
@@ -737,7 +839,7 @@ export function AdminDashboard() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        {inactiveUsers.map((pendingUser) => (
+        {pendingUsersPagination.items.map((pendingUser) => (
           <div
             key={pendingUser.id}
             className="rounded-xl bg-[#f0f2f5] dark:bg-[#111b21] border border-[#e4e6eb] dark:border-[#2a3942] p-3.5 flex items-center justify-between gap-3"
@@ -782,6 +884,17 @@ export function AdminDashboard() {
           </div>
         ))}
       </div>
+
+      <PaginationBar
+        variant="compact"
+        meta={pendingUsersPagination.meta}
+        pageSizeOptions={pendingUsersPagination.pageSizeOptions}
+        onPageChange={pendingUsersPagination.setPage}
+        onPageSizeChange={pendingUsersPagination.setPageSize}
+        itemLabel="pending users"
+        ariaLabel="Pending registrations pagination"
+        hideWhenSinglePage
+      />
     </section>
   );
 
@@ -1174,8 +1287,12 @@ export function AdminDashboard() {
                     </div>
                     <div className="text-2xl font-bold">{projects.length}</div>
                     <div className="text-[11px] text-[#65676b] dark:text-[#8696a0] mt-1">
-                      {activeProjectsCount} active pipeline ·{" "}
-                      {projects.length - activeProjectsCount} archived
+                      {newProjectsCount} new · {activeStateProjectsCount} active
+                      {" · "}
+                      {nonArchivedProjectsCount -
+                        newProjectsCount -
+                        activeStateProjectsCount}{" "}
+                      pipeline
                     </div>
                   </button>
 
@@ -1240,7 +1357,7 @@ export function AdminDashboard() {
                       </div>
 
                       <div className="divide-y divide-[#e4e6eb] dark:divide-[#2a3942] rounded-xl border border-[#e4e6eb] dark:border-[#2a3942] overflow-hidden">
-                        {projects.slice(0, 5).map((project) => {
+                        {overviewProjectsPagination.items.map((project) => {
                           const statusMeta =
                             BUSINESS_STATUS_META[project.businessStatus];
                           return (
@@ -1306,6 +1423,21 @@ export function AdminDashboard() {
                           );
                         })}
                       </div>
+
+                      <PaginationBar
+                        variant="compact"
+                        meta={overviewProjectsPagination.meta}
+                        pageSizeOptions={
+                          overviewProjectsPagination.pageSizeOptions
+                        }
+                        onPageChange={overviewProjectsPagination.setPage}
+                        onPageSizeChange={
+                          overviewProjectsPagination.setPageSize
+                        }
+                        itemLabel="projects"
+                        ariaLabel="Overview projects pagination"
+                        hideWhenSinglePage
+                      />
                     </div>
                   </section>
 
@@ -1387,7 +1519,7 @@ export function AdminDashboard() {
 
                     {/* Recent Audit Log Preview */}
                     <div className="space-y-2">
-                      {auditLogs.slice(0, 4).map((log) => (
+                      {overviewAuditPagination.items.map((log) => (
                         <div
                           key={log.id}
                           className="rounded-xl border border-[#e4e6eb] dark:border-[#2a3942] bg-[#f0f2f5]/50 dark:bg-[#111b21] px-3 py-2 flex items-center justify-between gap-2 text-xs"
@@ -1418,6 +1550,17 @@ export function AdminDashboard() {
                         </div>
                       ))}
                     </div>
+
+                    <PaginationBar
+                      variant="compact"
+                      meta={overviewAuditPagination.meta}
+                      pageSizeOptions={overviewAuditPagination.pageSizeOptions}
+                      onPageChange={overviewAuditPagination.setPage}
+                      onPageSizeChange={overviewAuditPagination.setPageSize}
+                      itemLabel="events"
+                      ariaLabel="Overview audit log pagination"
+                      hideWhenSinglePage
+                    />
                   </section>
                 </div>
               </div>
@@ -1712,7 +1855,7 @@ export function AdminDashboard() {
                             </td>
                           </tr>
                         ) : (
-                          filteredUsers.map((member) => {
+                          usersPagination.items.map((member) => {
                             const isSelf = member.id === currentUser.id;
                             const roleMeta = USER_ROLE_META[member.role];
 
@@ -1896,6 +2039,16 @@ export function AdminDashboard() {
                       </tbody>
                     </table>
                   </div>
+
+                  <PaginationBar
+                    meta={usersPagination.meta}
+                    pageNumbers={usersPagination.pageNumbers}
+                    pageSizeOptions={usersPagination.pageSizeOptions}
+                    onPageChange={usersPagination.setPage}
+                    onPageSizeChange={usersPagination.setPageSize}
+                    itemLabel="users"
+                    ariaLabel="Users directory pagination"
+                  />
                 </section>
               </div>
             )}
@@ -1917,8 +2070,9 @@ export function AdminDashboard() {
                       All Crypto Projects ({projects.length})
                     </h2>
                     <p className="text-xs text-[#65676b] dark:text-[#8696a0]">
-                      Click any project avatar or the Edit button to update its
-                      profile photo, pipeline stage, budget, and social channels.
+                      New projects enter Active automatically on admin/user
+                      interaction (chat, scrape, contexts, checklist, or edit),
+                      or can be moved manually across pipeline states.
                     </p>
                   </div>
 
@@ -2002,6 +2156,60 @@ export function AdminDashboard() {
                   </div>
                 </div>
 
+                {/* Bulk State Management Toolbar */}
+                {selectedProjectIds.length > 0 && (
+                  <div className="rounded-xl bg-[#e7f3ff]/70 dark:bg-[#0084ff]/15 border border-[#0084ff]/35 px-3.5 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                    <div className="text-xs font-semibold text-[#050505] dark:text-[#e9edef]">
+                      {selectedProjectIds.length}{" "}
+                      {selectedProjectIds.length === 1
+                        ? "project"
+                        : "projects"}{" "}
+                      selected
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <label
+                        htmlFor={bulkStatusSelectId}
+                        className="text-xs text-[#65676b] dark:text-[#d1d7db] font-medium"
+                      >
+                        Set pipeline state:
+                      </label>
+                      <select
+                        id={bulkStatusSelectId}
+                        value={bulkStatusTarget}
+                        onChange={(e) =>
+                          setBulkStatusTarget(
+                            e.target.value as ProjectBusinessStatus
+                          )
+                        }
+                        className="rounded-lg bg-white dark:bg-[#202c33] border border-[#e4e6eb] dark:border-[#2a3942] px-2.5 py-1.5 text-xs font-semibold text-[#050505] dark:text-[#e9edef] outline-none cursor-pointer"
+                      >
+                        {BUSINESS_STATUS_ORDER.map((st) => (
+                          <option key={st} value={st}>
+                            {BUSINESS_STATUS_META[st].label}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        disabled={bulkUpdateBusinessStatusMutation.isPending}
+                        onClick={() => void handleBulkUpdateProjectStatus()}
+                        className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#0084ff] hover:bg-[#0073e6] disabled:opacity-50 text-white transition cursor-pointer"
+                      >
+                        {bulkUpdateBusinessStatusMutation.isPending
+                          ? "Updating..."
+                          : "Apply State"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedProjectIds([])}
+                        className="px-2.5 py-1.5 rounded-lg text-xs font-semibold text-[#65676b] dark:text-[#8696a0] hover:bg-black/5 dark:hover:bg-white/5 transition cursor-pointer"
+                      >
+                        Clear
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 {/* Semantic Responsive Data Table for Projects */}
                 <div
                   tabIndex={0}
@@ -2027,7 +2235,17 @@ export function AdminDashboard() {
                     <thead>
                       <tr className="bg-[#f0f2f5] dark:bg-[#111b21] border-b border-[#e4e6eb] dark:border-[#2a3942] text-[#65676b] dark:text-[#8696a0]">
                         <th scope="col" className="py-3 px-3.5 font-semibold">
-                          Project
+                          <div className="flex items-center gap-2.5">
+                            <input
+                              type="checkbox"
+                              checked={allCurrentPageSelected}
+                              disabled={currentPageProjectIds.length === 0}
+                              onChange={handleToggleSelectCurrentPage}
+                              aria-label="Select all projects on this page"
+                              className="checkbox-native"
+                            />
+                            <span>Project</span>
+                          </div>
                         </th>
                         <th scope="col" className="py-3 px-3.5 font-semibold">
                           Chain & Stage
@@ -2060,9 +2278,7 @@ export function AdminDashboard() {
                           </td>
                         </tr>
                       ) : (
-                        filteredProjects
-                          .slice(0, visibleProjectsCount)
-                          .map((project) => {
+                        projectsPagination.items.map((project) => {
                           const statusMeta =
                             BUSINESS_STATUS_META[project.businessStatus];
                           const activeContextsCount = project.contexts.filter(
@@ -2070,6 +2286,9 @@ export function AdminDashboard() {
                           ).length;
                           const isArchived =
                             project.businessStatus === "archived";
+                          const isSelectedRow = selectedProjectIds.includes(
+                            project.id
+                          );
 
                           return (
                             <tr
@@ -2081,6 +2300,15 @@ export function AdminDashboard() {
                                 className="py-3 px-3.5 font-normal text-left"
                               >
                                 <div className="flex items-center gap-3 min-w-0">
+                                  <input
+                                    type="checkbox"
+                                    checked={isSelectedRow}
+                                    onChange={() =>
+                                      toggleProjectSelection(project.id)
+                                    }
+                                    aria-label={`Select ${project.name}`}
+                                    className="checkbox-native shrink-0"
+                                  />
                                   <ProjectAvatar
                                     project={project}
                                     size="sm"
@@ -2209,7 +2437,7 @@ export function AdminDashboard() {
                                       void handleUpdateProjectStatus(
                                         project.id,
                                         project.name,
-                                        isArchived ? "new" : "archived"
+                                        isArchived ? "active" : "archived"
                                       )
                                     }
                                     aria-label={
@@ -2264,23 +2492,15 @@ export function AdminDashboard() {
                   </table>
                 </div>
 
-                {filteredProjects.length > visibleProjectsCount && (
-                  <div className="flex items-center justify-between gap-3 pt-1 text-xs text-[#65676b] dark:text-[#8696a0]">
-                    <span>
-                      Showing {visibleProjectsCount} of {filteredProjects.length}{" "}
-                      projects
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setVisibleProjectsCount((prev) => prev + 100)
-                      }
-                      className="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-[#f0f2f5] hover:bg-[#e4e6eb] dark:bg-[#111b21] dark:hover:bg-[#2a3942] text-[#050505] dark:text-[#e9edef] transition cursor-pointer"
-                    >
-                      Load 100 More Projects
-                    </button>
-                  </div>
-                )}
+                <PaginationBar
+                  meta={projectsPagination.meta}
+                  pageNumbers={projectsPagination.pageNumbers}
+                  pageSizeOptions={projectsPagination.pageSizeOptions}
+                  onPageChange={projectsPagination.setPage}
+                  onPageSizeChange={projectsPagination.setPageSize}
+                  itemLabel="projects"
+                  ariaLabel="Crypto projects pagination"
+                />
               </section>
             )}
 
@@ -2373,7 +2593,7 @@ export function AdminDashboard() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-[#e4e6eb] dark:divide-[#2a3942]">
-                        {ALL_PERMISSIONS.map((perm) => {
+                        {rbacPermissionsPagination.items.map((perm) => {
                           const meta = PERMISSION_LABELS[perm];
                           return (
                             <tr
@@ -2429,6 +2649,17 @@ export function AdminDashboard() {
                       </tbody>
                     </table>
                   </div>
+
+                  <PaginationBar
+                    meta={rbacPermissionsPagination.meta}
+                    pageNumbers={rbacPermissionsPagination.pageNumbers}
+                    pageSizeOptions={rbacPermissionsPagination.pageSizeOptions}
+                    onPageChange={rbacPermissionsPagination.setPage}
+                    onPageSizeChange={rbacPermissionsPagination.setPageSize}
+                    itemLabel="permissions"
+                    ariaLabel="RBAC permissions matrix pagination"
+                    hideWhenSinglePage
+                  />
                 </section>
               </div>
             )}
@@ -2462,7 +2693,7 @@ export function AdminDashboard() {
                   </div>
 
                   <div className="max-h-80 overflow-y-auto scroller space-y-2.5 pr-1">
-                    {promptTemplates.map((tpl) => (
+                    {settingsPromptsPagination.items.map((tpl) => (
                       <div
                         key={tpl.id}
                         className="p-3 rounded-xl bg-[#f0f2f5] dark:bg-[#111b21] border border-[#e4e6eb] dark:border-[#2a3942] space-y-2"
@@ -2507,6 +2738,17 @@ export function AdminDashboard() {
                       </div>
                     ))}
                   </div>
+
+                  <PaginationBar
+                    variant="compact"
+                    meta={settingsPromptsPagination.meta}
+                    pageSizeOptions={settingsPromptsPagination.pageSizeOptions}
+                    onPageChange={settingsPromptsPagination.setPage}
+                    onPageSizeChange={settingsPromptsPagination.setPageSize}
+                    itemLabel="prompts"
+                    ariaLabel="Admin system prompts pagination"
+                    hideWhenSinglePage
+                  />
 
                   <form
                     onSubmit={handleAddPromptSubmit}
@@ -2589,7 +2831,7 @@ export function AdminDashboard() {
                   </div>
 
                   <div className="max-h-80 overflow-y-auto scroller space-y-2.5 pr-1">
-                    {checklistItems.map((item) => (
+                    {settingsChecklistPagination.items.map((item) => (
                       <div
                         key={item.id}
                         className="p-3 rounded-xl bg-[#f0f2f5] dark:bg-[#111b21] border border-[#e4e6eb] dark:border-[#2a3942] space-y-2"
@@ -2634,6 +2876,19 @@ export function AdminDashboard() {
                       </div>
                     ))}
                   </div>
+
+                  <PaginationBar
+                    variant="compact"
+                    meta={settingsChecklistPagination.meta}
+                    pageSizeOptions={
+                      settingsChecklistPagination.pageSizeOptions
+                    }
+                    onPageChange={settingsChecklistPagination.setPage}
+                    onPageSizeChange={settingsChecklistPagination.setPageSize}
+                    itemLabel="checklist items"
+                    ariaLabel="Admin global checklist pagination"
+                    hideWhenSinglePage
+                  />
 
                   <form
                     onSubmit={handleAddChecklistSubmit}
@@ -2777,45 +3032,57 @@ export function AdminDashboard() {
                     No audit events match the current filter.
                   </p>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
-                    {filteredAuditLogs.map((log) => (
-                      <div
-                        key={log.id}
-                        className="rounded-xl border border-[#e4e6eb] dark:border-[#2a3942] bg-[#f0f2f5]/50 dark:bg-[#111b21] px-3.5 py-2.5 flex items-center justify-between gap-3 text-xs"
-                      >
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="font-mono font-semibold text-[#0084ff]">
-                              {log.action}
-                            </span>
-                            <span
-                              className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${
-                                USER_ROLE_META[log.actorRole].badgeClass
-                              }`}
-                            >
-                              {log.actorRole}
-                            </span>
-                            <span className="text-[#65676b] dark:text-[#8696a0] truncate">
-                              {log.actorEmail}
-                            </span>
+                  <>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                      {auditLogsPagination.items.map((log) => (
+                        <div
+                          key={log.id}
+                          className="rounded-xl border border-[#e4e6eb] dark:border-[#2a3942] bg-[#f0f2f5]/50 dark:bg-[#111b21] px-3.5 py-2.5 flex items-center justify-between gap-3 text-xs"
+                        >
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-mono font-semibold text-[#0084ff]">
+                                {log.action}
+                              </span>
+                              <span
+                                className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${
+                                  USER_ROLE_META[log.actorRole].badgeClass
+                                }`}
+                              >
+                                {log.actorRole}
+                              </span>
+                              <span className="text-[#65676b] dark:text-[#8696a0] truncate">
+                                {log.actorEmail}
+                              </span>
+                            </div>
+                            {log.details && (
+                              <p className="text-[11px] text-[#65676b] dark:text-[#8696a0] font-mono mt-0.5 truncate">
+                                {JSON.stringify(log.details)}
+                              </p>
+                            )}
                           </div>
-                          {log.details && (
-                            <p className="text-[11px] text-[#65676b] dark:text-[#8696a0] font-mono mt-0.5 truncate">
-                              {JSON.stringify(log.details)}
-                            </p>
-                          )}
+                          <span className="text-[11px] text-[#65676b] dark:text-[#8696a0] shrink-0">
+                            {new Date(log.createdAt).toLocaleString(undefined, {
+                              month: "short",
+                              day: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </span>
                         </div>
-                        <span className="text-[11px] text-[#65676b] dark:text-[#8696a0] shrink-0">
-                          {new Date(log.createdAt).toLocaleString(undefined, {
-                            month: "short",
-                            day: "numeric",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+
+                    <PaginationBar
+                      meta={auditLogsPagination.meta}
+                      pageNumbers={auditLogsPagination.pageNumbers}
+                      pageSizeOptions={auditLogsPagination.pageSizeOptions}
+                      onPageChange={auditLogsPagination.setPage}
+                      onPageSizeChange={auditLogsPagination.setPageSize}
+                      itemLabel="audit events"
+                      ariaLabel="Security audit logs pagination"
+                    />
+                  </>
                 )}
               </section>
             )}

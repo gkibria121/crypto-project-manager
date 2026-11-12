@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { CheckCircle2, Trash2, Upload } from "lucide-react";
 import {
   BUSINESS_STATUS_META,
-  BUSINESS_STATUS_ORDER,
+  CREATABLE_BUSINESS_STATUS_ORDER,
   PROJECT_CHAINS,
   PROJECT_STAGES,
   SOLID_AVATAR_COLORS,
@@ -279,14 +279,18 @@ export function NewProjectDialog({
             )}
           </FormField>
 
-          <FormField label="Status" error={errors.businessStatus}>
+          <FormField
+            label="Initial Status"
+            hint="Starts in New; becomes Active automatically on chat, scrape, or admin action."
+            error={errors.businessStatus}
+          >
             {(a11yProps) => (
               <select
                 {...a11yProps}
                 {...register("businessStatus")}
                 className="w-full px-3 py-2 text-xs rounded-lg bg-[#f0f2f5] dark:bg-[#2a3942] outline-none"
               >
-                {BUSINESS_STATUS_ORDER.map((statusKey) => (
+                {CREATABLE_BUSINESS_STATUS_ORDER.map((statusKey) => (
                   <option key={statusKey} value={statusKey}>
                     {BUSINESS_STATUS_META[statusKey].label}
                   </option>

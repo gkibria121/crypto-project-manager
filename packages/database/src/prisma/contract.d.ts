@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'45cfb769bf44ea6cbbd7d310a4d2ac56d5c1c8056f14582e39df018900ecd0fa'>;
+  StorageHashBase<'12fdf4409b6d3ae12d8e0503e0bc189283b2b2ab3af89965175c3dd40dad2cb9'>;
 export type ExecutionHash =
   ExecutionHashBase<'8b603fd160e574fc4a6a55564d577df8f14873eb55e2a9c5b14c4fadf80f42a2'>;
 export type ProfileHash =
@@ -290,9 +290,21 @@ type FieldTypeOverrides = {
       readonly Project: {
         readonly businessStatus: {
           readonly output:
-            'new' | 'contacted' | 'collaborated' | 'completed' | 'unresponsive' | 'archived';
+            | 'new'
+            | 'active'
+            | 'contacted'
+            | 'collaborated'
+            | 'completed'
+            | 'unresponsive'
+            | 'archived';
           readonly input:
-            'new' | 'contacted' | 'collaborated' | 'completed' | 'unresponsive' | 'archived';
+            | 'new'
+            | 'active'
+            | 'contacted'
+            | 'collaborated'
+            | 'completed'
+            | 'unresponsive'
+            | 'archived';
         };
         readonly stage: {
           readonly output:
@@ -370,9 +382,21 @@ type ColumnTypeOverrides = {
     readonly projects: {
       readonly business_status: {
         readonly output:
-          'new' | 'contacted' | 'collaborated' | 'completed' | 'unresponsive' | 'archived';
+          | 'new'
+          | 'active'
+          | 'contacted'
+          | 'collaborated'
+          | 'completed'
+          | 'unresponsive'
+          | 'archived';
         readonly input:
-          'new' | 'contacted' | 'collaborated' | 'completed' | 'unresponsive' | 'archived';
+          | 'new'
+          | 'active'
+          | 'contacted'
+          | 'collaborated'
+          | 'completed'
+          | 'unresponsive'
+          | 'archived';
       };
       readonly stage: {
         readonly output:
@@ -1812,6 +1836,7 @@ type ContractBase = Omit<
               readonly kind: 'valueSet';
               readonly values: readonly [
                 'new',
+                'active',
                 'contacted',
                 'collaborated',
                 'completed',
@@ -2853,6 +2878,7 @@ type ContractBase = Omit<
             readonly codecId: 'pg/text@1';
             readonly members: readonly [
               { readonly name: 'new'; readonly value: 'new' },
+              { readonly name: 'active'; readonly value: 'active' },
               { readonly name: 'contacted'; readonly value: 'contacted' },
               { readonly name: 'collaborated'; readonly value: 'collaborated' },
               { readonly name: 'completed'; readonly value: 'completed' },
@@ -2904,6 +2930,7 @@ type ContractBase = Omit<
           ];
           readonly ProjectBusinessStatus: readonly [
             { readonly name: 'new'; readonly value: 'new' },
+            { readonly name: 'active'; readonly value: 'active' },
             { readonly name: 'contacted'; readonly value: 'contacted' },
             { readonly name: 'collaborated'; readonly value: 'collaborated' },
             { readonly name: 'completed'; readonly value: 'completed' },

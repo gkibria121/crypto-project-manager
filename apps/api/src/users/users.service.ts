@@ -56,7 +56,7 @@ export class UsersService {
     const rows = await this.prisma.db.orm.public.AuditLog.orderBy((l) =>
       l.createdAt.desc()
     )
-      .limit(50)
+      .limit(250)
       .all();
 
     return rows.map((row) => ({

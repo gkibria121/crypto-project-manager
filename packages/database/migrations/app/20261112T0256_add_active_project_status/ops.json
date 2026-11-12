@@ -1,0 +1,99 @@
+[
+  {
+    "id": "dropCheckConstraint.projects.projects_business_status_check_dc9ae1b2",
+    "label": "Drop check constraint \"projects_business_status_check_dc9ae1b2\" on \"projects\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "checkConstraint",
+        "name": "projects_business_status_check_dc9ae1b2",
+        "table": "projects"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"projects_business_status_check_dc9ae1b2\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "projects_business_status_check_dc9ae1b2",
+          "public",
+          "\"public\".\"projects\""
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "constraint \"projects_business_status_check_dc9ae1b2\" on \"projects\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop check constraint \"projects_business_status_check_dc9ae1b2\"",
+        "sql": "ALTER TABLE \"public\".\"projects\" DROP CONSTRAINT \"projects_business_status_check_dc9ae1b2\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"projects_business_status_check_dc9ae1b2\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "projects_business_status_check_dc9ae1b2",
+          "public",
+          "\"public\".\"projects\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "constraint \"projects_business_status_check_dc9ae1b2\" on \"projects\""
+        }
+      }
+    ]
+  },
+  {
+    "id": "checkConstraint.projects.projects_business_status_check_42214c72",
+    "label": "Add check constraint \"projects_business_status_check_42214c72\" on \"projects\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "checkConstraint",
+        "name": "projects_business_status_check_42214c72",
+        "table": "projects"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"projects_business_status_check_42214c72\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "projects_business_status_check_42214c72",
+          "public",
+          "\"public\".\"projects\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "constraint \"projects_business_status_check_42214c72\" on \"projects\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add check constraint \"projects_business_status_check_42214c72\"",
+        "sql": "ALTER TABLE \"public\".\"projects\" ADD CONSTRAINT \"projects_business_status_check_42214c72\" CHECK (\"business_status\" IN ('new', 'active', 'contacted', 'collaborated', 'completed', 'unresponsive', 'archived'))"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify check constraint \"projects_business_status_check_42214c72\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4)) AS \"result\"",
+        "params": [
+          "projects_business_status_check_42214c72",
+          "public",
+          "\"public\".\"projects\"",
+          "c"
+        ]
+      }
+    ]
+  }
+]

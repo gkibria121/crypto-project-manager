@@ -32,9 +32,11 @@ import { ProjectAvatar } from "@/components/ProjectAvatar";
 import {
   ContextTypeIcon,
   FormattedMessageContent,
+  PaginationBar,
 } from "@/components/ui";
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 import { useImeSafeSubmit } from "@/hooks/useImeSafeSubmit";
+import { usePagination } from "@/hooks/usePagination";
 
 interface AiChatPaneProps {
   project: CryptoProject;
@@ -114,6 +116,13 @@ export function AiChatPane({
   const checkedCount = checklistItems.filter(
     (item) => project.checklistState?.[item.id]?.checked
   ).length;
+  const messagesPagination = usePagination(project.messages, {
+    initialPageSize: 20,
+    pageSizeOptions: [10, 20, 50, 100],
+    resetKey: project.id,
+    initialPageStrategy: "last",
+  });
+  const latestMessageId = project.messages[project.messages.length - 1]?.id;
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -282,9 +291,24 @@ export function AiChatPane({
 
       {/* Messenger / WhatsApp Message Stream */}
       <div className="flex-1 overflow-y-auto scroller px-3 sm:px-6 py-3 sm:py-4 space-y-3">
-        {project.messages.map((msg, index) => {
+        {project.messages.length > 10 && (
+          <div className="pb-2 border-b border-[#e4e6eb] dark:border-[#222d34]">
+            <PaginationBar
+              variant="compact"
+              meta={messagesPagination.meta}
+              pageSizeOptions={messagesPagination.pageSizeOptions}
+              onPageChange={messagesPagination.setPage}
+              onPageSizeChange={messagesPagination.setPageSize}
+              itemLabel="messages"
+              ariaLabel="Chat messages pagination"
+              hideWhenSinglePage={project.messages.length <= 10}
+            />
+          </div>
+        )}
+
+        {messagesPagination.items.map((msg) => {
           const isAdmin = msg.sender === "admin";
-          const isInitialTarget = index === project.messages.length - 1;
+          const isLatestMessage = msg.id === latestMessageId;
           const referencedContexts = project.contexts.filter((c) =>
             msg.usedContextIds?.includes(c.id)
           );
@@ -293,7 +317,7 @@ export function AiChatPane({
             <div
               key={msg.id}
               style={
-                isInitialTarget
+                isLatestMessage
                   ? ({ scrollInitialTarget: "nearest" } as React.CSSProperties)
                   : undefined
               }
@@ -373,7 +397,7 @@ export function AiChatPane({
                 </div>
 
                 {/* Global Editable System Prompt Chips (Shown on the latest AI message) */}
-                {!isAdmin && canWriteChat && index === project.messages.length - 1 && (
+                {!isAdmin && canWriteChat && isLatestMessage && (
                   <div className="chip-wrap-balance items-center gap-1.5 mt-2">
                     {promptTemplates.map((tpl) => (
                       <button

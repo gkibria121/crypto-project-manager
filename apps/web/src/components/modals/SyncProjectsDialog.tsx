@@ -32,7 +32,8 @@ import {
   type SyncProvider,
   type SyncProviderStatus,
 } from "@/types/project";
-import { ModalDialog } from "@/components/ui";
+import { ModalDialog, PaginationBar } from "@/components/ui";
+import { usePagination } from "@/hooks/usePagination";
 
 interface SyncProjectsDialogProps {
   dialogRef: RefObject<HTMLDialogElement | null>;
@@ -127,6 +128,11 @@ export function SyncProjectsDialog({
   const countdownSeconds = jobState.countdownSeconds;
   const logs = jobState.logs;
   const activeError = localError ?? jobState.lastError;
+  const logsPagination = usePagination(logs, {
+    initialPageSize: 25,
+    pageSizeOptions: [15, 25, 50, 100],
+    initialPageStrategy: "last",
+  });
 
   const effectiveProvider: SyncProvider =
     isRunning && jobState.provider ? jobState.provider : selectedProvider;
@@ -576,7 +582,7 @@ export function SyncProjectsDialog({
                 </p>
               </div>
             ) : (
-              logs.map((entry) => {
+              logsPagination.items.map((entry) => {
                 const badge = LOG_LEVEL_BADGE[entry.level];
                 return (
                   <div
@@ -597,6 +603,21 @@ export function SyncProjectsDialog({
               })
             )}
           </div>
+
+          {logs.length > 0 && (
+            <div className="px-3.5 pb-2 border-t border-[#2a3942] bg-[#111b21]">
+              <PaginationBar
+                variant="compact"
+                meta={logsPagination.meta}
+                pageSizeOptions={logsPagination.pageSizeOptions}
+                onPageChange={logsPagination.setPage}
+                onPageSizeChange={logsPagination.setPageSize}
+                itemLabel="log entries"
+                ariaLabel="Sync activity logs pagination"
+                hideWhenSinglePage={logs.length <= 15}
+              />
+            </div>
+          )}
         </div>
 
         {/* Action Footer */}

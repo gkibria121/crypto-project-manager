@@ -25,6 +25,7 @@ export {
   checklistItemFormSchema,
   chatComposerFormSchema,
   updateBusinessStatusDtoSchema,
+  bulkUpdateBusinessStatusDtoSchema,
   updateProjectLogoDtoSchema,
   sendMessageDtoSchema,
   toggleAllContextsDtoSchema,
@@ -77,6 +78,7 @@ export {
   type ChecklistItemFormValues,
   type ChatComposerFormValues,
   type UpdateBusinessStatusDto,
+  type BulkUpdateBusinessStatusDto,
   type UpdateProjectLogoDto,
   type SendMessageDto,
   type ToggleAllContextsDto,
@@ -105,6 +107,9 @@ export {
   PROJECT_CHAINS,
   PROJECT_STAGES,
   BUSINESS_STATUS_ORDER,
+  CREATABLE_BUSINESS_STATUS_ORDER,
+  SUGGESTED_NEXT_STATUSES,
+  shouldAutoActivateOnActivity,
   SOLID_AVATAR_COLORS,
   BUSINESS_STATUS_META,
   SYNC_PROVIDERS,
@@ -117,3 +122,15 @@ export {
   evaluateChecklistItemAgainstProject,
   buildContextualAiResponse,
 } from "./ai-engine";
+
+export {
+  DEFAULT_PAGE_SIZE_OPTIONS,
+  COMPACT_PAGE_SIZE_OPTIONS,
+  clampPage,
+  calculatePaginationMeta,
+  paginateItems,
+  buildPaginationWindow,
+  type PageNumberItem,
+  type PaginationMeta,
+  type PaginatedResult,
+} from "./pagination";

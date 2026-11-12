@@ -11,6 +11,7 @@ import { apiClient } from "@/services/apiClient";
 import type {
   AddContextFormValues,
   AuthUser,
+  BulkUpdateBusinessStatusDto,
   ChecklistItemConfig,
   CreateUserDto,
   CryptoProject,
@@ -355,11 +356,16 @@ export function useUpdateBusinessStatusMutation() {
       queryClient.setQueryData<CryptoProject[]>(
         queryKeys.projects.all,
         (prev = []) =>
-          prev.map((p) =>
-            p.id === projectId
-              ? { ...p, businessStatus: status, lastActivityTime: "Now" }
-              : p
-          )
+          prev.map((p) => {
+            if (p.id !== projectId) return p;
+            const baseTags = (p.tags ?? []).filter((t) => t !== "new");
+            return {
+              ...p,
+              businessStatus: status,
+              tags: status === "new" ? ["new", ...baseTags] : baseTags,
+              lastActivityTime: "Now",
+            };
+          })
       );
 
       return { previousProjects };
@@ -374,6 +380,50 @@ export function useUpdateBusinessStatusMutation() {
     },
     onSuccess: (updatedProject) => {
       syncUpdatedProjectInCache(queryClient, updatedProject);
+    },
+  });
+}
+
+export function useBulkUpdateBusinessStatusMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: BulkUpdateBusinessStatusDto) =>
+      apiClient.bulkUpdateBusinessStatus(input),
+    onMutate: async ({ projectIds, status }) => {
+      await queryClient.cancelQueries({ queryKey: queryKeys.projects.all });
+      const previousProjects = queryClient.getQueryData<CryptoProject[]>(
+        queryKeys.projects.all
+      );
+      const idSet = new Set(projectIds);
+
+      queryClient.setQueryData<CryptoProject[]>(
+        queryKeys.projects.all,
+        (prev = []) =>
+          prev.map((p) => {
+            if (!idSet.has(p.id)) return p;
+            const baseTags = (p.tags ?? []).filter((t) => t !== "new");
+            return {
+              ...p,
+              businessStatus: status,
+              tags: status === "new" ? ["new", ...baseTags] : baseTags,
+              lastActivityTime: "Now",
+            };
+          })
+      );
+
+      return { previousProjects };
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previousProjects) {
+        queryClient.setQueryData(
+          queryKeys.projects.all,
+          context.previousProjects
+        );
+      }
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.projects.all });
     },
   });
 }

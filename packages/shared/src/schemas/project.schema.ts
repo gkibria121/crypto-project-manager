@@ -21,6 +21,7 @@ export const projectStageSchema = z.enum([
 
 export const projectBusinessStatusSchema = z.enum([
   "new",
+  "active",
   "contacted",
   "collaborated",
   "completed",
@@ -224,7 +225,13 @@ export const newProjectFormSchema = z.object({
     .max(12, "Ticker must be 12 characters or fewer"),
   chain: z.string().trim().min(1, "Chain is required"),
   stage: projectStageSchema,
-  businessStatus: projectBusinessStatusSchema,
+  businessStatus: projectBusinessStatusSchema.refine(
+    (status) => status !== "active",
+    {
+      message:
+        "New projects cannot be added directly to the Active state. They start in New and become Active automatically when interacted with.",
+    }
+  ),
   tagline: z.string().trim(),
   logoUrl: z.string().trim(),
   website: z.string().trim(),
@@ -276,6 +283,14 @@ export const chatComposerFormSchema = z.object({
 });
 
 export const updateBusinessStatusDtoSchema = z.object({
+  status: projectBusinessStatusSchema,
+});
+
+export const bulkUpdateBusinessStatusDtoSchema = z.object({
+  projectIds: z
+    .array(z.string().min(1))
+    .min(1, "Select at least one project")
+    .max(500, "Cannot update more than 500 projects at once"),
   status: projectBusinessStatusSchema,
 });
 
@@ -506,6 +521,9 @@ export type ChecklistItemFormValues = z.infer<typeof checklistItemFormSchema>;
 export type ChatComposerFormValues = z.infer<typeof chatComposerFormSchema>;
 
 export type UpdateBusinessStatusDto = z.infer<typeof updateBusinessStatusDtoSchema>;
+export type BulkUpdateBusinessStatusDto = z.infer<
+  typeof bulkUpdateBusinessStatusDtoSchema
+>;
 export type UpdateProjectLogoDto = z.infer<typeof updateProjectLogoDtoSchema>;
 export type SendMessageDto = z.infer<typeof sendMessageDtoSchema>;
 export type ToggleAllContextsDto = z.infer<typeof toggleAllContextsDtoSchema>;

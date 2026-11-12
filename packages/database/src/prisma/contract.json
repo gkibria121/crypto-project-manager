@@ -95,6 +95,10 @@
                 "value": "new"
               },
               {
+                "name": "active",
+                "value": "active"
+              },
+              {
                 "name": "contacted",
                 "value": "contacted"
               },
@@ -2612,8 +2616,8 @@
                   "prefix": "project_sentiment_bounds"
                 },
                 {
-                  "expression": "\"business_status\" IN ('new', 'contacted', 'collaborated', 'completed', 'unresponsive', 'archived')",
-                  "name": "projects_business_status_check_dc9ae1b2",
+                  "expression": "\"business_status\" IN ('new', 'active', 'contacted', 'collaborated', 'completed', 'unresponsive', 'archived')",
+                  "name": "projects_business_status_check_42214c72",
                   "prefix": "projects_business_status_check"
                 },
                 {
@@ -3332,6 +3336,7 @@
               "kind": "valueSet",
               "values": [
                 "new",
+                "active",
                 "contacted",
                 "collaborated",
                 "completed",
@@ -3374,7 +3379,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "45cfb769bf44ea6cbbd7d310a4d2ac56d5c1c8056f14582e39df018900ecd0fa"
+    "storageHash": "12fdf4409b6d3ae12d8e0503e0bc189283b2b2ab3af89965175c3dd40dad2cb9"
   },
   "execution": {
     "executionHash": "8b603fd160e574fc4a6a55564d577df8f14873eb55e2a9c5b14c4fadf80f42a2",

@@ -11,6 +11,7 @@ import {
 import { randomUUID } from "crypto";
 import type { AppEnv } from "../config/env.js";
 import { PrismaService } from "../prisma/prisma.service.js";
+import { computeActivatedProjectPatch } from "../projects/project-lifecycle.helper.js";
 import { findFullProjectOrThrow } from "../projects/project.mapper.js";
 
 @Injectable()
@@ -84,9 +85,9 @@ export class ChatService {
         createdAt: new Date(nowMs + 5),
       });
 
-      await tx.orm.public.Project.where({ id: projectId }).update({
-        lastActivityTime: "Just now",
-      });
+      await tx.orm.public.Project.where({ id: projectId }).update(
+        computeActivatedProjectPatch(project, "Just now")
+      );
     });
 
     return findFullProjectOrThrow(this.prisma, projectId);
@@ -108,6 +109,9 @@ export class ChatService {
         suggestedActions: [],
         model: "pulseos-engine",
       });
+      await tx.orm.public.Project.where({ id: projectId }).update(
+        computeActivatedProjectPatch(project, "Just now")
+      );
     });
 
     return findFullProjectOrThrow(this.prisma, projectId);

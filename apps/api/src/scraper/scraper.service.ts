@@ -15,6 +15,10 @@ import { z } from "zod";
 import type { AppEnv } from "../config/env.js";
 import { PrismaService } from "../prisma/prisma.service.js";
 import {
+  activateProjectOnActivity,
+  computeActivatedProjectPatch,
+} from "../projects/project-lifecycle.helper.js";
+import {
   findFullProjectOrThrow,
   mapPrismaScrapeJobToDomain,
   type PrismaScrapeJobRow,
@@ -83,6 +87,8 @@ export class ScraperService {
       id: ctx.id,
     }).update({ scrapeStatus: "running" });
 
+    await activateProjectOnActivity(this.prisma.db.orm, projectId, "Just now");
+
     try {
       const result = await this.callPythonScraper("/api/v1/scrape", {
         targetType: ctx.type,
@@ -130,9 +136,12 @@ export class ScraperService {
     }
 
     if (projectRecord.contexts.length === 0) {
+      await activateProjectOnActivity(this.prisma.db.orm, projectId, "Just now");
       const project = await findFullProjectOrThrow(this.prisma, projectId);
       return { project, jobs: [] };
     }
+
+    await activateProjectOnActivity(this.prisma.db.orm, projectId, "Just now");
 
     const targets = projectRecord.contexts.slice(0, 10);
     const pendingJobs: PrismaScrapeJobRow[] = [];
@@ -246,9 +255,21 @@ export class ScraperService {
         updatedAtLabel: "Just scraped",
       });
 
+      const projectRow = await tx.orm.public.Project.select(
+        "id",
+        "businessStatus",
+        "tags"
+      )
+        .where({ id: projectId })
+        .first();
+
+      const activityPatch = projectRow
+        ? computeActivatedProjectPatch(projectRow, "Just now")
+        : { lastActivityTime: "Just now" };
+
       await tx.orm.public.Project.where({ id: projectId }).update({
         lastScrapedAt: now,
-        lastActivityTime: "Just now",
+        ...activityPatch,
       });
 
       return job;
