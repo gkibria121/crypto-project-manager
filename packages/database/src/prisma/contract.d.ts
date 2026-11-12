@@ -23,7 +23,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'6801bdf4e036bc679e894f360a258dd13640c0a13b63c8ea91605b34c57aff0f'>;
+  StorageHashBase<'50ed379bd4cad41602b6d02a92274ebb5eb66f7ce3a52d8619c1116b35b000c3'>;
 export type ExecutionHash =
   ExecutionHashBase<'42ab2f47ad84cf640f24c69cb969e6ffdbacf886db68f673ca5bb9f542df6e68'>;
 export type ProfileHash =
@@ -512,6 +512,7 @@ export namespace Models {
     lastScrapedAt: FieldOutputTypes['public']['Project']['lastScrapedAt'];
     logoUrl: FieldOutputTypes['public']['Project']['logoUrl'];
     name: FieldOutputTypes['public']['Project']['name'];
+    platformRanks: FieldOutputTypes['public']['Project']['platformRanks'];
     sentimentScore: FieldOutputTypes['public']['Project']['sentimentScore'];
     stage: FieldOutputTypes['public']['Project']['stage'];
     tagline: FieldOutputTypes['public']['Project']['tagline'];
@@ -1414,6 +1415,12 @@ type ContractBase = Omit<
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
                   readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly platform_ranks: {
+                  readonly dataType: 'pg/json';
+                  readonly codecId: 'pg/json@1';
+                  readonly nullable: true;
                   readonly many: false;
                 };
                 readonly sentiment_score: {
@@ -2724,6 +2731,10 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
+              readonly platformRanks: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/json@1' };
+              };
               readonly sentimentScore: {
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
@@ -2831,6 +2842,7 @@ type ContractBase = Omit<
                 readonly lastScrapedAt: { readonly column: 'last_scraped_at' };
                 readonly logoUrl: { readonly column: 'logo_url' };
                 readonly name: { readonly column: 'name' };
+                readonly platformRanks: { readonly column: 'platform_ranks' };
                 readonly sentimentScore: { readonly column: 'sentiment_score' };
                 readonly stage: { readonly column: 'stage' };
                 readonly tagline: { readonly column: 'tagline' };

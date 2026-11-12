@@ -574,32 +574,37 @@ async def _scrape_linkedin_api(
     specialties = org.get("localizedSpecialties") or org.get("specialties") or []
     staff_range = org.get("staffCountRange")
 
+    linkedin_limit = req.config.linkedin_posts_limit
     posts: list[dict[str, Any]] = []
     follower_stats: dict[str, Any] | None = None
-    if req.config.levels >= 2 and org_id:
+    if org_id:
         org_urn = f"urn:li:organization:{org_id}"
-        posts_resp = await client.get(
-            "https://api.linkedin.com/rest/posts",
-            headers=headers,
-            params={
-                "author": org_urn,
-                "q": "author",
-                "count": min(req.config.specialized_max_items, 20),
-            },
-            timeout=timeout,
-        )
-        if posts_resp.status_code == 200:
-            posts = posts_resp.json().get("elements") or []
+        if linkedin_limit > 0:
+            # LinkedIn REST /posts count accepts up to 100; slice to exact configured limit
+            api_count = min(max(1, linkedin_limit), 100)
+            posts_resp = await client.get(
+                "https://api.linkedin.com/rest/posts",
+                headers=headers,
+                params={
+                    "author": org_urn,
+                    "q": "author",
+                    "count": api_count,
+                },
+                timeout=timeout,
+            )
+            if posts_resp.status_code == 200:
+                posts = (posts_resp.json().get("elements") or [])[:linkedin_limit]
 
-        stats_resp = await client.get(
-            "https://api.linkedin.com/rest/organizationalEntityFollowerStatistics",
-            headers=headers,
-            params={"q": "organizationalEntity", "organizationalEntity": org_urn},
-            timeout=timeout,
-        )
-        if stats_resp.status_code == 200:
-            stat_els = stats_resp.json().get("elements") or []
-            follower_stats = stat_els[0] if stat_els else None
+        if req.config.levels >= 2:
+            stats_resp = await client.get(
+                "https://api.linkedin.com/rest/organizationalEntityFollowerStatistics",
+                headers=headers,
+                params={"q": "organizationalEntity", "organizationalEntity": org_urn},
+                timeout=timeout,
+            )
+            if stats_resp.status_code == 200:
+                stat_els = stats_resp.json().get("elements") or []
+                follower_stats = stat_els[0] if stat_els else None
 
     post_texts = [
         clean_text(p.get("commentary")) for p in posts if isinstance(p, dict) and p.get("commentary")
@@ -685,7 +690,8 @@ async def _scrape_linkedin_api(
         "specialties": specialties,
         "followerStats": follower_stats,
         "recentPostsCount": len(posts),
-        "recentPosts": posts[:15],
+        "linkedinPostsLimit": linkedin_limit,
+        "recentPosts": posts,
     }
 
     levels_scraped = max((p.depth for p in pages), default=1)

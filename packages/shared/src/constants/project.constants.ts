@@ -1,8 +1,10 @@
 import type {
   ContextType,
+  CryptoProject,
   Permission,
   ProjectBusinessStatus,
   ProjectChain,
+  ProjectPlatformRank,
   ProjectStage,
   ScrapeConfig,
   SpecializedScraperProvider,
@@ -405,6 +407,7 @@ export const DEFAULT_SCRAPE_CONFIG: ScrapeConfig = {
   includePatterns: [],
   excludePatterns: [],
   xPostsLimit: 10,
+  linkedinPostsLimit: 10,
   specializedMaxItems: 10,
 };
 
@@ -460,6 +463,15 @@ export const SPECIALIZED_SCRAPER_PROVIDER_META: Record<
       "bg-[#229ed9]/12 text-[#167fb3] dark:bg-[#229ed9]/20 dark:text-[#5cc4f5]",
   },
 };
+
+export function getProjectPlatformRanksList(
+  project: Pick<CryptoProject, "platformRanks">
+): ProjectPlatformRank[] {
+  if (!project.platformRanks) return [];
+  return Object.values(project.platformRanks)
+    .filter((entry): entry is ProjectPlatformRank => Boolean(entry))
+    .sort((a, b) => a.rank - b.rank);
+}
 
 export function detectSpecializedProvider(
   contextType: ContextType,

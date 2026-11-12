@@ -49,6 +49,36 @@ interface SyncProjectsDialogProps {
 
 const RATE_LIMIT_PRESETS = [10, 50, 100, 500, 1000] as const;
 
+const RANK_RANGE_PRESETS: ReadonlyArray<{
+  label: string;
+  minRank: number | null;
+  maxRank: number | null;
+}> = [
+  { label: "All Ranks", minRank: null, maxRank: null },
+  { label: "Top 50 (1–50)", minRank: 1, maxRank: 50 },
+  { label: "51–200", minRank: 51, maxRank: 200 },
+  { label: "201–500", minRank: 201, maxRank: 500 },
+  { label: "501–1000", minRank: 501, maxRank: 1000 },
+];
+
+function parseOptionalRank(raw: string): number | null {
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  const num = Number.parseInt(trimmed, 10);
+  if (!Number.isFinite(num)) return null;
+  return Math.min(Math.max(num, 1), 100000);
+}
+
+function formatRankRangeBadge(
+  minRank?: number | null,
+  maxRank?: number | null
+): string | null {
+  if (minRank != null && maxRank != null) return `Ranks #${minRank}–#${maxRank}`;
+  if (minRank != null) return `Ranks #${minRank}+`;
+  if (maxRank != null) return `Ranks #1–#${maxRank}`;
+  return null;
+}
+
 function formatLogTime(isoTimestamp: string): string {
   try {
     return new Date(isoTimestamp).toLocaleTimeString([], {
@@ -103,6 +133,9 @@ export function SyncProjectsDialog({
   const providerPrefixId = useId();
   const limitInputId = useId();
   const limitHelpId = useId();
+  const minRankInputId = useId();
+  const maxRankInputId = useId();
+  const rankRangeHelpId = useId();
   const continuousCheckboxId = useId();
 
   const [selectedProvider, setSelectedProvider] = useState<SyncProvider>(
@@ -114,6 +147,12 @@ export function SyncProjectsDialog({
   const [isNoLimit, setIsNoLimit] = useState<boolean>(jobState.noLimit);
   const [continuousSync, setContinuousSync] = useState<boolean>(
     jobState.continuous
+  );
+  const [minRankInput, setMinRankInput] = useState<string>(
+    jobState.minRank ? String(jobState.minRank) : ""
+  );
+  const [maxRankInput, setMaxRankInput] = useState<string>(
+    jobState.maxRank ? String(jobState.maxRank) : ""
   );
   const [localError, setLocalError] = useState<string | null>(null);
   const [isSubmittingCommand, setIsSubmittingCommand] =
@@ -142,10 +181,26 @@ export function SyncProjectsDialog({
     isRunning && !jobState.noLimit
       ? String(jobState.limit)
       : limitPerMinuteInput;
+  const effectiveMinRankInput = isRunning
+    ? jobState.minRank != null
+      ? String(jobState.minRank)
+      : ""
+    : minRankInput;
+  const effectiveMaxRankInput = isRunning
+    ? jobState.maxRank != null
+      ? String(jobState.maxRank)
+      : ""
+    : maxRankInput;
 
   const parsedLimitPerMinute = Math.min(
     Math.max(Number.parseInt(effectiveLimitInput, 10) || 10, 1),
     1000
+  );
+  const parsedMinRank = parseOptionalRank(effectiveMinRankInput);
+  const parsedMaxRank = parseOptionalRank(effectiveMaxRankInput);
+  const activeRankRangeBadge = formatRankRangeBadge(
+    isRunning ? jobState.minRank : parsedMinRank,
+    isRunning ? jobState.maxRank : parsedMaxRank
   );
 
   const statusMap = new Map<SyncProvider, SyncProviderStatus>(
@@ -178,18 +233,41 @@ export function SyncProjectsDialog({
       Math.max(Number.parseInt(limitPerMinuteInput, 10) || 10, 1),
       1000
     );
+    const nextMinRank = parseOptionalRank(minRankInput);
+    const nextMaxRank = parseOptionalRank(maxRankInput);
+
+    if (
+      nextMinRank !== null &&
+      nextMaxRank !== null &&
+      nextMinRank > nextMaxRank
+    ) {
+      setLocalError(
+        "Minimum rank cannot be greater than maximum rank. Please check the rank range."
+      );
+      return;
+    }
+
     if (!isNoLimit) {
       setLimitPerMinuteInput(String(clampedLimit));
     }
+    setMinRankInput(nextMinRank !== null ? String(nextMinRank) : "");
+    setMaxRankInput(nextMaxRank !== null ? String(nextMaxRank) : "");
     setLocalError(null);
     setIsSubmittingCommand(true);
     stickToBottomRef.current = true;
+
+    const rangeChanged =
+      nextMinRank !== (jobState.minRank ?? null) ||
+      nextMaxRank !== (jobState.maxRank ?? null) ||
+      selectedProvider !== (jobState.provider ?? selectedProvider);
 
     try {
       await onStartSync({
         provider: selectedProvider,
         limit: isNoLimit ? 1000 : clampedLimit,
-        page: currentPage,
+        ...(rangeChanged ? {} : { page: currentPage }),
+        minRank: nextMinRank,
+        maxRank: nextMaxRank,
         noLimit: isNoLimit,
         continuous: continuousSync,
       });
@@ -224,6 +302,8 @@ export function SyncProjectsDialog({
     setIsSubmittingCommand(true);
     try {
       await onResetCursor();
+      setMinRankInput("");
+      setMaxRankInput("");
     } catch (err) {
       setLocalError(
         err instanceof Error ? err.message : "Failed to reset pagination."
@@ -476,6 +556,117 @@ export function SyncProjectsDialog({
           </div>
         </div>
 
+        {/* Target Rank Range (Min / Max) */}
+        <div className="rounded-xl bg-[#f0f2f5]/70 dark:bg-[#111b21] border border-[#e4e6eb] dark:border-[#2a3942] p-3.5 space-y-2.5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="space-y-0.5">
+              <div className="text-xs font-bold uppercase tracking-wider text-[#050505] dark:text-[#e9edef]">
+                3. Target Market Cap Rank Range (Optional)
+              </div>
+              <p
+                id={rankRangeHelpId}
+                className="text-[11px] text-[#65676b] dark:text-[#8696a0]"
+              >
+                Specify a Min and Max rank (e.g. 51 to 200) to jump directly to
+                that tier and stop automatically once Max rank is reached.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              <div className="flex items-center gap-1.5">
+                <label
+                  htmlFor={minRankInputId}
+                  className="text-[11px] font-semibold text-[#65676b] dark:text-[#8696a0]"
+                >
+                  Min
+                </label>
+                <input
+                  id={minRankInputId}
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  max={100000}
+                  step={1}
+                  disabled={isRunning}
+                  placeholder="Any"
+                  aria-describedby={rankRangeHelpId}
+                  value={effectiveMinRankInput}
+                  onChange={(e) => {
+                    setMinRankInput(e.target.value);
+                    setLocalError(null);
+                  }}
+                  className="w-20 px-2.5 py-1.5 rounded-lg text-xs font-mono font-bold text-center bg-white dark:bg-[#202c33] text-[#050505] dark:text-[#e9edef] border border-[#e4e6eb] dark:border-[#2a3942] focus:border-[#0084ff] outline-none disabled:opacity-60"
+                />
+              </div>
+              <span
+                aria-hidden="true"
+                className="text-xs text-[#65676b] dark:text-[#8696a0]"
+              >
+                –
+              </span>
+              <div className="flex items-center gap-1.5">
+                <label
+                  htmlFor={maxRankInputId}
+                  className="text-[11px] font-semibold text-[#65676b] dark:text-[#8696a0]"
+                >
+                  Max
+                </label>
+                <input
+                  id={maxRankInputId}
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  max={100000}
+                  step={1}
+                  disabled={isRunning}
+                  placeholder="Any"
+                  aria-describedby={rankRangeHelpId}
+                  value={effectiveMaxRankInput}
+                  onChange={(e) => {
+                    setMaxRankInput(e.target.value);
+                    setLocalError(null);
+                  }}
+                  className="w-20 px-2.5 py-1.5 rounded-lg text-xs font-mono font-bold text-center bg-white dark:bg-[#202c33] text-[#050505] dark:text-[#e9edef] border border-[#e4e6eb] dark:border-[#2a3942] focus:border-[#0084ff] outline-none disabled:opacity-60"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-[11px] text-[#65676b] dark:text-[#8696a0] mr-1">
+              Target tiers:
+            </span>
+            {RANK_RANGE_PRESETS.map((preset) => {
+              const isSelected =
+                parsedMinRank === preset.minRank &&
+                parsedMaxRank === preset.maxRank;
+              return (
+                <button
+                  key={preset.label}
+                  type="button"
+                  disabled={isRunning}
+                  onClick={() => {
+                    setMinRankInput(
+                      preset.minRank !== null ? String(preset.minRank) : ""
+                    );
+                    setMaxRankInput(
+                      preset.maxRank !== null ? String(preset.maxRank) : ""
+                    );
+                    setLocalError(null);
+                  }}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition cursor-pointer disabled:opacity-50 ${
+                    isSelected
+                      ? "border-[#0084ff] bg-[#0084ff] text-white"
+                      : "border-[#e4e6eb] dark:border-[#2a3942] bg-white dark:bg-[#202c33] text-[#050505] dark:text-[#e9edef] hover:border-[#0084ff]"
+                  }`}
+                >
+                  {preset.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         {/* Live WebSocket Sync Activity Log Console */}
         <div className="rounded-xl border border-[#2a3942] bg-[#0b141a] text-[#e9edef] overflow-hidden">
           {/* Console Header & Telemetry Strip */}
@@ -524,6 +715,11 @@ export function SyncProjectsDialog({
                   {jobState.pagesCompleted > 0
                     ? `Paused at Page #${currentPage}`
                     : "Idle"}
+                </span>
+              )}
+              {activeRankRangeBadge && (
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-semibold bg-[#0084ff]/20 text-[#60a5fa] border border-[#0084ff]/30">
+                  {activeRankRangeBadge}
                 </span>
               )}
             </div>

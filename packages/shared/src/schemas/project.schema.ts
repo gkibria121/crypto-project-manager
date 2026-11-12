@@ -113,6 +113,7 @@ export const scrapeConfigSchema = z.object({
   includePatterns: z.array(z.string().trim().min(1)).max(20).default([]),
   excludePatterns: z.array(z.string().trim().min(1)).max(20).default([]),
   xPostsLimit: z.coerce.number().int().min(1).max(100).default(10),
+  linkedinPostsLimit: z.coerce.number().int().min(1).max(100).default(10),
   specializedMaxItems: z.coerce.number().int().min(1).max(100).default(10),
 });
 
@@ -314,6 +315,20 @@ export const projectChecklistItemStateSchema = z.object({
   scannedAt: z.string().optional(),
 });
 
+export const projectPlatformRankSchema = z.object({
+  provider: syncProviderSchema,
+  providerName: z.string(),
+  rank: z.number().int().positive(),
+  marketCapUsd: z.number().nullable().optional(),
+  priceUsd: z.number().nullable().optional(),
+  updatedAt: z.string(),
+});
+
+export const projectPlatformRanksSchema = z.partialRecord(
+  syncProviderSchema,
+  projectPlatformRankSchema
+);
+
 export const cryptoProjectSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1, "Project name is required"),
@@ -326,6 +341,7 @@ export const cryptoProjectSchema = z.object({
   tagline: z.string(),
   campaignBudget: z.string(),
   sentimentScore: z.number().min(0).max(100),
+  platformRanks: projectPlatformRanksSchema.optional(),
   tags: z.array(z.string()).optional(),
   isPinned: z.boolean().optional(),
   unreadInsights: z.number().int().nonnegative().optional(),
@@ -473,23 +489,54 @@ export const syncLogEntrySchema = z.object({
   projectName: z.string().optional(),
 });
 
-export const syncProjectsDtoSchema = z.object({
-  provider: syncProviderSchema,
-  limit: z.coerce
-    .number()
-    .int()
-    .min(1, "Sync limit must be at least 1 per minute")
-    .max(1000, "Sync limit must be 1000 or fewer per minute")
-    .default(10),
-  page: z.coerce
-    .number()
-    .int()
-    .min(1, "Page must be at least 1")
-    .max(10000, "Page must be 10000 or fewer")
-    .default(1),
-  noLimit: z.boolean().optional().default(false),
-  continuous: z.boolean().optional().default(true),
-});
+export const syncProjectsDtoSchema = z
+  .object({
+    provider: syncProviderSchema,
+    limit: z.coerce
+      .number()
+      .int()
+      .min(1, "Sync limit must be at least 1 per minute")
+      .max(1000, "Sync limit must be 1000 or fewer per minute")
+      .default(10),
+    page: z.coerce
+      .number()
+      .int()
+      .min(1, "Page must be at least 1")
+      .max(10000, "Page must be 10000 or fewer")
+      .optional(),
+    minRank: z.coerce
+      .number()
+      .int()
+      .min(1, "Minimum rank must be at least 1")
+      .max(100000, "Minimum rank must be 100000 or fewer")
+      .nullable()
+      .optional(),
+    maxRank: z.coerce
+      .number()
+      .int()
+      .min(1, "Maximum rank must be at least 1")
+      .max(100000, "Maximum rank must be 100000 or fewer")
+      .nullable()
+      .optional(),
+    noLimit: z.boolean().optional().default(false),
+    continuous: z.boolean().optional().default(true),
+  })
+  .superRefine((data, ctx) => {
+    if (
+      data.minRank !== null &&
+      data.minRank !== undefined &&
+      data.maxRank !== null &&
+      data.maxRank !== undefined &&
+      data.minRank > data.maxRank
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["maxRank"],
+        message:
+          "Maximum rank must be greater than or equal to minimum rank.",
+      });
+    }
+  });
 
 export const syncProviderStatusSchema = z.object({
   id: syncProviderSchema,
@@ -508,6 +555,8 @@ export const syncJobStateSchema = z.object({
   noLimit: z.boolean(),
   continuous: z.boolean(),
   currentPage: z.number().int().positive(),
+  minRank: z.number().int().positive().nullable().default(null),
+  maxRank: z.number().int().positive().nullable().default(null),
   countdownSeconds: z.number().int().nonnegative().nullable(),
   totalCreated: z.number().int().nonnegative(),
   totalUpdated: z.number().int().nonnegative(),
@@ -520,6 +569,8 @@ export const syncProjectsResponseSchema = z.object({
   provider: syncProviderSchema,
   providerName: z.string(),
   page: z.number().int().positive().default(1),
+  minRank: z.number().int().positive().nullable().optional(),
+  maxRank: z.number().int().positive().nullable().optional(),
   hasMore: z.boolean().default(false),
   syncedCount: z.number().int().nonnegative(),
   updatedCount: z.number().int().nonnegative().default(0),
@@ -669,6 +720,8 @@ export type ChecklistItemConfig = z.infer<typeof checklistItemConfigSchema>;
 export type ProjectChecklistItemState = z.infer<
   typeof projectChecklistItemStateSchema
 >;
+export type ProjectPlatformRank = z.infer<typeof projectPlatformRankSchema>;
+export type ProjectPlatformRanks = z.infer<typeof projectPlatformRanksSchema>;
 export type CryptoProject = z.infer<typeof cryptoProjectSchema>;
 
 export type AddContextFormValues = z.infer<typeof addContextFormSchema>;

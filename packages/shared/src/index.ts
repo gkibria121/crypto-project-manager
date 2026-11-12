@@ -27,6 +27,8 @@ export {
   promptTemplateSchema,
   checklistItemConfigSchema,
   projectChecklistItemStateSchema,
+  projectPlatformRankSchema,
+  projectPlatformRanksSchema,
   cryptoProjectSchema,
   addContextFormSchema,
   updateProjectLogoFormSchema,
@@ -92,6 +94,8 @@ export {
   type PromptTemplate,
   type ChecklistItemConfig,
   type ProjectChecklistItemState,
+  type ProjectPlatformRank,
+  type ProjectPlatformRanks,
   type CryptoProject,
   type AddContextFormValues,
   type UpdateProjectLogoFormValues,
@@ -141,6 +145,7 @@ export {
   DEFAULT_SCRAPE_CONFIG,
   SPECIALIZED_SCRAPER_PROVIDERS,
   SPECIALIZED_SCRAPER_PROVIDER_META,
+  getProjectPlatformRanksList,
   detectSpecializedProvider,
 } from "./constants/project.constants";
 

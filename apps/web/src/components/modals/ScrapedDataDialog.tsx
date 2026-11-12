@@ -440,6 +440,15 @@ export function ScrapedDataDialog({
                           X posts limit: {activeJob.config.xPostsLimit}
                         </span>
                       )}
+                    {activeJob.config.linkedinPostsLimit !== undefined &&
+                      (activeJob.providerUsed === "linkedin_api" ||
+                        activeJob.targetType === "linkedin" ||
+                        specializedProvider === "linkedin") && (
+                        <span className="px-1.5 py-0.5 rounded bg-white dark:bg-[#202c33] border border-[#e4e6eb] dark:border-[#2a3942]">
+                          LinkedIn posts limit:{" "}
+                          {activeJob.config.linkedinPostsLimit}
+                        </span>
+                      )}
                     {activeJob.config.sameDomainOnly !== undefined && (
                       <span className="px-1.5 py-0.5 rounded bg-white dark:bg-[#202c33] border border-[#e4e6eb] dark:border-[#2a3942]">
                         {activeJob.config.sameDomainOnly

@@ -1,5 +1,6 @@
 import asyncio
 import logging
+from typing import Any
 from urllib.parse import urlparse
 
 from scraper.config import Settings
@@ -9,27 +10,83 @@ from scraper.services.fetcher import FetchResult
 
 logger = logging.getLogger("pulseos.scraper.browser")
 
+MEDIA_RESOURCE_TYPES = frozenset({"image", "media", "font"})
+
 try:
     from playwright.async_api import (
         Browser,
+        CDPSession,
+        Page,
         Playwright,
-        Route,
-        TimeoutError as PlaywrightTimeoutError,
         async_playwright,
+    )
+    from playwright.async_api import (
+        Error as PlaywrightError,
+    )
+    from playwright.async_api import (
+        Response as PlaywrightResponse,
+    )
+    from playwright.async_api import (
+        TimeoutError as PlaywrightTimeoutError,
     )
 
     PLAYWRIGHT_INSTALLED = True
 except ImportError:  # pragma: no cover - guarded fallback if optional in bare env
+
+    class _MissingPlaywrightError(Exception):
+        pass
+
+    class _MissingPlaywrightTimeoutError(_MissingPlaywrightError):
+        pass
+
     Browser = object  # type: ignore[misc,assignment]
+    CDPSession = object  # type: ignore[misc,assignment]
+    Page = object  # type: ignore[misc,assignment]
     Playwright = object  # type: ignore[misc,assignment]
-    Route = object  # type: ignore[misc,assignment]
-    PlaywrightTimeoutError = TimeoutError  # type: ignore[misc,assignment]
+    PlaywrightResponse = object  # type: ignore[misc,assignment]
+    PlaywrightError = _MissingPlaywrightError  # type: ignore[misc,assignment]
+    PlaywrightTimeoutError = _MissingPlaywrightTimeoutError  # type: ignore[misc,assignment]
     async_playwright = None  # type: ignore[assignment]
     PLAYWRIGHT_INSTALLED = False
 
 
 class BrowserUnavailableError(RuntimeError):
     """Raised when Playwright Chromium cannot be started for JS rendering."""
+
+
+async def _evaluate_intercepted_request(
+    req_url: str,
+    resource_type: str,
+    *,
+    block_media: bool,
+    allow_private_networks: bool,
+) -> tuple[bool, str | None, str | None]:
+    """Validate an intercepted browser request.
+
+    Returns ``(allow, fail_reason, unsafe_detail)``.
+    """
+    parsed = urlparse(req_url)
+
+    if parsed.scheme in ("data", "blob", "about"):
+        return True, None, None
+
+    if parsed.scheme not in ("http", "https"):
+        return False, "BlockedByClient", None
+
+    res_type = resource_type.lower()
+    if block_media and res_type in MEDIA_RESOURCE_TYPES:
+        return False, "BlockedByClient", None
+
+    try:
+        await asyncio.to_thread(
+            validate_public_url,
+            req_url,
+            allow_private_networks=allow_private_networks,
+        )
+    except UnsafeTargetError as exc:
+        return False, "AccessDenied", str(exc)
+
+    return True, None, None
 
 
 class BrowserFetcher:
@@ -90,59 +147,114 @@ class BrowserFetcher:
             viewport={"width": 1440, "height": 900},
             java_script_enabled=True,
             ignore_https_errors=False,
+            service_workers="block",
         )
 
         blocked_error: list[str] = []
+        pending_tasks: set[asyncio.Task[None]] = set()
+        cdp: CDPSession | None = None
+        page: Page | None = None
+        main_frame_id: str | None = None
+        nav_response: PlaywrightResponse | None = None
 
-        async def _route_interceptor(route: Route) -> None:
-            req = route.request
-            req_url = req.url
-            parsed = urlparse(req_url)
+        def _track_task(task: asyncio.Task[None]) -> None:
+            pending_tasks.add(task)
+            task.add_done_callback(pending_tasks.discard)
 
-            if parsed.scheme in ("data", "blob", "about"):
-                await route.continue_()
+        def _on_popup(popup_page: Page) -> None:
+            if page is not None and popup_page is not page:
+                _track_task(asyncio.create_task(popup_page.close()))
+
+        context.on("page", _on_popup)
+
+        async def _handle_paused_request(event: dict[str, Any]) -> None:
+            if cdp is None:
                 return
+            req_id = event["requestId"]
+            req_url = str((event.get("request") or {}).get("url") or "")
+            res_type = str(event.get("resourceType") or "")
+            frame_id = event.get("frameId")
 
-            if parsed.scheme not in ("http", "https"):
-                await route.abort("blockedbyclient")
-                return
+            try:
+                allow, fail_reason, unsafe_detail = await _evaluate_intercepted_request(
+                    req_url,
+                    res_type,
+                    block_media=config.block_media,
+                    allow_private_networks=self._settings.allow_private_networks,
+                )
+            except Exception:
+                allow, fail_reason, unsafe_detail = False, "AccessDenied", None
 
-            if req.resource_type in ("document", "fetch", "xhr", "script"):
-                try:
-                    validate_public_url(
-                        req_url,
-                        allow_private_networks=self._settings.allow_private_networks,
+            if unsafe_detail and res_type.lower() == "document" and (
+                main_frame_id is None or frame_id == main_frame_id
+            ):
+                blocked_error.append(unsafe_detail)
+
+            try:
+                if allow:
+                    await cdp.send("Fetch.continueRequest", {"requestId": req_id})
+                else:
+                    await cdp.send(
+                        "Fetch.failRequest",
+                        {"requestId": req_id, "errorReason": fail_reason or "BlockedByClient"},
                     )
-                except UnsafeTargetError as exc:
-                    if req.is_navigation_request():
-                        blocked_error.append(str(exc))
-                    await route.abort("accessdenied")
-                    return
+            except Exception:
+                # Context/page may have already closed or timed out mid-flight
+                pass
 
-            if config.block_media and req.resource_type in ("image", "media", "font"):
-                await route.abort("blockedbyclient")
-                return
+        def _on_request_paused(event: dict[str, Any]) -> None:
+            _track_task(asyncio.create_task(_handle_paused_request(event)))
 
-            await route.continue_()
+        def _on_response(resp: PlaywrightResponse) -> None:
+            nonlocal nav_response
+            try:
+                if (
+                    page is not None
+                    and resp.request.is_navigation_request()
+                    and resp.frame == page.main_frame
+                ):
+                    nav_response = resp
+            except Exception:
+                pass
 
         try:
-            await context.route("**/*", _route_interceptor)
             page = await context.new_page()
+            page.on("response", _on_response)
+
+            # Use CDP Fetch.enable instead of Playwright context.route() because
+            # context.route() forces Network.setCacheDisabled(true), causing
+            # Chromium to inject Cache-Control: no-cache / Pragma: no-cache and
+            # triggering origin 520 errors on CDN-cached sites like Cloudflare APO.
+            cdp = await context.new_cdp_session(page)
+            try:
+                frame_tree = await cdp.send("Page.getFrameTree")
+                main_frame_id = (
+                    (frame_tree.get("frameTree") or {}).get("frame") or {}
+                ).get("id")
+            except Exception:
+                main_frame_id = None
+
+            cdp.on("Fetch.requestPaused", _on_request_paused)
+            await cdp.send("Fetch.enable", {"patterns": [{"urlPattern": "*"}]})
+
             timeout_ms = config.timeout_seconds * 1000
             page.set_default_timeout(timeout_ms)
 
-            response = None
+            response: PlaywrightResponse | None = None
             try:
                 response = await page.goto(
                     url,
                     wait_until=config.wait_until,
                     timeout=timeout_ms,
                 )
-            except PlaywrightTimeoutError as exc:
+            except (PlaywrightTimeoutError, PlaywrightError) as exc:
                 if blocked_error:
                     raise UnsafeTargetError(blocked_error[0]) from exc
                 # If networkidle timed out on background analytics/sockets, capture loaded DOM
-                if config.wait_until == "networkidle":
+                if (
+                    isinstance(exc, PlaywrightTimeoutError)
+                    and config.wait_until == "networkidle"
+                ):
                     try:
                         await page.wait_for_load_state(
                             "domcontentloaded", timeout=3000
@@ -155,22 +267,31 @@ class BrowserFetcher:
             if blocked_error:
                 raise UnsafeTargetError(blocked_error[0])
 
-            if config.wait_for_ms > 0:
-                await page.wait_for_timeout(config.wait_for_ms)
+            active_response = response or nav_response
+            status_code = active_response.status if active_response is not None else 200
+            content_type = (
+                active_response.headers.get("content-type", "text/html")
+                if active_response is not None
+                else "text/html"
+            )
 
-            if config.scroll_to_bottom:
-                try:
-                    await page.evaluate(
-                        """async () => {
-                            const h = Math.min(document.body?.scrollHeight || 0, 12000);
-                            window.scrollTo(0, h / 2);
-                            await new Promise(r => setTimeout(r, 150));
-                            window.scrollTo(0, h);
-                        }"""
-                    )
-                    await page.wait_for_timeout(250)
-                except Exception:
-                    pass
+            if status_code < 400:
+                if config.wait_for_ms > 0:
+                    await page.wait_for_timeout(config.wait_for_ms)
+
+                if config.scroll_to_bottom:
+                    try:
+                        await page.evaluate(
+                            """async () => {
+                                const h = Math.min(document.body?.scrollHeight || 0, 12000);
+                                window.scrollTo(0, h / 2);
+                                await new Promise(r => setTimeout(r, 150));
+                                window.scrollTo(0, h);
+                            }"""
+                        )
+                        await page.wait_for_timeout(250)
+                    except Exception:
+                        pass
 
             final_url = page.url or url
             validate_public_url(
@@ -183,13 +304,6 @@ class BrowserFetcher:
             if len(html.encode("utf-8", errors="ignore")) > max_chars:
                 html = html[:max_chars]
 
-            status_code = response.status if response is not None else 200
-            content_type = (
-                response.headers.get("content-type", "text/html")
-                if response is not None
-                else "text/html"
-            )
-
             return FetchResult(
                 final_url=final_url,
                 status_code=status_code,
@@ -197,6 +311,16 @@ class BrowserFetcher:
                 html=html,
             )
         finally:
+            for task in list(pending_tasks):
+                if not task.done():
+                    task.cancel()
+            if pending_tasks:
+                await asyncio.gather(*pending_tasks, return_exceptions=True)
+            if cdp is not None:
+                try:
+                    await cdp.detach()
+                except Exception:
+                    pass
             await context.close()
 
     async def close(self) -> None:

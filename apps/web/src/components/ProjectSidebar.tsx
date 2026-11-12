@@ -16,6 +16,7 @@ import {
   BUSINESS_STATUS_META,
   COMPACT_PAGE_SIZE_OPTIONS,
   USER_ROLE_META,
+  getProjectPlatformRanksList,
   hasPermission,
   type AuthUser,
   type CryptoProject,
@@ -23,7 +24,11 @@ import {
   type SystemHealthStatus,
 } from "@/types/project";
 import { ProjectAvatar } from "@/components/ProjectAvatar";
-import { FilterChip, PaginationBar } from "@/components/ui";
+import {
+  FilterChip,
+  PaginationBar,
+  PlatformRankBadges,
+} from "@/components/ui";
 import { usePagination } from "@/hooks/usePagination";
 
 interface ProjectSidebarProps {
@@ -90,10 +95,18 @@ export function ProjectSidebar({
 
   const filteredProjects = projects
     .filter((project) => {
+      const q = searchQuery.toLowerCase();
+      const platformRanks = getProjectPlatformRanksList(project);
       const matchesQuery =
-        project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        project.ticker.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        project.chain.toLowerCase().includes(searchQuery.toLowerCase());
+        project.name.toLowerCase().includes(q) ||
+        project.ticker.toLowerCase().includes(q) ||
+        project.chain.toLowerCase().includes(q) ||
+        platformRanks.some(
+          (r) =>
+            `#${r.rank}`.includes(q) ||
+            r.providerName.toLowerCase().includes(q) ||
+            r.provider.toLowerCase().includes(q)
+        );
 
       if (!matchesQuery) return false;
 
@@ -129,28 +142,7 @@ export function ProjectSidebar({
           <div className="flex items-center gap-2 min-w-0">
             <h1 className="text-xl font-bold tracking-tight text-[#050505] dark:text-[#e9edef]">
               Projects
-            </h1>
-            {healthStatus && (
-              <span
-                title={`API: ${healthStatus.status} · DB: ${healthStatus.dependencies.database} · Scraper: ${healthStatus.dependencies.scraper}`}
-                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium ${
-                  healthStatus.status === "ok"
-                    ? "bg-emerald-500/12 text-emerald-700 dark:text-emerald-400"
-                    : "bg-amber-500/12 text-amber-700 dark:text-amber-400"
-                }`}
-              >
-                <span
-                  className={`w-1.5 h-1.5 rounded-full ${
-                    healthStatus.status === "ok"
-                      ? "bg-[#00a884]"
-                      : "bg-amber-500"
-                  }`}
-                />
-                <span>
-                  {healthStatus.status === "ok" ? "Services Live" : "Degraded"}
-                </span>
-              </span>
-            )}
+            </h1> 
           </div>
 
           <div className="flex items-center gap-1.5">
@@ -309,6 +301,11 @@ export function ProjectSidebar({
                         </span>
                       ) : null}
                     </div>
+                    {getProjectPlatformRanksList(project).length > 0 && (
+                      <div className="mt-1">
+                        <PlatformRankBadges project={project} compact maxItems={2} />
+                      </div>
+                    )}
                   </div>
                 </button>
 

@@ -73,6 +73,16 @@ describe("NestJS Core Backend Unit Tests", () => {
       tagline: "Sub-second DeFi mesh",
       campaignBudget: "$25,000 / mo",
       sentimentScore: 92,
+      platformRanks: {
+        coingecko: {
+          provider: "coingecko",
+          providerName: "CoinGecko",
+          rank: 14,
+          marketCapUsd: 2_500_000_000,
+          priceUsd: 3.12,
+          updatedAt: "2026-11-11T10:00:00.000Z",
+        },
+      },
       tags: ["solana", "pre-tge"],
       isPinned: true,
       unreadInsights: 1,
@@ -134,6 +144,8 @@ describe("NestJS Core Backend Unit Tests", () => {
     });
 
     expect(mapped.stage).toBe("Pre-TGE");
+    expect(mapped.platformRanks?.coingecko?.rank).toBe(14);
+    expect(mapped.platformRanks?.coingecko?.providerName).toBe("CoinGecko");
     expect(mapped.contexts[0]?.scrapedMetadata?.signals).toContain("mcp_server");
     expect(mapped.checklistState?.["chk-mcp-server"]?.checked).toBe(true);
 
@@ -717,6 +729,10 @@ describe("NestJS Core Backend Unit Tests", () => {
     expect(syncedProject?.tags).toContain("new");
     expect(syncedProject?.tags).toContain("coingecko");
     expect(syncedProject?.chain).toBe("Solana");
+    expect(syncedProject?.platformRanks?.coingecko?.rank).toBe(24);
+    expect(syncedProject?.platformRanks?.coingecko?.providerName).toBe(
+      "CoinGecko"
+    );
 
     const contextTypes = syncedProject?.contexts.map((c) => c.type) ?? [];
     expect(contextTypes).toContain("website");
@@ -747,6 +763,122 @@ describe("NestJS Core Backend Unit Tests", () => {
     expect(secondSync.updatedCount).toBe(1);
     expect(secondSync.updatedProjects[0]?.id).toBe(syncedProject?.id);
     expect(secondSync.logs.some((l) => l.level === "update")).toBe(true);
+
+    // 4. Syncing from a second platform (CoinMarketCap) preserves both platform ranks per project
+    envKeys["COINMARKETCAP_API_KEY"] = "cmc-test-key-456";
+    const cmcMockFetch = (async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("/listings/latest")) {
+        return new Response(
+          JSON.stringify({
+            data: [
+              {
+                id: 5690,
+                name: "Render Network",
+                symbol: "RNDR",
+                slug: "render",
+                cmc_rank: 27,
+                quote: {
+                  USD: {
+                    market_cap: 4_200_000_000,
+                    price: 8.4,
+                    percent_change_24h: 5.1,
+                  },
+                },
+              },
+            ],
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        );
+      }
+      if (url.includes("/cryptocurrency/info")) {
+        return new Response(JSON.stringify({ data: {} }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      return new Response("Not found", { status: 404 });
+    }) as unknown as typeof fetch;
+
+    const cmcSync = await syncService.syncFromProvider(
+      { provider: "coinmarketcap", limit: 2, page: 1 },
+      undefined,
+      cmcMockFetch
+    );
+    expect(cmcSync.updatedCount).toBe(1);
+    const multiRankedProject = cmcSync.updatedProjects[0];
+    expect(multiRankedProject?.platformRanks?.coingecko?.rank).toBe(24);
+    expect(multiRankedProject?.platformRanks?.coinmarketcap?.rank).toBe(27);
+
+    // 5. Rank range validation rejects minRank > maxRank
+    expect(() =>
+      syncPipe.transform({
+        provider: "coingecko",
+        limit: 10,
+        minRank: 100,
+        maxRank: 50,
+      })
+    ).toThrow(BadRequestException);
+
+    // 6. Rank range sync jumps to the page containing minRank, filters to [minRank, maxRank], and stops at maxRank
+    const requestedUrls: string[] = [];
+    const rangedMockFetch = (async (input: RequestInfo | URL) => {
+      const url = String(input);
+      requestedUrls.push(url);
+      if (url.includes("/coins/markets")) {
+        const parsedUrl = new URL(url);
+        const pageNum = Number(parsedUrl.searchParams.get("page") || "1");
+        const perPage = Number(parsedUrl.searchParams.get("per_page") || "10");
+        const startRank = (pageNum - 1) * perPage + 1;
+        const rows = Array.from({ length: perPage }, (_, idx) => {
+          const rank = startRank + idx;
+          return {
+            id: `coin-${rank}`,
+            symbol: `c${rank}`,
+            name: `Target Coin ${rank}`,
+            image: `https://example.com/${rank}.png`,
+            current_price: 1.5,
+            market_cap: 100_000_000 - rank * 1000,
+            market_cap_rank: rank,
+            price_change_percentage_24h: 2.0,
+          };
+        });
+        return new Response(JSON.stringify(rows), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      return new Response(JSON.stringify({}), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }) as unknown as typeof fetch;
+
+    const rangeResult = await syncService.syncFromProvider(
+      {
+        provider: "coingecko",
+        limit: 10,
+        minRank: 12,
+        maxRank: 15,
+        noLimit: false,
+        continuous: true,
+      },
+      undefined,
+      rangedMockFetch
+    );
+    expect(rangeResult.page).toBe(2);
+    expect(rangeResult.minRank).toBe(12);
+    expect(rangeResult.maxRank).toBe(15);
+    expect(rangeResult.hasMore).toBe(false);
+    expect(rangeResult.syncedCount).toBe(4);
+    expect(
+      rangeResult.createdProjects.map((p) => p.platformRanks?.coingecko?.rank)
+    ).toEqual([12, 13, 14, 15]);
+    expect(
+      requestedUrls.some((u) => u.includes("page=2&"))
+    ).toBe(true);
+    // Detail lookups must not be requested for out-of-range rank 11
+    expect(requestedUrls.some((u) => u.includes("/coins/coin-11"))).toBe(false);
   });
 
   it("enforces project business status lifecycle rules and blocks direct creation into active", async () => {
@@ -782,6 +914,7 @@ describe("NestJS Core Backend Unit Tests", () => {
         tagline: "Fresh synced project",
         campaignBudget: "$25,000 / mo",
         sentimentScore: 85,
+        platformRanks: null,
         tags: ["new", "solana"],
         isPinned: false,
         unreadInsights: 2,
@@ -803,6 +936,7 @@ describe("NestJS Core Backend Unit Tests", () => {
         tagline: "Existing partner",
         campaignBudget: "$50,000 / mo",
         sentimentScore: 95,
+        platformRanks: null,
         tags: ["base"],
         isPinned: true,
         unreadInsights: 0,
@@ -1370,6 +1504,7 @@ describe("NestJS Core Backend Unit Tests", () => {
         excludePatterns: [],
         specializedMaxItems: 10,
         xPostsLimit: 10,
+        linkedinPostsLimit: 10,
       }
     );
 

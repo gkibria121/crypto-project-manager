@@ -82,6 +82,92 @@ function parsePatternList(raw: string): string[] {
     .slice(0, 20);
 }
 
+function parseClampedInt(
+  raw: string,
+  fallback: number,
+  min: number,
+  max: number
+): number {
+  const parsed = Number.parseInt(raw, 10);
+  const value = Number.isNaN(parsed) ? fallback : parsed;
+  return Math.min(Math.max(value, min), max);
+}
+
+const POST_LIMIT_PRESETS = [5, 10, 25, 50] as const;
+
+function PostLimitField({
+  inputId,
+  hintId,
+  label,
+  hint,
+  value,
+  highlighted,
+  onChange,
+}: {
+  inputId: string;
+  hintId: string;
+  label: string;
+  hint: string;
+  value: string;
+  highlighted: boolean;
+  onChange: (next: string) => void;
+}) {
+  return (
+    <div
+      className={`rounded-lg border p-3 space-y-2 ${
+        highlighted
+          ? "border-[#0084ff]/40 bg-[#e7f3ff]/50 dark:bg-[#0084ff]/10"
+          : "border-[#e4e6eb] dark:border-[#2a3942] bg-white/70 dark:bg-[#202c33]/60"
+      }`}
+    >
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div>
+          <label
+            htmlFor={inputId}
+            className="block text-xs font-semibold text-[#050505] dark:text-[#e9edef]"
+          >
+            {label}
+          </label>
+          <p
+            id={hintId}
+            className="text-[11px] text-[#65676b] dark:text-[#8696a0]"
+          >
+            {hint}
+          </p>
+        </div>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <input
+            id={inputId}
+            type="text"
+            inputMode="numeric"
+            aria-describedby={hintId}
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            className="w-16 px-2.5 py-1.5 text-xs font-mono text-center rounded-lg bg-white dark:bg-[#202c33] text-[#050505] dark:text-[#e9edef] border border-[#e4e6eb] dark:border-[#2a3942] outline-none"
+          />
+          {POST_LIMIT_PRESETS.map((preset) => {
+            const isActivePreset = Number(value) === preset;
+            return (
+              <button
+                key={preset}
+                type="button"
+                onClick={() => onChange(String(preset))}
+                className={`px-2 py-1 rounded-md text-[11px] font-semibold border transition cursor-pointer ${
+                  isActivePreset
+                    ? "bg-[#0084ff] text-white border-[#0084ff]"
+                    : "bg-white dark:bg-[#202c33] text-[#65676b] dark:text-[#d1d7db] border-[#e4e6eb] dark:border-[#2a3942] hover:border-[#0084ff]/60"
+                }`}
+              >
+                {preset}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function ScrapeConfigDialog({
   dialogRef,
   project,
@@ -138,6 +224,9 @@ export function ScrapeConfigDialog({
   const [xPostsLimit, setXPostsLimit] = useState<string>(
     String(DEFAULT_SCRAPE_CONFIG.xPostsLimit)
   );
+  const [linkedinPostsLimit, setLinkedinPostsLimit] = useState<string>(
+    String(DEFAULT_SCRAPE_CONFIG.linkedinPostsLimit)
+  );
   const [includePatternsInput, setIncludePatternsInput] = useState<string>("");
   const [excludePatternsInput, setExcludePatternsInput] = useState<string>("");
 
@@ -163,6 +252,7 @@ export function ScrapeConfigDialog({
     )
   );
   const hasXTarget = detectedProviders.includes("x");
+  const hasLinkedinTarget = detectedProviders.includes("linkedin");
 
   const hasStandardWebsites = targetsToInspect.some(
     (c) =>
@@ -225,19 +315,22 @@ export function ScrapeConfigDialog({
       Math.max(Number.parseInt(timeoutSeconds, 10) || 15, 5),
       60
     );
-    const parsedSpecializedMax = Math.min(
-      Math.max(
-        Number.parseInt(specializedMaxItems, 10) ||
-          DEFAULT_SCRAPE_CONFIG.specializedMaxItems,
-        1
-      ),
+    const parsedSpecializedMax = parseClampedInt(
+      specializedMaxItems,
+      DEFAULT_SCRAPE_CONFIG.specializedMaxItems,
+      1,
       100
     );
-    const parsedXPostsLimit = Math.min(
-      Math.max(
-        Number.parseInt(xPostsLimit, 10) || DEFAULT_SCRAPE_CONFIG.xPostsLimit,
-        1
-      ),
+    const parsedXPostsLimit = parseClampedInt(
+      xPostsLimit,
+      DEFAULT_SCRAPE_CONFIG.xPostsLimit,
+      1,
+      100
+    );
+    const parsedLinkedinPostsLimit = parseClampedInt(
+      linkedinPostsLimit,
+      DEFAULT_SCRAPE_CONFIG.linkedinPostsLimit,
+      1,
       100
     );
 
@@ -259,6 +352,7 @@ export function ScrapeConfigDialog({
       excludePatterns: parsePatternList(excludePatternsInput),
       specializedMaxItems: parsedSpecializedMax,
       xPostsLimit: parsedXPostsLimit,
+      linkedinPostsLimit: parsedLinkedinPostsLimit,
     };
 
     try {
@@ -698,7 +792,7 @@ export function ScrapeConfigDialog({
                 htmlFor={`${baseId}-specialized-items`}
                 className="block text-[11px] font-semibold text-[#65676b] dark:text-[#8696a0] mb-1"
               >
-                API Feed Items (LinkedIn / TG)
+                API Feed Items (Telegram)
               </label>
               <input
                 id={`${baseId}-specialized-items`}
@@ -711,58 +805,25 @@ export function ScrapeConfigDialog({
             </div>
           </div>
 
-          <div
-            className={`rounded-lg border p-3 space-y-2 ${
-              hasXTarget
-                ? "border-[#0084ff]/40 bg-[#e7f3ff]/50 dark:bg-[#0084ff]/10"
-                : "border-[#e4e6eb] dark:border-[#2a3942] bg-white/70 dark:bg-[#202c33]/60"
-            }`}
-          >
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-              <div>
-                <label
-                  htmlFor={`${baseId}-x-posts-limit`}
-                  className="block text-xs font-semibold text-[#050505] dark:text-[#e9edef]"
-                >
-                  X Latest Posts Limit (1–100, default: 10)
-                </label>
-                <p
-                  id={`${baseId}-x-posts-hint`}
-                  className="text-[11px] text-[#65676b] dark:text-[#8696a0]"
-                >
-                  Always fetches X account details plus the latest configured number of posts via X API v2.
-                </p>
-              </div>
-              <div className="flex items-center gap-1.5 shrink-0">
-                <input
-                  id={`${baseId}-x-posts-limit`}
-                  type="text"
-                  inputMode="numeric"
-                  aria-describedby={`${baseId}-x-posts-hint`}
-                  value={xPostsLimit}
-                  onChange={(e) => setXPostsLimit(e.target.value)}
-                  className="w-16 px-2.5 py-1.5 text-xs font-mono text-center rounded-lg bg-white dark:bg-[#202c33] text-[#050505] dark:text-[#e9edef] border border-[#e4e6eb] dark:border-[#2a3942] outline-none"
-                />
-                {([5, 10, 25, 50] as const).map((preset) => {
-                  const isActivePreset = Number(xPostsLimit) === preset;
-                  return (
-                    <button
-                      key={preset}
-                      type="button"
-                      onClick={() => setXPostsLimit(String(preset))}
-                      className={`px-2 py-1 rounded-md text-[11px] font-semibold border transition cursor-pointer ${
-                        isActivePreset
-                          ? "bg-[#0084ff] text-white border-[#0084ff]"
-                          : "bg-white dark:bg-[#202c33] text-[#65676b] dark:text-[#d1d7db] border-[#e4e6eb] dark:border-[#2a3942] hover:border-[#0084ff]/60"
-                      }`}
-                    >
-                      {preset}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
+          <PostLimitField
+            inputId={`${baseId}-x-posts-limit`}
+            hintId={`${baseId}-x-posts-hint`}
+            label="X Latest Posts Limit (1–100, default: 10)"
+            hint="Always fetches X account details plus the latest configured number of posts via X API v2."
+            value={xPostsLimit}
+            highlighted={hasXTarget}
+            onChange={setXPostsLimit}
+          />
+
+          <PostLimitField
+            inputId={`${baseId}-linkedin-posts-limit`}
+            hintId={`${baseId}-linkedin-posts-hint`}
+            label="LinkedIn Latest Posts Limit (1–100, default: 10)"
+            hint="Always fetches LinkedIn organization details plus the latest configured number of posts via LinkedIn REST API."
+            value={linkedinPostsLimit}
+            highlighted={hasLinkedinTarget}
+            onChange={setLinkedinPostsLimit}
+          />
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
             <div className="flex items-center gap-2">

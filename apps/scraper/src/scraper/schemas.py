@@ -35,6 +35,7 @@ class ScrapeConfig(CamelModel):
     include_patterns: list[str] = Field(default_factory=list, max_length=20)
     exclude_patterns: list[str] = Field(default_factory=list, max_length=20)
     x_posts_limit: int = Field(default=10, ge=1, le=100)
+    linkedin_posts_limit: int = Field(default=10, ge=1, le=100)
     specialized_max_items: int = Field(default=10, ge=1, le=100)
 
 

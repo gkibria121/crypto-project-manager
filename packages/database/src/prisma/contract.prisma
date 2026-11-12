@@ -124,6 +124,7 @@ model Project {
   tagline          String                @default("")
   campaignBudget   String                @default("$25,000 / mo") @map("campaign_budget")
   sentimentScore   Int                   @default(90) @map("sentiment_score")
+  platformRanks    Json?                 @map("platform_ranks")
   tags             String[]              @default(sql`'{}'::text[]`)
   isPinned         Boolean               @default(false) @map("is_pinned")
   unreadInsights   Int                   @default(0) @map("unread_insights")

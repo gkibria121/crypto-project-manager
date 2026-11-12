@@ -6,6 +6,7 @@ import type {
   Scalars,
 } from "@repo/database";
 import {
+  projectPlatformRanksSchema,
   scrapeConfigSchema,
   scrapedHeadingSchema,
   scrapedLinkSchema,
@@ -44,6 +45,14 @@ export function mapPrismaProjectToDomain(
     };
   }
 
+  const parsedRanks = project.platformRanks
+    ? projectPlatformRanksSchema.safeParse(project.platformRanks)
+    : null;
+  const platformRanks =
+    parsedRanks?.success && Object.keys(parsedRanks.data).length > 0
+      ? parsedRanks.data
+      : undefined;
+
   return {
     id: project.id,
     name: project.name,
@@ -56,6 +65,7 @@ export function mapPrismaProjectToDomain(
     tagline: project.tagline,
     campaignBudget: project.campaignBudget,
     sentimentScore: project.sentimentScore,
+    ...(platformRanks ? { platformRanks } : {}),
     tags: [...project.tags],
     isPinned: project.isPinned,
     unreadInsights: project.unreadInsights,

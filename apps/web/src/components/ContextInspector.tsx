@@ -21,6 +21,7 @@ import {
   type CryptoProject,
   SPECIALIZED_SCRAPER_PROVIDER_META,
   detectSpecializedProvider,
+  getProjectPlatformRanksList,
   hasPermission,
   type ProjectBusinessStatus,
   type ProjectContextItem,
@@ -31,6 +32,7 @@ import {
   ContextTypeIcon,
   FilterChip,
   PaginationBar,
+  PlatformRankBadges,
 } from "@/components/ui";
 import { usePagination } from "@/hooks/usePagination";
 
@@ -183,6 +185,17 @@ export function ContextInspector({
         <p className="text-xs text-[#65676b] dark:text-[#8696a0]">
           {project.ticker} · {project.chain} · {project.stage}
         </p>
+
+        {getProjectPlatformRanksList(project).length > 0 && (
+          <div className="mt-2.5 flex flex-col items-center gap-1">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-[#65676b] dark:text-[#8696a0]">
+              Market Cap Ranks
+            </span>
+            <div className="flex justify-center">
+              <PlatformRankBadges project={project} />
+            </div>
+          </div>
+        )}
 
         {/* Business State Selector Grid */}
         <div className="w-full mt-3.5 pt-3 border-t border-[#e4e6eb] dark:border-[#222d34] text-left">

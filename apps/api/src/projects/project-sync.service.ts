@@ -5,12 +5,14 @@ import {
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import {
+  projectPlatformRanksSchema,
   SOLID_AVATAR_COLORS,
   SYNC_PROVIDERS,
   SYNC_PROVIDER_META,
   type ContextType,
   type CryptoProject,
   type ProjectChain,
+  type ProjectPlatformRanks,
   type ProjectStage,
   type SyncJobState,
   type SyncLogEntry,
@@ -242,6 +244,92 @@ function findUrlMatchingDomain(
   return null;
 }
 
+function parsePlatformRanks(raw: unknown): ProjectPlatformRanks {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    return {};
+  }
+  const parsed = projectPlatformRanksSchema.safeParse(raw);
+  return parsed.success ? { ...parsed.data } : {};
+}
+
+function mergePlatformRank(
+  existingRaw: unknown,
+  provider: SyncProvider,
+  item: NormalizedThirdPartyProject,
+  updatedAtIso: string
+): ProjectPlatformRanks {
+  const current = parsePlatformRanks(existingRaw);
+  const meta = SYNC_PROVIDER_META[provider];
+  const normalizedRank =
+    Number.isFinite(item.rank) && item.rank > 0 ? Math.round(item.rank) : 1;
+  return {
+    ...current,
+    [provider]: {
+      provider,
+      providerName: meta.shortLabel,
+      rank: normalizedRank,
+      marketCapUsd: item.marketCapUsd,
+      priceUsd: item.priceUsd,
+      updatedAt: updatedAtIso,
+    },
+  };
+}
+
+function computeProviderPageSize(
+  provider: SyncProvider,
+  limit: number
+): number {
+  return provider === "coingecko" ? Math.min(limit, 250) : limit;
+}
+
+function computeStartPageForMinRank(
+  minRank: number | null,
+  pageSize: number
+): number {
+  if (minRank === null || minRank <= 1) return 1;
+  return Math.floor((minRank - 1) / Math.max(pageSize, 1)) + 1;
+}
+
+function normalizeRankBounds(
+  minRank?: number | null,
+  maxRank?: number | null
+): { minRank: number | null; maxRank: number | null } {
+  const normalizedMin =
+    typeof minRank === "number" && Number.isFinite(minRank)
+      ? Math.max(1, Math.min(100000, Math.trunc(minRank)))
+      : null;
+  const normalizedMax =
+    typeof maxRank === "number" && Number.isFinite(maxRank)
+      ? Math.max(1, Math.min(100000, Math.trunc(maxRank)))
+      : null;
+  if (
+    normalizedMin !== null &&
+    normalizedMax !== null &&
+    normalizedMin > normalizedMax
+  ) {
+    throw new BadRequestException(
+      "Maximum rank must be greater than or equal to minimum rank."
+    );
+  }
+  return { minRank: normalizedMin, maxRank: normalizedMax };
+}
+
+function formatRankRangeLabel(
+  minRank: number | null,
+  maxRank: number | null
+): string | null {
+  if (minRank !== null && maxRank !== null) {
+    return `ranks #${minRank}–#${maxRank}`;
+  }
+  if (minRank !== null) {
+    return `ranks #${minRank}+`;
+  }
+  if (maxRank !== null) {
+    return `ranks #1–#${maxRank}`;
+  }
+  return null;
+}
+
 @Injectable()
 export class ProjectSyncService {
   private jobState: Omit<SyncJobState, "logs"> = {
@@ -253,6 +341,8 @@ export class ProjectSyncService {
     noLimit: false,
     continuous: true,
     currentPage: 1,
+    minRank: null,
+    maxRank: null,
     countdownSeconds: null,
     totalCreated: 0,
     totalUpdated: 0,
@@ -321,8 +411,9 @@ export class ProjectSyncService {
     actor?: AuthenticatedUser
   ): SyncJobState {
     const provider = dto.provider;
-    // Validate API key immediately so missing key errors return 400 synchronously
+    // Validate API key & rank range immediately so invalid config returns 400 synchronously
     this.requireProviderApiKey(provider);
+    const { minRank, maxRank } = normalizeRankBounds(dto.minRank, dto.maxRank);
 
     if (this.jobState.isRunning) {
       return this.getJobState();
@@ -333,7 +424,13 @@ export class ProjectSyncService {
       ? 1000
       : Math.min(Math.max(dto.limit ?? 50, 1), 1000);
     const continuous = dto.continuous ?? true;
-    const startPage = Math.max(dto.page ?? this.jobState.currentPage ?? 1, 1);
+    const pageSize = computeProviderPageSize(provider, limit);
+    const startPage =
+      dto.page !== undefined
+        ? Math.max(dto.page, 1)
+        : minRank !== null
+          ? computeStartPageForMinRank(minRank, pageSize)
+          : Math.max(this.jobState.currentPage ?? 1, 1);
     const meta = SYNC_PROVIDER_META[provider];
 
     this.stopRequested = false;
@@ -349,6 +446,8 @@ export class ProjectSyncService {
       noLimit,
       continuous,
       currentPage: startPage,
+      minRank,
+      maxRank,
       countdownSeconds: null,
       lastError: null,
     };
@@ -356,12 +455,16 @@ export class ProjectSyncService {
     const rateLabel = noLimit
       ? "No Limit (unlimited speed)"
       : `${limit} projects/minute`;
+    const rankRangeLabel = formatRankRangeLabel(minRank, maxRank);
+    const scopeLabel = rankRangeLabel
+      ? `${rankRangeLabel}, page #${startPage}`
+      : `page #${startPage}`;
 
     this.appendJobLog(
       "info",
       continuous
-        ? `Started asynchronous background sync from ${meta.shortLabel} at ${rateLabel} (page #${startPage}).`
-        : `Started single-page async sync from ${meta.shortLabel} (${rateLabel}, page #${startPage}).`,
+        ? `Started asynchronous background sync from ${meta.shortLabel} at ${rateLabel} (${scopeLabel}).`
+        : `Started single-page async sync from ${meta.shortLabel} (${rateLabel}, ${scopeLabel}).`,
       { immediate: true }
     );
 
@@ -413,6 +516,8 @@ export class ProjectSyncService {
     this.jobState = {
       ...this.jobState,
       currentPage: 1,
+      minRank: null,
+      maxRank: null,
       totalCreated: 0,
       totalUpdated: 0,
       pagesCompleted: 0,
@@ -441,6 +546,8 @@ export class ProjectSyncService {
       const limit = this.jobState.limit;
       const noLimit = this.jobState.noLimit;
       const continuous = this.jobState.continuous;
+      const minRank = this.jobState.minRank;
+      const maxRank = this.jobState.maxRank;
       const meta = SYNC_PROVIDER_META[provider];
 
       this.jobState = {
@@ -457,6 +564,8 @@ export class ProjectSyncService {
             provider,
             limit,
             page: pageToFetch,
+            minRank,
+            maxRank,
             noLimit,
             continuous,
           },
@@ -516,11 +625,14 @@ export class ProjectSyncService {
             isRunning: false,
             isFetchingBatch: false,
           };
-          this.appendJobLog(
-            "info",
-            `All available projects from ${meta.shortLabel} have been synced (reached end of catalog at page #${pageToFetch}).`,
-            { immediate: true, projectsChanged: true }
-          );
+          const doneMsg =
+            maxRank !== null
+              ? `Completed target rank range (${formatRankRangeLabel(minRank, maxRank)}) from ${meta.shortLabel} at page #${pageToFetch}.`
+              : `All available projects from ${meta.shortLabel} have been synced (reached end of catalog at page #${pageToFetch}).`;
+          this.appendJobLog("info", doneMsg, {
+            immediate: true,
+            projectsChanged: true,
+          });
           break;
         }
 
@@ -699,9 +811,17 @@ export class ProjectSyncService {
     const limit = noLimit
       ? 1000
       : Math.min(Math.max(dto.limit ?? 10, 1), 1000);
-    const page = Math.max(dto.page ?? 1, 1);
+    const { minRank, maxRank } = normalizeRankBounds(dto.minRank, dto.maxRank);
+    const effectivePageSize = computeProviderPageSize(provider, limit);
+    const page =
+      dto.page !== undefined
+        ? Math.max(dto.page, 1)
+        : minRank !== null
+          ? computeStartPageForMinRank(minRank, effectivePageSize)
+          : 1;
     const meta = SYNC_PROVIDER_META[provider];
     const apiKey = this.requireProviderApiKey(provider);
+    const rankRangeLabel = formatRankRangeLabel(minRank, maxRank);
 
     const logs: SyncLogEntry[] = [];
     const pushLog = (
@@ -735,7 +855,7 @@ export class ProjectSyncService {
 
     pushLog(
       "info",
-      `Connecting to ${meta.label} — requesting page #${page} (${rateLabel})...`
+      `Connecting to ${meta.label} — requesting page #${page} (${rateLabel}${rankRangeLabel ? `, ${rankRangeLabel}` : ""})...`
     );
 
     const existingProjects = await fullProjectQuery(this.prisma.db.orm)
@@ -759,25 +879,27 @@ export class ProjectSyncService {
     const existingTickers = new Set(existingByTicker.keys());
     const existingNames = new Set(existingByName.keys());
 
-    let candidates: NormalizedThirdPartyProject[];
+    let rawCandidates: NormalizedThirdPartyProject[];
     switch (provider) {
       case "coingecko": {
         const cgPerPage = Math.min(limit, 250);
         const detailFetchQuota =
           noLimit || cgPerPage > 15 ? 0 : Math.min(cgPerPage, 5);
-        candidates = await this.fetchFromCoinGecko(
+        rawCandidates = await this.fetchFromCoinGecko(
           apiKey,
           cgPerPage,
           page,
           detailFetchQuota,
           existingTickers,
           existingNames,
-          fetchImpl
+          fetchImpl,
+          minRank,
+          maxRank
         );
         break;
       }
       case "coinmarketcap":
-        candidates = await this.fetchFromCoinMarketCap(
+        rawCandidates = await this.fetchFromCoinMarketCap(
           apiKey,
           limit,
           page,
@@ -785,7 +907,7 @@ export class ProjectSyncService {
         );
         break;
       case "livecoinwatch":
-        candidates = await this.fetchFromLiveCoinWatch(
+        rawCandidates = await this.fetchFromLiveCoinWatch(
           apiKey,
           limit,
           page,
@@ -793,7 +915,7 @@ export class ProjectSyncService {
         );
         break;
       case "coincap":
-        candidates = await this.fetchFromCoinCap(
+        rawCandidates = await this.fetchFromCoinCap(
           apiKey,
           limit,
           page,
@@ -802,11 +924,33 @@ export class ProjectSyncService {
         break;
     }
 
-    const hasMore = candidates.length > 0;
-    if (candidates.length === 0) {
+    const candidates = rawCandidates.filter(
+      (item) =>
+        (minRank === null || item.rank >= minRank) &&
+        (maxRank === null || item.rank <= maxRank)
+    );
+    const maxRawRank = rawCandidates.reduce(
+      (highest, item) => Math.max(highest, item.rank),
+      0
+    );
+    const hasMore =
+      rawCandidates.length > 0 &&
+      (maxRank === null || maxRawRank < maxRank);
+
+    if (rawCandidates.length === 0) {
       pushLog(
         "warn",
         `Page #${page} returned 0 projects from ${meta.shortLabel}. Reached end of provider catalog.`
+      );
+    } else if (candidates.length === 0 && rankRangeLabel) {
+      pushLog(
+        "info",
+        `Page #${page} returned ${rawCandidates.length} ${rawCandidates.length === 1 ? "project" : "projects"} from ${meta.shortLabel}, none within target ${rankRangeLabel}.`
+      );
+    } else if (candidates.length !== rawCandidates.length && rankRangeLabel) {
+      pushLog(
+        "info",
+        `Received ${rawCandidates.length} projects from ${meta.shortLabel} on page #${page} (${candidates.length} within target ${rankRangeLabel}). Synchronizing with database...`
       );
     } else {
       pushLog(
@@ -911,11 +1055,18 @@ export class ProjectSyncService {
               provider,
             ])
           );
+          const nextPlatformRanks = mergePlatformRank(
+            existing.platformRanks,
+            provider,
+            item,
+            new Date(itemTime).toISOString()
+          );
 
           await tx.orm.public.Project.where({ id: existing.id }).update({
             logoUrl: item.logoUrl || existing.logoUrl || null,
             tagline: nextTagline,
             sentimentScore,
+            platformRanks: nextPlatformRanks as never,
             tags: mergedTags,
             lastActivityTime: "Now",
           });
@@ -1079,7 +1230,7 @@ export class ProjectSyncService {
           updatedProjectIds.push(existing.id);
           pushLog(
             "update",
-            `Synced existing project ${existing.name} (${cleanTicker}) — Rank #${item.rank}, Market Cap ${mcapLabel}, contexts updated.`,
+            `Synced existing project ${existing.name} (${cleanTicker}) — ${meta.shortLabel} Rank #${item.rank}, Market Cap ${mcapLabel}, contexts updated.`,
             {
               ticker: cleanTicker,
               projectName: existing.name,
@@ -1242,6 +1393,12 @@ export class ProjectSyncService {
               provider,
             ])
           );
+          const platformRanks = mergePlatformRank(
+            null,
+            provider,
+            item,
+            new Date(itemTime).toISOString()
+          );
 
           await tx.orm.public.Project.create({
             id: projectId,
@@ -1255,6 +1412,7 @@ export class ProjectSyncService {
             tagline,
             campaignBudget,
             sentimentScore,
+            platformRanks: platformRanks as never,
             tags: projectTags,
             isPinned: false,
             unreadInsights: 1,
@@ -1278,7 +1436,7 @@ export class ProjectSyncService {
           createdProjectIds.push(projectId);
           pushLog(
             "success",
-            `Added new project ${item.name} (${cleanTicker}) tagged 'new' — Rank #${item.rank}, Market Cap ${mcapLabel} [Website, X, LinkedIn linked].`,
+            `Added new project ${item.name} (${cleanTicker}) tagged 'new' — ${meta.shortLabel} Rank #${item.rank}, Market Cap ${mcapLabel} [Website, X, LinkedIn linked].`,
             {
               ticker: cleanTicker,
               projectName: item.name,
@@ -1306,6 +1464,8 @@ export class ProjectSyncService {
           details: {
             provider,
             providerName: meta.shortLabel,
+            minRank,
+            maxRank,
             syncedCount: createdProjectIds.length,
             updatedCount: updatedProjectIds.length,
             skippedCount,
@@ -1356,6 +1516,8 @@ export class ProjectSyncService {
       provider,
       providerName: meta.shortLabel,
       page,
+      minRank,
+      maxRank,
       hasMore,
       syncedCount: createdTotal,
       updatedCount: updatedTotal,
@@ -1375,7 +1537,9 @@ export class ProjectSyncService {
     targetNewLimit: number,
     existingTickers: Set<string>,
     existingNames: Set<string>,
-    fetchImpl: typeof fetch
+    fetchImpl: typeof fetch,
+    minRank: number | null = null,
+    maxRank: number | null = null
   ): Promise<NormalizedThirdPartyProject[]> {
     const marketsUrl = `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=${perPage}&page=${page}&sparkline=false`;
     const headers: Record<string, string> = {
@@ -1398,6 +1562,7 @@ export class ProjectSyncService {
 
     const results: NormalizedThirdPartyProject[] = [];
     let detailFetchCount = 0;
+    const rankOffset = (page - 1) * perPage;
 
     for (let i = 0; i < response.length; i++) {
       const row = response[i] as Record<string, unknown>;
@@ -1410,7 +1575,7 @@ export class ProjectSyncService {
       const rank =
         typeof row["market_cap_rank"] === "number"
           ? row["market_cap_rank"]
-          : i + 1;
+          : rankOffset + i + 1;
       const marketCapUsd =
         typeof row["market_cap"] === "number" ? row["market_cap"] : null;
       const priceUsd =
@@ -1431,11 +1596,14 @@ export class ProjectSyncService {
       let description: string | null = null;
       let platformHint: string | null = null;
 
+      const inTargetRange =
+        (minRank === null || rank >= minRank) &&
+        (maxRank === null || rank <= maxRank);
       const isAlreadyExisting =
         existingTickers.has(symbol.slice(0, 11)) ||
         existingNames.has(name.toLowerCase());
 
-      if (!isAlreadyExisting && detailFetchCount < targetNewLimit) {
+      if (inTargetRange && !isAlreadyExisting && detailFetchCount < targetNewLimit) {
         detailFetchCount += 1;
         try {
           const detailUrl = `https://api.coingecko.com/api/v3/coins/${encodeURIComponent(id)}?localization=false&tickers=false&market_data=false&community_data=false&developer_data=false`;
@@ -1585,7 +1753,7 @@ export class ProjectSyncService {
           ? row["slug"].trim()
           : slugifyProjectName(name);
       const rank =
-        typeof row["cmc_rank"] === "number" ? row["cmc_rank"] : i + 1;
+        typeof row["cmc_rank"] === "number" ? row["cmc_rank"] : start + i;
 
       const platformObj = row["platform"] as
         | Record<string, unknown>
@@ -1702,7 +1870,8 @@ export class ProjectSyncService {
       if (!name || !code) continue;
 
       const slug = slugifyProjectName(name);
-      const rank = typeof row["rank"] === "number" ? row["rank"] : i + 1;
+      const rank =
+        typeof row["rank"] === "number" ? row["rank"] : offset + i + 1;
       const marketCapUsd =
         typeof row["cap"] === "number" ? row["cap"] : null;
       const priceUsd = typeof row["rate"] === "number" ? row["rate"] : null;
@@ -1802,7 +1971,10 @@ export class ProjectSyncService {
 
       const slug = slugifyProjectName(id || name);
       const rankParsed = Number(row["rank"]);
-      const rank = Number.isFinite(rankParsed) && rankParsed > 0 ? rankParsed : i + 1;
+      const rank =
+        Number.isFinite(rankParsed) && rankParsed > 0
+          ? rankParsed
+          : offset + i + 1;
       const mcapParsed = Number(row["marketCapUsd"]);
       const marketCapUsd = Number.isFinite(mcapParsed) ? mcapParsed : null;
       const priceParsed = Number(row["priceUsd"]);

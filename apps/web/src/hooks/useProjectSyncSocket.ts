@@ -28,6 +28,8 @@ const INITIAL_SYNC_JOB_STATE: SyncJobState = {
   noLimit: false,
   continuous: true,
   currentPage: 1,
+  minRank: null,
+  maxRank: null,
   countdownSeconds: null,
   totalCreated: 0,
   totalUpdated: 0,

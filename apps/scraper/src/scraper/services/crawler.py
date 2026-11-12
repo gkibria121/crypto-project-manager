@@ -7,12 +7,17 @@ import httpx
 
 from scraper.config import Settings
 from scraper.schemas import (
+    ScrapeConfig,
     ScrapedPageResult,
     ScrapeRequest,
     ScrapeResponse,
 )
 from scraper.security import UnsafeTargetError, validate_public_url
-from scraper.services.browser_fetcher import BrowserFetcher, BrowserUnavailableError
+from scraper.services.browser_fetcher import (
+    BrowserFetcher,
+    BrowserUnavailableError,
+    PlaywrightError,
+)
 from scraper.services.fetcher import ContentTooLargeError, FetchResult, fetch_url_safely
 from scraper.services.parser import (
     build_summary,
@@ -85,6 +90,71 @@ async def _load_robots_parser(
         return None
 
 
+class _FallbackFetchError(Exception):
+    """Raised when Playwright is unavailable and the static HTTP fallback also fails."""
+
+
+async def _try_static_fallback(
+    current_url: str,
+    settings: Settings,
+    client: httpx.AsyncClient | None,
+) -> FetchResult | None:
+    try:
+        fallback = await fetch_url_safely(current_url, settings, client=client)
+    except (UnsafeTargetError, ContentTooLargeError):
+        raise
+    except Exception:
+        return None
+    if fallback.status_code < 400 and fallback.html.strip():
+        return fallback
+    return None
+
+
+async def _fetch_page_with_fallback(
+    current_url: str,
+    cfg: ScrapeConfig,
+    settings: Settings,
+    *,
+    client: httpx.AsyncClient | None,
+    browser_fetcher: BrowserFetcher | None,
+    is_root: bool,
+) -> tuple[FetchResult, str, str | None]:
+    """Fetch a page with Playwright when enabled, falling back to static HTTP on 5xx/errors."""
+    if not (cfg.render_js and settings.playwright_enabled) or browser_fetcher is None:
+        fetched = await fetch_url_safely(current_url, settings, client=client)
+        return fetched, "static_html", None
+
+    try:
+        fetched = await browser_fetcher.fetch_with_js(current_url, cfg)
+    except BrowserUnavailableError as exc:
+        note = (
+            f"Playwright unavailable ({exc}); fell back to static HTTP"
+            if is_root
+            else None
+        )
+        try:
+            fallback = await fetch_url_safely(current_url, settings, client=client)
+            return fallback, "static_html_fallback", note
+        except (UnsafeTargetError, ContentTooLargeError):
+            raise
+        except Exception as inner_exc:
+            raise _FallbackFetchError(
+                f"JS browser unavailable and HTTP fallback failed: {inner_exc}"
+            ) from inner_exc
+    except PlaywrightError:
+        fallback = await _try_static_fallback(current_url, settings, client)
+        if fallback is not None:
+            return fallback, "static_html_fallback", None
+        raise
+
+    if fetched.status_code >= 500:
+        fallback = await _try_static_fallback(current_url, settings, client)
+        if fallback is not None:
+            return fallback, "static_html_fallback", None
+
+    return fetched, "playwright_js", None
+
+
 async def crawl_website(
     req: ScrapeRequest,
     seed_url: str,
@@ -111,8 +181,70 @@ async def crawl_website(
     root_error_status: int | None = None
     root_error_reason: str | None = None
     root_final_url: str = seed_url
-    render_engine_used = "playwright_js" if cfg.render_js else "static_html"
+    render_engine_used = (
+        "playwright_js"
+        if (cfg.render_js and settings.playwright_enabled)
+        else "static_html"
+    )
+    owned_browser: BrowserFetcher | None = None
+    active_browser = browser_fetcher
+    if active_browser is None and cfg.render_js and settings.playwright_enabled:
+        owned_browser = BrowserFetcher(settings)
+        active_browser = owned_browser
 
+    try:
+        return await _run_crawl_loop(
+            req=req,
+            cfg=cfg,
+            seed_url=seed_url,
+            seed_host=seed_host,
+            settings=settings,
+            started=started,
+            client=client,
+            active_browser=active_browser,
+            robots_cache=robots_cache,
+            visited=visited,
+            queue=queue,
+            pages=pages,
+            all_social_links=all_social_links,
+            all_signals=all_signals,
+            all_contacts=all_contacts,
+            all_headings=all_headings,
+            all_structured_data=all_structured_data,
+            root_error_status=root_error_status,
+            root_error_reason=root_error_reason,
+            root_final_url=root_final_url,
+            render_engine_used=render_engine_used,
+        )
+    finally:
+        if owned_browser is not None:
+            await owned_browser.close()
+
+
+async def _run_crawl_loop(
+    *,
+    req: ScrapeRequest,
+    cfg: ScrapeConfig,
+    seed_url: str,
+    seed_host: str,
+    settings: Settings,
+    started: float,
+    client: httpx.AsyncClient | None,
+    active_browser: BrowserFetcher | None,
+    robots_cache: dict[str, RobotFileParser | None],
+    visited: set[str],
+    queue: deque[tuple[str, int, str | None]],
+    pages: list[ScrapedPageResult],
+    all_social_links: dict[str, str],
+    all_signals: list[str],
+    all_contacts: list[str],
+    all_headings: list[str],
+    all_structured_data: list[object],
+    root_error_status: int | None,
+    root_error_reason: str | None,
+    root_final_url: str,
+    render_engine_used: str,
+) -> ScrapeResponse:
     while queue and len(pages) < cfg.max_pages:
         current_url, depth, parent_url = queue.popleft()
         canon_key = _canonicalize_crawl_url(current_url)
@@ -159,41 +291,33 @@ async def crawl_website(
         page_render_mode = "playwright_js" if cfg.render_js else "static_html"
 
         try:
-            if cfg.render_js and settings.playwright_enabled:
-                if browser_fetcher is not None:
-                    fetched = await browser_fetcher.fetch_with_js(current_url, cfg)
-                else:
-                    temp_browser = BrowserFetcher(settings)
-                    try:
-                        fetched = await temp_browser.fetch_with_js(current_url, cfg)
-                    finally:
-                        await temp_browser.close()
-            else:
-                fetched = await fetch_url_safely(current_url, settings, client=client)
-                page_render_mode = "static_html"
-        except BrowserUnavailableError as exc:
-            # Graceful fallback to static HTTP fetch only if Playwright browser binary is missing locally
-            if depth == 1:
-                root_error_reason = f"Playwright unavailable ({exc}); fell back to static HTTP"
-            try:
-                fetched = await fetch_url_safely(current_url, settings, client=client)
-                page_render_mode = "static_html_fallback"
+            fetched, page_render_mode, fallback_note = await _fetch_page_with_fallback(
+                current_url,
+                cfg,
+                settings,
+                client=client,
+                browser_fetcher=active_browser,
+                is_root=depth == 1,
+            )
+            if page_render_mode == "static_html_fallback" and depth == 1:
                 render_engine_used = "static_html_fallback"
-            except Exception as inner_exc:
-                if depth == 1:
-                    elapsed = int((time.perf_counter() - started) * 1000)
-                    return ScrapeResponse(
-                        target_type=req.target_type,
-                        target_value=req.target_value,
-                        normalized_url=current_url,
-                        status="unreachable",
-                        reachable=False,
-                        error_reason=f"JS browser unavailable and HTTP fallback failed: {inner_exc}",
-                        duration_ms=elapsed,
-                        provider_used="static_html_fallback",
-                        config_used=cfg,
-                    )
-                continue
+            if fallback_note and depth == 1:
+                root_error_reason = fallback_note
+        except _FallbackFetchError as exc:
+            if depth == 1:
+                elapsed = int((time.perf_counter() - started) * 1000)
+                return ScrapeResponse(
+                    target_type=req.target_type,
+                    target_value=req.target_value,
+                    normalized_url=current_url,
+                    status="unreachable",
+                    reachable=False,
+                    error_reason=str(exc),
+                    duration_ms=elapsed,
+                    provider_used="static_html_fallback",
+                    config_used=cfg,
+                )
+            continue
         except UnsafeTargetError as exc:
             if depth == 1:
                 elapsed = int((time.perf_counter() - started) * 1000)
@@ -224,7 +348,7 @@ async def crawl_website(
                     config_used=cfg,
                 )
             continue
-        except (httpx.TimeoutException, httpx.TransportError, TimeoutError) as exc:
+        except (httpx.TimeoutException, httpx.TransportError, TimeoutError, PlaywrightError) as exc:
             if depth == 1:
                 elapsed = int((time.perf_counter() - started) * 1000)
                 return ScrapeResponse(

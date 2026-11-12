@@ -49,8 +49,11 @@ import {
   ROLE_PERMISSIONS,
   USER_ROLES,
   USER_ROLE_META,
+  SYNC_PROVIDERS,
+  SYNC_PROVIDER_META,
   checklistItemFormSchema,
   createUserDtoSchema,
+  getProjectPlatformRanksList,
   hasPermission,
   promptTemplateFormSchema,
   type AuthUser,
@@ -63,6 +66,7 @@ import {
   type PromptTemplateFormValues,
   type ScrapeConfig,
   type SyncProjectsDto,
+  type SyncProvider,
   type UpdateProjectFormValues,
   type UserRole,
 } from "@/types/project";
@@ -111,7 +115,13 @@ import {
   ScrapedDataDialog,
   SyncProjectsDialog,
 } from "@/components/modals";
-import { FilterChip, FormField, ModalDialog, PaginationBar } from "@/components/ui";
+import {
+  FilterChip,
+  FormField,
+  ModalDialog,
+  PaginationBar,
+  PlatformRankBadges,
+} from "@/components/ui";
 
 type AdminSectionId =
   | "overview"
@@ -265,6 +275,11 @@ export function AdminDashboard() {
   const [projectSearchQuery, setProjectSearchQuery] = useState("");
   const [projectFilter, setProjectFilter] =
     useState<ProjectFilterStatus>("all");
+  const [projectRankPlatformFilter, setProjectRankPlatformFilter] = useState<
+    "all" | SyncProvider
+  >("all");
+  const [projectMinRankFilter, setProjectMinRankFilter] = useState("");
+  const [projectMaxRankFilter, setProjectMaxRankFilter] = useState("");
   const [selectedProjectIds, setSelectedProjectIds] = useState<string[]>([]);
   const [bulkStatusTarget, setBulkStatusTarget] =
     useState<ProjectBusinessStatus>("contacted");
@@ -359,19 +374,61 @@ export function AdminDashboard() {
     return true;
   });
 
+  const parsedProjectMinRank = projectMinRankFilter.trim()
+    ? Number.parseInt(projectMinRankFilter.trim(), 10)
+    : null;
+  const parsedProjectMaxRank = projectMaxRankFilter.trim()
+    ? Number.parseInt(projectMaxRankFilter.trim(), 10)
+    : null;
+
   const filteredProjects = projects.filter((project) => {
     const query = projectSearchQuery.trim().toLowerCase();
+    const ranks = getProjectPlatformRanksList(project);
     const matchesSearch =
       !query ||
       project.name.toLowerCase().includes(query) ||
       project.ticker.toLowerCase().includes(query) ||
       project.chain.toLowerCase().includes(query) ||
       project.tagline.toLowerCase().includes(query) ||
-      (project.tags ?? []).some((tag) => tag.toLowerCase().includes(query));
+      (project.tags ?? []).some((tag) => tag.toLowerCase().includes(query)) ||
+      ranks.some(
+        (r) =>
+          `#${r.rank}`.includes(query) ||
+          r.providerName.toLowerCase().includes(query) ||
+          r.provider.toLowerCase().includes(query)
+      );
 
     if (!matchesSearch) return false;
-    if (projectFilter === "all") return true;
-    return project.businessStatus === projectFilter;
+    if (projectFilter !== "all" && project.businessStatus !== projectFilter) {
+      return false;
+    }
+
+    const hasMinFilter =
+      parsedProjectMinRank !== null && Number.isFinite(parsedProjectMinRank);
+    const hasMaxFilter =
+      parsedProjectMaxRank !== null && Number.isFinite(parsedProjectMaxRank);
+
+    if (
+      projectRankPlatformFilter !== "all" ||
+      hasMinFilter ||
+      hasMaxFilter
+    ) {
+      const candidateRanks =
+        projectRankPlatformFilter === "all"
+          ? ranks
+          : ranks.filter((r) => r.provider === projectRankPlatformFilter);
+      if (candidateRanks.length === 0) return false;
+      if (hasMinFilter || hasMaxFilter) {
+        const matchesRange = candidateRanks.some(
+          (r) =>
+            (!hasMinFilter || r.rank >= parsedProjectMinRank!) &&
+            (!hasMaxFilter || r.rank <= parsedProjectMaxRank!)
+        );
+        if (!matchesRange) return false;
+      }
+    }
+
+    return true;
   });
 
   const filteredAuditLogs = auditLogs.filter((log) => {
@@ -411,7 +468,7 @@ export function AdminDashboard() {
   const projectsPagination = usePagination(filteredProjects, {
     initialPageSize: 100,
     pageSizeOptions: DEFAULT_PAGE_SIZE_OPTIONS,
-    resetKey: `${projectFilter}:${projectSearchQuery}`,
+    resetKey: `${projectFilter}:${projectSearchQuery}:${projectRankPlatformFilter}:${projectMinRankFilter}:${projectMaxRankFilter}`,
   });
   const rbacPermissionsPagination = usePagination(ALL_PERMISSIONS, {
     initialPageSize: 8,
@@ -1527,6 +1584,15 @@ export function AdminDashboard() {
                                     {project.chain} · {project.stage} ·{" "}
                                     {project.campaignBudget}
                                   </p>
+                                  {getProjectPlatformRanksList(project).length >
+                                    0 && (
+                                    <div className="mt-1">
+                                      <PlatformRankBadges
+                                        project={project}
+                                        compact
+                                      />
+                                    </div>
+                                  )}
                                 </div>
                               </div>
 
@@ -2268,28 +2334,103 @@ export function AdminDashboard() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <FilterChip
-                      active={projectFilter === "all"}
-                      onClick={() => setProjectFilter("all")}
-                      count={projects.length}
-                    >
-                      All
-                    </FilterChip>
-                    {BUSINESS_STATUS_ORDER.map((statusKey) => (
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <div className="flex items-center gap-1.5 flex-wrap">
                       <FilterChip
-                        key={statusKey}
-                        active={projectFilter === statusKey}
-                        onClick={() => setProjectFilter(statusKey)}
-                        count={
-                          projects.filter(
-                            (p) => p.businessStatus === statusKey
-                          ).length
-                        }
+                        active={projectFilter === "all"}
+                        onClick={() => setProjectFilter("all")}
+                        count={projects.length}
                       >
-                        {BUSINESS_STATUS_META[statusKey].shortLabel}
+                        All
                       </FilterChip>
-                    ))}
+                      {BUSINESS_STATUS_ORDER.map((statusKey) => (
+                        <FilterChip
+                          key={statusKey}
+                          active={projectFilter === statusKey}
+                          onClick={() => setProjectFilter(statusKey)}
+                          count={
+                            projects.filter(
+                              (p) => p.businessStatus === statusKey
+                            ).length
+                          }
+                        >
+                          {BUSINESS_STATUS_META[statusKey].shortLabel}
+                        </FilterChip>
+                      ))}
+                    </div>
+
+                    <div className="flex items-center gap-1.5 flex-wrap text-xs">
+                      <label
+                        htmlFor={`${projectSearchInputId}-platform-rank`}
+                        className="text-[11px] font-semibold text-[#65676b] dark:text-[#8696a0]"
+                      >
+                        Rank filter:
+                      </label>
+                      <select
+                        id={`${projectSearchInputId}-platform-rank`}
+                        value={projectRankPlatformFilter}
+                        onChange={(e) =>
+                          setProjectRankPlatformFilter(
+                            e.target.value as "all" | SyncProvider
+                          )
+                        }
+                        className="rounded-lg bg-[#f0f2f5] dark:bg-[#111b21] border border-[#e4e6eb] dark:border-[#2a3942] px-2 py-1 text-[11px] font-semibold text-[#050505] dark:text-[#e9edef] outline-none cursor-pointer"
+                      >
+                        <option value="all">Any Platform</option>
+                        {SYNC_PROVIDERS.map((prov) => (
+                          <option key={prov} value={prov}>
+                            {SYNC_PROVIDER_META[prov].shortLabel}
+                          </option>
+                        ))}
+                      </select>
+                      <input
+                        type="number"
+                        inputMode="numeric"
+                        min={1}
+                        max={100000}
+                        placeholder="Min #"
+                        aria-label="Filter projects by minimum rank"
+                        value={projectMinRankFilter}
+                        onChange={(e) =>
+                          setProjectMinRankFilter(e.target.value)
+                        }
+                        className="w-16 px-2 py-1 rounded-lg bg-[#f0f2f5] dark:bg-[#111b21] border border-[#e4e6eb] dark:border-[#2a3942] text-[11px] font-mono text-center text-[#050505] dark:text-[#e9edef] outline-none"
+                      />
+                      <span
+                        aria-hidden="true"
+                        className="text-[#65676b] dark:text-[#8696a0]"
+                      >
+                        –
+                      </span>
+                      <input
+                        type="number"
+                        inputMode="numeric"
+                        min={1}
+                        max={100000}
+                        placeholder="Max #"
+                        aria-label="Filter projects by maximum rank"
+                        value={projectMaxRankFilter}
+                        onChange={(e) =>
+                          setProjectMaxRankFilter(e.target.value)
+                        }
+                        className="w-16 px-2 py-1 rounded-lg bg-[#f0f2f5] dark:bg-[#111b21] border border-[#e4e6eb] dark:border-[#2a3942] text-[11px] font-mono text-center text-[#050505] dark:text-[#e9edef] outline-none"
+                      />
+                      {(projectRankPlatformFilter !== "all" ||
+                        projectMinRankFilter.trim() ||
+                        projectMaxRankFilter.trim()) && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setProjectRankPlatformFilter("all");
+                            setProjectMinRankFilter("");
+                            setProjectMaxRankFilter("");
+                          }}
+                          className="px-2 py-1 rounded-lg text-[11px] font-semibold text-[#0084ff] hover:underline cursor-pointer"
+                        >
+                          Clear
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -2492,6 +2633,15 @@ export function AdminDashboard() {
                                     <div className="text-[11px] text-[#65676b] dark:text-[#8696a0] truncate max-w-xs xl:max-w-md">
                                       {project.tagline}
                                     </div>
+                                    {getProjectPlatformRanksList(project)
+                                      .length > 0 && (
+                                      <div className="mt-1">
+                                        <PlatformRankBadges
+                                          project={project}
+                                          compact
+                                        />
+                                      </div>
+                                    )}
                                   </div>
                                 </div>
                               </th>

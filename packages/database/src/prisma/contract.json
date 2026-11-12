@@ -809,6 +809,13 @@
                   "kind": "scalar"
                 }
               },
+              "platformRanks": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/json@1",
+                  "kind": "scalar"
+                }
+              },
               "sentimentScore": {
                 "nullable": false,
                 "type": {
@@ -985,6 +992,9 @@
                 },
                 "name": {
                   "column": "name"
+                },
+                "platformRanks": {
+                  "column": "platform_ranks"
                 },
                 "sentimentScore": {
                   "column": "sentiment_score"
@@ -3280,6 +3290,11 @@
                   "dataType": "pg/text",
                   "nullable": false
                 },
+                "platform_ranks": {
+                  "codecId": "pg/json@1",
+                  "dataType": "pg/json",
+                  "nullable": true
+                },
                 "sentiment_score": {
                   "codecId": "pg/int4@1",
                   "dataType": "pg/int4",
@@ -4350,7 +4365,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "6801bdf4e036bc679e894f360a258dd13640c0a13b63c8ea91605b34c57aff0f"
+    "storageHash": "50ed379bd4cad41602b6d02a92274ebb5eb66f7ce3a52d8619c1116b35b000c3"
   },
   "execution": {
     "executionHash": "42ab2f47ad84cf640f24c69cb969e6ffdbacf886db68f673ca5bb9f542df6e68",
