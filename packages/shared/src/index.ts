@@ -6,6 +6,12 @@ export {
   messageSenderSchema,
   scrapeStatusSchema,
   specializedScraperProviderSchema,
+  aiProviderSchema,
+  aiProviderStatusSchema,
+  aiConfigurationSummarySchema,
+  updateAiProviderConfigDtoSchema,
+  activateAiProviderDtoSchema,
+  aiProviderModelsResponseSchema,
   scrapeWaitUntilSchema,
   scrapeConfigSchema,
   triggerScrapeDtoSchema,
@@ -67,6 +73,12 @@ export {
   type MessageSender,
   type ScrapeStatus,
   type SpecializedScraperProvider,
+  type AiProvider,
+  type AiProviderStatus,
+  type AiConfigurationSummary,
+  type UpdateAiProviderConfigDto,
+  type ActivateAiProviderDto,
+  type AiProviderModelsResponse,
   type ScrapeWaitUntil,
   type ScrapeConfig,
   type TriggerScrapeDto,
@@ -145,6 +157,8 @@ export {
   DEFAULT_SCRAPE_CONFIG,
   SPECIALIZED_SCRAPER_PROVIDERS,
   SPECIALIZED_SCRAPER_PROVIDER_META,
+  AI_PROVIDERS,
+  AI_PROVIDER_META,
   getProjectPlatformRanksList,
   detectSpecializedProvider,
 } from "./constants/project.constants";
@@ -153,7 +167,6 @@ export {
   formatCurrentTimestamp,
   normalizeContextUrl,
   evaluateChecklistItemAgainstProject,
-  buildContextualAiResponse,
 } from "./ai-engine";
 
 export {

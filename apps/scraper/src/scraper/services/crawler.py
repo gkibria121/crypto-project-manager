@@ -245,7 +245,11 @@ async def _run_crawl_loop(
     root_final_url: str,
     render_engine_used: str,
 ) -> ScrapeResponse:
+    max_crawl_seconds = 165.0
+
     while queue and len(pages) < cfg.max_pages:
+        if pages and (time.perf_counter() - started) >= max_crawl_seconds:
+            break
         current_url, depth, parent_url = queue.popleft()
         canon_key = _canonicalize_crawl_url(current_url)
         if canon_key in visited or depth > cfg.levels:

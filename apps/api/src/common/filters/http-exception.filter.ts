@@ -24,6 +24,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
 
     let statusCode = HttpStatus.INTERNAL_SERVER_ERROR;
     let message: string | string[] = "Internal server error";
+    let code: string | undefined;
     let details: unknown;
 
     if (exception instanceof HttpException) {
@@ -33,6 +34,9 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         message = body;
       } else if (isRecord(body)) {
         message = (body.message as string | string[]) ?? exception.message;
+        if (typeof body.code === "string") {
+          code = body.code;
+        }
         if (body.errors) {
           details = body.errors;
         }
@@ -78,6 +82,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
 
     response.status(statusCode).json({
       statusCode,
+      ...(code ? { code } : {}),
       message,
       ...(details ? { details } : {}),
       path: request.url,

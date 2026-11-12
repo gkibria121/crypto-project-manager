@@ -88,15 +88,22 @@ export function mapPrismaProjectToDomain(
         scrapedMetadata: parsedMeta?.success ? parsedMeta.data : undefined,
       };
     }),
-    messages: project.messages.map((msg) => ({
-      id: msg.id,
-      sender: msg.sender,
-      content: msg.content,
-      timestamp: msg.timestampLabel,
-      usedContextIds: [...msg.usedContextIds],
-      suggestedActions: [...msg.suggestedActions],
-      appliedSystemPromptTitle: msg.appliedSystemPromptTitle ?? undefined,
-    })),
+    messages: project.messages.map((msg) => {
+      const meta = toPlainRecord<unknown>(msg.metadata);
+      const provider =
+        typeof meta?.["provider"] === "string" ? meta["provider"] : undefined;
+      return {
+        id: msg.id,
+        sender: msg.sender,
+        content: msg.content,
+        timestamp: msg.timestampLabel,
+        usedContextIds: [...msg.usedContextIds],
+        suggestedActions: [...msg.suggestedActions],
+        appliedSystemPromptTitle: msg.appliedSystemPromptTitle ?? undefined,
+        ...(msg.model ? { model: msg.model } : {}),
+        ...(provider ? { provider } : {}),
+      };
+    }),
     checklistState,
   };
 }

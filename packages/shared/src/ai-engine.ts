@@ -1,11 +1,8 @@
-import { BUSINESS_STATUS_META } from "./constants/project.constants";
 import type {
   ChecklistItemConfig,
   ContextType,
   CryptoProject,
   ProjectChecklistItemState,
-  ProjectContextItem,
-  PromptTemplate,
 } from "./schemas/project.schema";
 
 export function formatCurrentTimestamp(): string {
@@ -140,68 +137,4 @@ export function evaluateChecklistItemAgainstProject(
     scanResultNote: note,
     scannedAt: "Just now",
   };
-}
-
-export function buildContextualAiResponse(
-  project: CryptoProject,
-  userPrompt: string,
-  activeContexts: ProjectContextItem[],
-  template?: PromptTemplate
-): string {
-  const websiteCtx = activeContexts.find((c) => c.type === "website");
-  const xCtx = activeContexts.find((c) => c.type === "x_handle");
-  const linkedinCtx = activeContexts.find((c) => c.type === "linkedin");
-  const noteCtx = activeContexts.find((c) => c.type === "message");
-  const statusMeta = BUSINESS_STATUS_META[project.businessStatus];
-
-  const scrapedSignals = Array.from(
-    new Set(
-      activeContexts.flatMap((c) => c.scrapedMetadata?.signals ?? [])
-    )
-  );
-  const scrapedInsight = activeContexts
-    .map((c) => c.scrapedMetadata?.description || c.summary)
-    .find(Boolean);
-
-  const lower =
-    `${userPrompt} ${template?.label || ""} ${template?.systemPrompt || ""}`.toLowerCase();
-
-  const systemInstructionHeader = template
-    ? `> **Applied System Prompt (${template.label}):** ${template.systemPrompt}\n\n`
-    : "";
-
-  const signalLine =
-    scrapedSignals.length > 0
-      ? `\n- **Scraped Technical Signals:** ${scrapedSignals.map((s) => `\`${s}\``).join(", ")}`
-      : "";
-
-  if (lower.includes("4-tweet") || lower.includes("thread")) {
-    return `${systemInstructionHeader}### 4-Tweet X Thread — ${project.name} (${project.ticker})
-- **1/4:** ${project.name} (${project.ticker}) is scaling on ${project.chain}: ${project.tagline}.
-- **2/4:** Grounded in our latest positioning${linkedinCtx ? ` (\`${linkedinCtx.value}\`)` : ""}: ${noteCtx?.value || scrapedInsight || "built for institutional-grade execution and verifiable throughput."}
-- **3/4:** Follow ${xCtx ? `\`${xCtx.value}\`` : project.ticker} as we progress through our **${project.stage}** phase.
-- **4/4:** Explore the docs and live metrics at \`${websiteCtx?.value || "our official portal"}\`.${signalLine}`;
-  }
-
-  if (lower.includes("market maker") || lower.includes("cold dm")) {
-    return `${systemInstructionHeader}### Institutional Market Maker Cold DM — ${project.name} (${project.ticker})
-"Hi [Name] — reaching out from the **${project.name} (${project.ticker})** team on ${project.chain}.
-
-${project.tagline}. ${noteCtx?.value || scrapedInsight || ""}
-
-We are currently in **${project.stage}** (${statusMeta.label}) and onboarding institutional liquidity partners. Full documentation is live at \`${websiteCtx?.value || "our portal"}\`${linkedinCtx ? ` and \`${linkedinCtx.value}\`` : ""}. Open to sharing our liquidity brief this week?"${signalLine}`;
-  }
-
-  if (lower.includes("founder quote") || lower.includes("executive")) {
-    return `${systemInstructionHeader}### Executive Founder Quote — ${project.name} (${project.ticker})
-> "${project.name} was engineered on ${project.chain} to solve a fundamental gap: ${project.tagline.toLowerCase()}. ${noteCtx?.value || scrapedInsight || "Our focus is delivering verifiable utility and deep ecosystem composability."}"
-> — **Founder, ${project.name} (${project.ticker})**${signalLine}`;
-  }
-
-  return `${systemInstructionHeader}### ${project.name} (${project.ticker}) — Campaign Output
-Synthesized from **${activeContexts.length} active contexts** (${activeContexts.map((c) => c.title).join(", ") || "Project Profile"}):
-
-- **X / Social (${xCtx?.value || project.ticker}):** "${project.name} (${project.ticker}) on ${project.chain} — ${project.tagline}."
-- **Key Context Directive:** ${noteCtx?.value || scrapedInsight || "Emphasize core product traction and verifiable metrics."}
-- **Primary Link:** \`${websiteCtx?.value || linkedinCtx?.value || "N/A"}\`${signalLine}`;
 }

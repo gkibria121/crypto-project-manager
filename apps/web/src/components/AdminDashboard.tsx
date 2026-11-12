@@ -2,6 +2,7 @@
 
 import React, { useId, useRef, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -10,6 +11,7 @@ import {
   ArchiveRestore,
   ArrowRight,
   ArrowUpRight,
+  Bot,
   Check,
   CheckCircle2,
   Clock,
@@ -40,6 +42,7 @@ import {
   X as XIcon,
 } from "lucide-react";
 import {
+  AI_PROVIDER_META,
   ALL_PERMISSIONS,
   BUSINESS_STATUS_META,
   BUSINESS_STATUS_ORDER,
@@ -71,6 +74,8 @@ import {
   type UserRole,
 } from "@/types/project";
 import {
+  useActivateAiProviderMutation,
+  useAiProvidersQuery,
   useAuditLogsQuery,
   useBulkDeleteProjectsMutation,
   useBulkUpdateBusinessStatusMutation,
@@ -79,9 +84,11 @@ import {
   useCreateUserMutation,
   useCurrentUserQuery,
   useDashboardDialogs,
+  useDeleteAiProviderKeyMutation,
   useDeleteChecklistItemMutation,
   useDeleteProjectMutation,
   useDeletePromptTemplateMutation,
+  useDeleteScraperProviderKeyMutation,
   useDeleteUserMutation,
   useLoginMutation,
   useLogoutMutation,
@@ -90,13 +97,13 @@ import {
   useProjectsQuery,
   usePromptTemplatesQuery,
   useRegisterMutation,
+  useSaveAiProviderConfigMutation,
   useSaveChecklistItemMutation,
   useSavePromptTemplateMutation,
   useSaveScraperProviderKeyMutation,
   useScrapeAllContextsMutation,
   useScrapeContextMutation,
   useScraperProvidersQuery,
-  useDeleteScraperProviderKeyMutation,
   useSyncProvidersQuery,
   useSystemHealthQuery,
   useUpdateBusinessStatusMutation,
@@ -105,6 +112,7 @@ import {
   useUpdateUserStatusMutation,
   useUsersQuery,
 } from "@/hooks";
+import { AiProviderKeysPanel } from "@/components/AiProviderKeysPanel";
 import { AuthScreen } from "@/components/AuthScreen";
 import { ProjectAvatar } from "@/components/ProjectAvatar";
 import { ScraperProviderKeysPanel } from "@/components/ScraperProviderKeysPanel";
@@ -128,6 +136,7 @@ type AdminSectionId =
   | "users"
   | "projects"
   | "rbac"
+  | "ai"
   | "settings"
   | "audit";
 
@@ -158,6 +167,11 @@ const SECTION_META: Record<
     title: "Roles & Permissions Matrix",
     subtitle:
       "Inspect role-based access control policies and permission grants enforced across the platform.",
+  },
+  ai: {
+    title: "AI Providers & Models",
+    subtitle:
+      "Configure API keys for Google AI Studio, OpenAI, Anthropic, Groq, and OpenRouter and select the active chat model.",
   },
   settings: {
     title: "AI Prompts & Global Checklist",
@@ -195,6 +209,7 @@ export function AdminDashboard() {
   const scraperProvidersQuery = useScraperProvidersQuery(
     isAuthenticated && isAdmin
   );
+  const aiProvidersQuery = useAiProvidersQuery(isAuthenticated && isAdmin);
 
   const users = usersQuery.data ?? [];
   const projects = projectsQuery.data ?? [];
@@ -203,6 +218,7 @@ export function AdminDashboard() {
   const checklistItems = checklistItemsQuery.data ?? [];
   const syncProviders = syncProvidersQuery.data ?? [];
   const scraperProviders = scraperProvidersQuery.data ?? [];
+  const aiConfig = aiProvidersQuery.data;
 
   const loginMutation = useLoginMutation();
   const registerMutation = useRegisterMutation();
@@ -237,8 +253,23 @@ export function AdminDashboard() {
   const saveScraperProviderKeyMutation = useSaveScraperProviderKeyMutation();
   const deleteScraperProviderKeyMutation =
     useDeleteScraperProviderKeyMutation();
+  const saveAiProviderConfigMutation = useSaveAiProviderConfigMutation();
+  const activateAiProviderMutation = useActivateAiProviderMutation();
+  const deleteAiProviderKeyMutation = useDeleteAiProviderKeyMutation();
   const scrapeContextMutation = useScrapeContextMutation();
   const scrapeAllContextsMutation = useScrapeAllContextsMutation();
+
+  const searchParams = useSearchParams();
+  const initialSectionParam = searchParams.get("section");
+  const validInitialSection: AdminSectionId =
+    initialSectionParam === "users" ||
+    initialSectionParam === "projects" ||
+    initialSectionParam === "rbac" ||
+    initialSectionParam === "ai" ||
+    initialSectionParam === "settings" ||
+    initialSectionParam === "audit"
+      ? initialSectionParam
+      : "overview";
 
   const {
     newProjectDialogRef,
@@ -257,8 +288,9 @@ export function AdminDashboard() {
 
   const mainHeadingRef = useRef<HTMLHeadingElement | null>(null);
 
-  const [activeSection, setActiveSection] =
-    useState<AdminSectionId>("overview");
+  const [activeSection, setActiveSection] = useState<AdminSectionId>(
+    validInitialSection
+  );
   const [editingProject, setEditingProject] = useState<CryptoProject | null>(
     null
   );
@@ -952,9 +984,21 @@ export function AdminDashboard() {
       badgeTone: "neutral",
     },
     {
+      id: "ai",
+      label: "AI Providers & Models",
+      description: "Google AI Studio, OpenAI & more",
+      icon: Bot,
+      badge: aiConfig?.hasConfiguredProvider
+        ? aiConfig.activeProvider
+          ? AI_PROVIDER_META[aiConfig.activeProvider].shortLabel
+          : "Ready"
+        : "Key needed",
+      badgeTone: aiConfig?.hasConfiguredProvider ? "neutral" : "amber",
+    },
+    {
       id: "settings",
-      label: "AI & Checklists",
-      description: "Prompts & due diligence",
+      label: "Prompts & Checklists",
+      description: "Templates, checklists & scrapers",
       icon: Settings,
       badge: promptTemplates.length + checklistItems.length,
       badgeTone: "neutral",
@@ -1332,6 +1376,7 @@ export function AdminDashboard() {
                   void auditLogsQuery.refetch();
                   void promptTemplatesQuery.refetch();
                   void checklistItemsQuery.refetch();
+                  void aiProvidersQuery.refetch();
                 }}
                 aria-label="Refresh admin dashboard data"
                 title="Refresh data"
@@ -3010,6 +3055,48 @@ export function AdminDashboard() {
                   />
                 </section>
               </div>
+            )}
+
+            {/* ========================================================= */}
+            {/* VIEW 5A: AI PROVIDERS & MODELS                             */}
+            {/* ========================================================= */}
+            {activeSection === "ai" && (
+              <section
+                aria-labelledby="admin-ai-providers-heading"
+                className="rounded-2xl bg-white dark:bg-[#202c33] border border-[#e4e6eb] dark:border-[#2a3942] p-4 sm:p-5 shadow-2xs space-y-4"
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-[#0084ff]/12 text-[#0084ff] flex items-center justify-center shrink-0">
+                    <Bot className="w-4 h-4" aria-hidden="true" />
+                  </div>
+                  <div>
+                    <h2
+                      id="admin-ai-providers-heading"
+                      className="text-base font-bold"
+                    >
+                      AI Chatbot Providers & Model Selection
+                    </h2>
+                    <p className="text-xs text-[#65676b] dark:text-[#8696a0]">
+                      Set encrypted API keys and select models for Google AI
+                      Studio (Gemini), OpenAI, Anthropic, Groq, or OpenRouter.
+                    </p>
+                  </div>
+                </div>
+
+                <AiProviderKeysPanel
+                  aiConfig={aiConfig}
+                  canEdit={hasPermission(currentUser, "settings:write")}
+                  onSaveConfig={(params) =>
+                    saveAiProviderConfigMutation.mutateAsync(params)
+                  }
+                  onActivateProvider={(params) =>
+                    activateAiProviderMutation.mutateAsync(params)
+                  }
+                  onDeleteKey={(provider) =>
+                    deleteAiProviderKeyMutation.mutateAsync(provider)
+                  }
+                />
+              </section>
             )}
 
             {/* ========================================================= */}

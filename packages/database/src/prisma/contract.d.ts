@@ -23,9 +23,9 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'50ed379bd4cad41602b6d02a92274ebb5eb66f7ce3a52d8619c1116b35b000c3'>;
+  StorageHashBase<'b267b364a85bf1a983e8198268c566c0642aed3405598d394ffa0862c274acfd'>;
 export type ExecutionHash =
-  ExecutionHashBase<'42ab2f47ad84cf640f24c69cb969e6ffdbacf886db68f673ca5bb9f542df6e68'>;
+  ExecutionHashBase<'188363034d4280b98283741723e51a59b5ee3b31ea9d8ff009882547e2e8240e'>;
 export type ProfileHash =
   ProfileHashBase<'3916f444a8a17ad749191acf9e08dad97d1a327b88c2f1d45d12f240296aa8b2'>;
 
@@ -447,6 +447,18 @@ export type StorageColumnInputTypes = ColumnTypesFromStorage<
 >;
 
 export namespace Models {
+  export type public_AiProviderConfig = {
+    apiKey: FieldOutputTypes['public']['AiProviderConfig']['apiKey'];
+    createdAt: FieldOutputTypes['public']['AiProviderConfig']['createdAt'];
+    extraConfig: FieldOutputTypes['public']['AiProviderConfig']['extraConfig'];
+    isActive: FieldOutputTypes['public']['AiProviderConfig']['isActive'];
+    isEnabled: FieldOutputTypes['public']['AiProviderConfig']['isEnabled'];
+    provider: FieldOutputTypes['public']['AiProviderConfig']['provider'];
+    selectedModel: FieldOutputTypes['public']['AiProviderConfig']['selectedModel'];
+    updatedAt: FieldOutputTypes['public']['AiProviderConfig']['updatedAt'];
+    updatedBy: FieldOutputTypes['public']['AiProviderConfig']['updatedBy'];
+    readonly [RelationKeys]?: never;
+  };
   export type public_AuditLog = {
     action: FieldOutputTypes['public']['AuditLog']['action'];
     actorEmail: FieldOutputTypes['public']['AuditLog']['actorEmail'];
@@ -664,6 +676,7 @@ export namespace Models {
 
 export declare const models: {
   public: {
+    AiProviderConfig: Models.public_AiProviderConfig;
     AuditLog: Models.public_AuditLog;
     AuthSession: Models.public_AuthSession;
     ChatMessage: Models.public_ChatMessage;
@@ -697,6 +710,80 @@ type ContractBase = Omit<
         readonly kind: 'postgres-schema';
         readonly entries: {
           readonly table: {
+            readonly ai_provider_configs: {
+              columns: {
+                readonly api_key: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly created_at: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: false;
+                  readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+                readonly extra_config: {
+                  readonly dataType: 'pg/json';
+                  readonly codecId: 'pg/json@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly is_active: {
+                  readonly dataType: 'pg/bool';
+                  readonly codecId: 'pg/bool@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/bool@1', false>;
+                  };
+                  readonly many: false;
+                };
+                readonly is_enabled: {
+                  readonly dataType: 'pg/bool';
+                  readonly codecId: 'pg/bool@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/bool@1', true>;
+                  };
+                  readonly many: false;
+                };
+                readonly provider: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly selected_model: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly updated_at: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly nullable: false;
+                  readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
+                  readonly typeParams: { readonly precision: 3 };
+                  readonly many: false;
+                };
+                readonly updated_by: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+              };
+              primaryKey: { readonly columns: readonly ['provider'] };
+              uniques: readonly [];
+              indexes: readonly [];
+              foreignKeys: readonly [];
+            };
             readonly audit_logs: {
               columns: {
                 readonly action: {
@@ -2329,6 +2416,10 @@ type ContractBase = Omit<
   readonly target: 'postgres';
   readonly targetFamily: 'sql';
   readonly roots: {
+    readonly ai_provider_configs: {
+      readonly namespace: 'public' & NamespaceId;
+      readonly model: 'AiProviderConfig';
+    };
     readonly audit_logs: { readonly namespace: 'public' & NamespaceId; readonly model: 'AuditLog' };
     readonly auth_sessions: {
       readonly namespace: 'public' & NamespaceId;
@@ -2373,6 +2464,70 @@ type ContractBase = Omit<
     readonly namespaces: {
       readonly public: {
         readonly models: {
+          readonly AiProviderConfig: {
+            readonly fields: {
+              readonly apiKey: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly createdAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly extraConfig: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/json@1' };
+              };
+              readonly isActive: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/bool@1' };
+              };
+              readonly isEnabled: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/bool@1' };
+              };
+              readonly provider: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly selectedModel: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly updatedAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-date@1';
+                  readonly typeParams: { readonly precision: 3 };
+                };
+              };
+              readonly updatedBy: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+            };
+            readonly relations: Record<string, never>;
+            readonly storage: {
+              readonly table: 'ai_provider_configs';
+              readonly namespaceId: 'public';
+              readonly fields: {
+                readonly apiKey: { readonly column: 'api_key' };
+                readonly createdAt: { readonly column: 'created_at' };
+                readonly extraConfig: { readonly column: 'extra_config' };
+                readonly isActive: { readonly column: 'is_active' };
+                readonly isEnabled: { readonly column: 'is_enabled' };
+                readonly provider: { readonly column: 'provider' };
+                readonly selectedModel: { readonly column: 'selected_model' };
+                readonly updatedAt: { readonly column: 'updated_at' };
+                readonly updatedBy: { readonly column: 'updated_by' };
+              };
+            };
+          };
           readonly AuditLog: {
             readonly fields: {
               readonly action: {
@@ -3770,6 +3925,35 @@ type ContractBase = Omit<
     readonly executionHash: ExecutionHash;
     readonly mutations: {
       readonly defaults: readonly [
+        {
+          readonly onCreate: {
+            readonly id: 'timestampNow';
+            readonly kind: 'generator';
+            readonly params: { readonly precision: 3 };
+          };
+          readonly ref: {
+            readonly entry: 'ai_provider_configs';
+            readonly field: 'created_at';
+            readonly namespace: 'public';
+          };
+        },
+        {
+          readonly onCreate: {
+            readonly id: 'timestampNow';
+            readonly kind: 'generator';
+            readonly params: { readonly precision: 3 };
+          };
+          readonly onUpdate: {
+            readonly id: 'timestampNow';
+            readonly kind: 'generator';
+            readonly params: { readonly precision: 3 };
+          };
+          readonly ref: {
+            readonly entry: 'ai_provider_configs';
+            readonly field: 'updated_at';
+            readonly namespace: 'public';
+          };
+        },
         {
           readonly onCreate: {
             readonly id: 'timestampNow';

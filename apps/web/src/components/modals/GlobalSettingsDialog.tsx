@@ -7,13 +7,17 @@ import { Plus, Trash2 } from "lucide-react";
 import {
   checklistItemFormSchema,
   promptTemplateFormSchema,
+  type AiConfigurationSummary,
+  type AiProvider,
   type ChecklistItemConfig,
   type ChecklistItemFormValues,
   type PromptTemplate,
   type PromptTemplateFormValues,
   type ScraperProviderStatus,
   type SpecializedScraperProvider,
+  type UpdateAiProviderConfigDto,
 } from "@/types/project";
+import { AiProviderKeysPanel } from "@/components/AiProviderKeysPanel";
 import { ScraperProviderKeysPanel } from "@/components/ScraperProviderKeysPanel";
 import {
   FormField,
@@ -22,14 +26,31 @@ import {
 } from "@/components/ui";
 import { usePagination } from "@/hooks/usePagination";
 
+export type GlobalSettingsTab =
+  | "ai-providers"
+  | "prompts"
+  | "checklist"
+  | "scraper-apis";
+
 interface GlobalSettingsDialogProps {
   dialogRef: RefObject<HTMLDialogElement | null>;
+  activeTab?: GlobalSettingsTab;
+  onTabChange?: (tab: GlobalSettingsTab) => void;
   promptTemplates: PromptTemplate[];
   onSavePromptTemplate: (template: PromptTemplate) => void;
   onDeletePromptTemplate: (id: string) => void;
   checklistItems: ChecklistItemConfig[];
   onSaveChecklistItem: (item: ChecklistItemConfig) => void;
   onDeleteChecklistItem: (id: string) => void;
+  aiConfig?: AiConfigurationSummary;
+  onSaveAiProviderConfig?: (
+    params: { provider: AiProvider } & UpdateAiProviderConfigDto
+  ) => Promise<unknown>;
+  onActivateAiProvider?: (params: {
+    provider: AiProvider;
+    selectedModel?: string;
+  }) => Promise<unknown>;
+  onDeleteAiProviderKey?: (provider: AiProvider) => Promise<unknown>;
   scraperProviders?: ScraperProviderStatus[];
   canEditScraperKeys?: boolean;
   onSaveScraperProviderKey?: (params: {
@@ -43,20 +64,30 @@ interface GlobalSettingsDialogProps {
 
 export function GlobalSettingsDialog({
   dialogRef,
+  activeTab: controlledTab,
+  onTabChange,
   promptTemplates,
   onSavePromptTemplate,
   onDeletePromptTemplate,
   checklistItems,
   onSaveChecklistItem,
   onDeleteChecklistItem,
+  aiConfig,
+  onSaveAiProviderConfig,
+  onActivateAiProvider,
+  onDeleteAiProviderKey,
   scraperProviders = [],
   canEditScraperKeys = false,
   onSaveScraperProviderKey,
   onDeleteScraperProviderKey,
 }: GlobalSettingsDialogProps) {
-  const [activeTab, setActiveTab] = useState<
-    "prompts" | "checklist" | "scraper-apis"
-  >("prompts");
+  const [internalTab, setInternalTab] =
+    useState<GlobalSettingsTab>("ai-providers");
+  const activeTab = controlledTab ?? internalTab;
+  const setActiveTab = (nextTab: GlobalSettingsTab) => {
+    setInternalTab(nextTab);
+    onTabChange?.(nextTab);
+  };
 
   const promptsPagination = usePagination(promptTemplates, {
     initialPageSize: 4,
@@ -125,6 +156,16 @@ export function GlobalSettingsDialog({
         <button
           type="button"
           role="tab"
+          aria-selected={activeTab === "ai-providers"}
+          onClick={() => setActiveTab("ai-providers")}
+          className="accessible-tab px-3 py-2 text-xs font-semibold text-[#65676b] dark:text-[#8696a0] hover:text-[#050505] dark:hover:text-[#e9edef] transition cursor-pointer whitespace-nowrap"
+        >
+          AI Providers{" "}
+          {aiConfig?.hasConfiguredProvider ? "✓" : "(Key Needed)"}
+        </button>
+        <button
+          type="button"
+          role="tab"
           aria-selected={activeTab === "prompts"}
           onClick={() => setActiveTab("prompts")}
           className="accessible-tab px-3 py-2 text-xs font-semibold text-[#65676b] dark:text-[#8696a0] hover:text-[#050505] dark:hover:text-[#e9edef] transition cursor-pointer whitespace-nowrap"
@@ -152,7 +193,21 @@ export function GlobalSettingsDialog({
         </button>
       </div>
 
-      {activeTab === "scraper-apis" ? (
+      {activeTab === "ai-providers" ? (
+        <div className="mt-4 max-h-[60vh] overflow-y-auto scroller pr-1">
+          <AiProviderKeysPanel
+            aiConfig={aiConfig}
+            canEdit={canEditScraperKeys}
+            onSaveConfig={
+              onSaveAiProviderConfig ?? (async () => undefined)
+            }
+            onActivateProvider={
+              onActivateAiProvider ?? (async () => undefined)
+            }
+            onDeleteKey={onDeleteAiProviderKey ?? (async () => undefined)}
+          />
+        </div>
+      ) : activeTab === "scraper-apis" ? (
         <div className="mt-4">
           <ScraperProviderKeysPanel
             providerStatuses={scraperProviders}

@@ -10,17 +10,19 @@ import {
   type NewProjectFormValues,
   type ProjectBusinessStatus,
   type ProjectContextItem,
-  type PromptTemplate,
   type ScrapeConfig,
 } from "@/types/project";
 import {
+  useActivateAiProviderMutation,
   useAddContextMutation,
+  useAiProvidersQuery,
   useAuditLogsQuery,
   useChecklistItemsQuery,
   useCreateProjectMutation,
   useCreateUserMutation,
   useCurrentUserQuery,
   useDashboardDialogs,
+  useDeleteAiProviderKeyMutation,
   useDeleteChecklistItemMutation,
   useDeleteContextMutation,
   useDeleteProjectMutation,
@@ -34,11 +36,11 @@ import {
   usePromptTemplatesQuery,
   useRegisterMutation,
   useResetConversationMutation,
+  useSaveAiProviderConfigMutation,
   useSaveChecklistItemMutation,
   useSavePromptTemplateMutation,
   useSaveScraperProviderKeyMutation,
   useScanAllChecklistItemsMutation,
-  useScanSingleChecklistItemMutation,
   useScrapeAllContextsMutation,
   useScrapeContextMutation,
   useScraperProvidersQuery,
@@ -54,14 +56,16 @@ import {
   useUpdateUserStatusMutation,
   useUsersQuery,
 } from "@/hooks";
+import { ApiClientError } from "@/services/apiClient";
 import { AuthScreen } from "@/components/AuthScreen";
 import { ProjectSidebar } from "@/components/ProjectSidebar";
-import { AiChatPane } from "@/components/AiChatPane";
+import { AiChatPane, type SendChatPayload } from "@/components/AiChatPane";
 import { ContextInspector } from "@/components/ContextInspector";
 import {
   AddContextDialog,
   EditProjectDialog,
   GlobalSettingsDialog,
+  type GlobalSettingsTab,
   NewProjectDialog,
   ProjectChecklistDialog,
   ScrapeConfigDialog,
@@ -84,6 +88,8 @@ export function CryptoMessengerDashboard() {
     useChecklistItemsQuery(isAuthenticated);
   const { data: scraperProviders = [] } =
     useScraperProvidersQuery(isAuthenticated);
+  const aiProvidersQuery = useAiProvidersQuery(isAuthenticated);
+  const aiConfig = aiProvidersQuery.data;
   const { data: healthStatus } = useSystemHealthQuery();
   const { data: usersList = [] } = useUsersQuery(
     isAuthenticated && canReadUsers
@@ -100,6 +106,10 @@ export function CryptoMessengerDashboard() {
     initialProjectFromUrl
   );
   const [draftPrompt, setDraftPrompt] = useState("");
+  const [attachedContextIds, setAttachedContextIds] = useState<string[]>([]);
+  const [includeProjectSummary, setIncludeProjectSummary] = useState(false);
+  const [globalSettingsTab, setGlobalSettingsTab] =
+    useState<GlobalSettingsTab>("ai-providers");
   const [mobileActivePane, setMobileActivePane] = useState<"sidebar" | "chat">(
     "chat"
   );
@@ -163,11 +173,13 @@ export function CryptoMessengerDashboard() {
     useDeleteScraperProviderKeyMutation();
   const toggleChecklistItemMutation = useToggleChecklistItemMutation();
   const scanAllChecklistItemsMutation = useScanAllChecklistItemsMutation();
-  const scanSingleChecklistItemMutation = useScanSingleChecklistItemMutation();
   const savePromptTemplateMutation = useSavePromptTemplateMutation();
   const deletePromptTemplateMutation = useDeletePromptTemplateMutation();
   const saveChecklistItemMutation = useSaveChecklistItemMutation();
   const deleteChecklistItemMutation = useDeleteChecklistItemMutation();
+  const saveAiProviderConfigMutation = useSaveAiProviderConfigMutation();
+  const activateAiProviderMutation = useActivateAiProviderMutation();
+  const deleteAiProviderKeyMutation = useDeleteAiProviderKeyMutation();
 
   const activeProject =
     projects.find((p) => p.id === selectedProjectId) ?? projects[0];
@@ -298,6 +310,9 @@ export function CryptoMessengerDashboard() {
     setSelectedProjectId(id);
     setMobileActivePane("chat");
     setIsMobileContextOpen(false);
+    setAttachedContextIds([]);
+    setIncludeProjectSummary(false);
+    sendMessageMutation.reset();
     markProjectReadMutation.mutate(id);
   };
 
@@ -309,13 +324,27 @@ export function CryptoMessengerDashboard() {
     }
   };
 
-  const handleSendMessage = (content: string, template?: PromptTemplate) => {
-    sendMessageMutation.mutate({
+  const handleSendMessage = async (payload: SendChatPayload) => {
+    await sendMessageMutation.mutateAsync({
       projectId: activeProject.id,
-      content,
-      template,
+      content: payload.content,
+      template: payload.template,
+      contextIds: payload.contextIds,
+      includeProjectSummary: payload.includeProjectSummary,
     });
   };
+
+  const sendMessageError =
+    sendMessageMutation.error instanceof Error
+      ? sendMessageMutation.error.message
+      : null;
+  const sendMessageErrorCode =
+    sendMessageMutation.error instanceof ApiClientError
+      ? sendMessageMutation.error.code ??
+        (sendMessageMutation.error.statusCode === 412
+          ? "AI_API_KEY_REQUIRED"
+          : null)
+      : null;
 
   const handleToggleChecklistItem = (itemId: string) => {
     toggleChecklistItemMutation.mutate({
@@ -332,10 +361,12 @@ export function CryptoMessengerDashboard() {
 
   const handleScanSingleItemInChat = (item: ChecklistItemConfig) => {
     setMobileActivePane("chat");
-    scanSingleChecklistItemMutation.mutate({
-      projectId: activeProject.id,
-      item,
-    });
+    setIncludeProjectSummary(true);
+    setDraftPrompt((prev) =>
+      prev
+        ? `${prev}\n${item.label}: ${item.scanPrompt}`
+        : `${item.label}: ${item.scanPrompt}`
+    );
   };
 
   const handleResetConversation = () => {
@@ -402,16 +433,16 @@ export function CryptoMessengerDashboard() {
   };
 
   const handleReferenceInPrompt = (ctx: ProjectContextItem) => {
-    if (!ctx.isActive) {
-      handleToggleContext(ctx.id);
-    }
-    setDraftPrompt((prev) =>
-      prev
-        ? `${prev} (${ctx.title}: ${ctx.value})`
-        : `Using ${ctx.title} (${ctx.value}), `
+    setAttachedContextIds((prev) =>
+      prev.includes(ctx.id) ? prev : [...prev, ctx.id]
     );
     setIsMobileContextOpen(false);
     setMobileActivePane("chat");
+  };
+
+  const handleOpenSettingsTab = (tab: GlobalSettingsTab) => {
+    setGlobalSettingsTab(tab);
+    openGlobalSettingsModal();
   };
 
   const handleCreateProject = async (values: NewProjectFormValues) => {
@@ -460,11 +491,20 @@ export function CryptoMessengerDashboard() {
       <AiChatPane
         project={activeProject}
         currentUser={currentUser}
+        aiConfig={aiConfig}
+        isAiConfigLoading={aiProvidersQuery.isLoading}
         promptTemplates={promptTemplates}
         checklistItems={checklistItems}
         draftPrompt={draftPrompt}
         setDraftPrompt={setDraftPrompt}
+        attachedContextIds={attachedContextIds}
+        setAttachedContextIds={setAttachedContextIds}
+        includeProjectSummary={includeProjectSummary}
+        setIncludeProjectSummary={setIncludeProjectSummary}
         onSendMessage={handleSendMessage}
+        sendMessageError={sendMessageError}
+        sendMessageErrorCode={sendMessageErrorCode}
+        onClearSendError={() => sendMessageMutation.reset()}
         onResetConversation={handleResetConversation}
         onUpdateBusinessStatus={(status) =>
           handleUpdateBusinessStatus(activeProject.id, status)
@@ -472,7 +512,8 @@ export function CryptoMessengerDashboard() {
         onOpenAddContextModal={openAddContextModal}
         onOpenEditLogoModal={openEditLogoModal}
         onOpenChecklistModal={openChecklistModal}
-        onOpenGlobalSettings={openGlobalSettingsModal}
+        onOpenGlobalSettings={() => handleOpenSettingsTab("prompts")}
+        onOpenAiSettings={() => handleOpenSettingsTab("ai-providers")}
         isContextPanelOpen={isDesktopContextOpen || isMobileContextOpen}
         onToggleContextPanel={handleToggleContextPanel}
         isAiTyping={sendMessageMutation.isPending}
@@ -547,12 +588,24 @@ export function CryptoMessengerDashboard() {
 
       <GlobalSettingsDialog
         dialogRef={globalSettingsDialogRef}
+        activeTab={globalSettingsTab}
+        onTabChange={setGlobalSettingsTab}
         promptTemplates={promptTemplates}
         onSavePromptTemplate={(tpl) => savePromptTemplateMutation.mutate(tpl)}
         onDeletePromptTemplate={(id) => deletePromptTemplateMutation.mutate(id)}
         checklistItems={checklistItems}
         onSaveChecklistItem={(item) => saveChecklistItemMutation.mutate(item)}
         onDeleteChecklistItem={(id) => deleteChecklistItemMutation.mutate(id)}
+        aiConfig={aiConfig}
+        onSaveAiProviderConfig={(params) =>
+          saveAiProviderConfigMutation.mutateAsync(params)
+        }
+        onActivateAiProvider={(params) =>
+          activateAiProviderMutation.mutateAsync(params)
+        }
+        onDeleteAiProviderKey={(provider) =>
+          deleteAiProviderKeyMutation.mutateAsync(provider)
+        }
         scraperProviders={scraperProviders}
         canEditScraperKeys={hasPermission(currentUser, "settings:write")}
         onSaveScraperProviderKey={(params) =>

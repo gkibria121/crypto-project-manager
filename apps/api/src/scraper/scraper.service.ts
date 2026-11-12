@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  GatewayTimeoutException,
   Injectable,
   Logger,
   NotFoundException,
@@ -321,13 +322,13 @@ export class ScraperService {
 
   private computeScrapeTimeoutMs(config: ScrapeConfig, targetCount = 1): number {
     const baseEnvMs = this.config.get("SCRAPER_TIMEOUT_MS", { infer: true });
+    const perPageMs =
+      config.timeoutSeconds * 1000 +
+      (config.renderJs ? config.waitForMs + 2500 : 1000);
     const estimatedMs =
-      config.timeoutSeconds *
-        1000 *
-        Math.min(config.maxPages, 6) *
-        Math.min(targetCount, 3) +
+      perPageMs * Math.min(config.maxPages, 15) * Math.min(targetCount, 4) +
       15000;
-    return Math.min(Math.max(baseEnvMs, estimatedMs), 240_000);
+    return Math.min(Math.max(baseEnvMs, estimatedMs), 225_000);
   }
 
   async scrapeContext(
@@ -679,7 +680,18 @@ export class ScraperService {
       });
     } catch (error) {
       const reason = error instanceof Error ? error.message : String(error);
+      const isTimeout =
+        (error instanceof Error &&
+          (error.name === "TimeoutError" || error.name === "AbortError")) ||
+        reason.toLowerCase().includes("timeout") ||
+        reason.toLowerCase().includes("aborted");
+
       this.logger.error(`Failed calling Python scraper at ${path}: ${reason}`);
+      if (isTimeout) {
+        throw new GatewayTimeoutException(
+          `Scraper timed out after ${Math.round(timeoutMs / 1000)}s while crawling target pages. Try reducing Max Pages or Scrape Levels, or setting Wait Until to "load".`
+        );
+      }
       throw new ServiceUnavailableException(
         `Python scraper microservice is unavailable: ${reason}`
       );

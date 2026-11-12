@@ -1,4 +1,5 @@
 import type {
+  AiProvider,
   ContextType,
   CryptoProject,
   Permission,
@@ -413,6 +414,98 @@ export const DEFAULT_SCRAPE_CONFIG: ScrapeConfig = {
 
 export const SPECIALIZED_SCRAPER_PROVIDERS: readonly SpecializedScraperProvider[] =
   ["x", "linkedin", "telegram"] as const;
+
+export const AI_PROVIDERS: readonly AiProvider[] = [
+  "google",
+  "openai",
+  "anthropic",
+  "groq",
+  "openrouter",
+] as const;
+
+export const AI_PROVIDER_META: Record<
+  AiProvider,
+  {
+    label: string;
+    shortLabel: string;
+    envVar: string;
+    docsUrl: string;
+    defaultModel: string;
+    recommendedModels: string[];
+    description: string;
+  }
+> = {
+  google: {
+    label: "Google AI Studio (Gemini)",
+    shortLabel: "Google AI Studio",
+    envVar: "GEMINI_API_KEY",
+    docsUrl: "https://aistudio.google.com/apikey",
+    defaultModel: "gemini-3.5-flash-lite",
+    recommendedModels: [
+      "gemini-3.5-flash-lite",
+    ],
+    description:
+      "Fast, multimodal Gemini models powered by Google AI Studio API keys.",
+  },
+  openai: {
+    label: "OpenAI",
+    shortLabel: "OpenAI",
+    envVar: "OPENAI_API_KEY",
+    docsUrl: "https://platform.openai.com/api-keys",
+    defaultModel: "gpt-4o-mini",
+    recommendedModels: [
+      "gpt-4o-mini",
+      "gpt-4o",
+      "gpt-4.1-mini",
+      "gpt-4.1",
+      "o4-mini",
+      "o3-mini",
+    ],
+    description: "GPT-4o, GPT-4.1, and reasoning models from OpenAI.",
+  },
+  anthropic: {
+    label: "Anthropic (Claude)",
+    shortLabel: "Anthropic",
+    envVar: "ANTHROPIC_API_KEY",
+    docsUrl: "https://console.anthropic.com/settings/keys",
+    defaultModel: "claude-sonnet-4-20250514",
+    recommendedModels: [
+      "claude-sonnet-4-20250514",
+      "claude-3-7-sonnet-latest",
+      "claude-3-5-haiku-latest",
+      "claude-opus-4-20250514",
+    ],
+    description: "Claude Sonnet, Haiku, and Opus models from Anthropic.",
+  },
+  groq: {
+    label: "Groq",
+    shortLabel: "Groq",
+    envVar: "GROQ_API_KEY",
+    docsUrl: "https://console.groq.com/keys",
+    defaultModel: "llama-3.3-70b-versatile",
+    recommendedModels: [
+      "llama-3.3-70b-versatile",
+      "llama-3.1-8b-instant",
+      "deepseek-r1-distill-llama-70b",
+      "mixtral-8x7b-32768",
+    ],
+    description: "Ultra-low-latency LPU inference for open-weight models.",
+  },
+  openrouter: {
+    label: "OpenRouter",
+    shortLabel: "OpenRouter",
+    envVar: "OPENROUTER_API_KEY",
+    docsUrl: "https://openrouter.ai/keys",
+    defaultModel: "openai/gpt-4o-mini",
+    recommendedModels: [
+      "openai/gpt-4o-mini",
+      "google/gemini-2.5-flash",
+      "anthropic/claude-sonnet-4",
+      "meta-llama/llama-3.3-70b-instruct",
+    ],
+    description: "Unified gateway to 100+ commercial and open-source models.",
+  },
+};
 
 export const SPECIALIZED_SCRAPER_PROVIDER_META: Record<
   SpecializedScraperProvider,

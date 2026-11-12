@@ -3,6 +3,7 @@ import {
   BadRequestException,
   type ExecutionContext,
   ForbiddenException,
+  PreconditionFailedException,
 } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
 import {
@@ -18,7 +19,6 @@ import {
   DEFAULT_PAGE_SIZE_OPTIONS,
   addContextFormSchema,
   type AuthUser,
-  buildContextualAiResponse,
   buildPaginationWindow,
   bulkDeleteProjectsDtoSchema,
   calculatePaginationMeta,
@@ -44,6 +44,10 @@ import {
 } from "../src/auth/auth.decorators.js";
 import { AuthService } from "../src/auth/auth.service.js";
 import { RbacGuard } from "../src/auth/rbac.guard.js";
+import {
+  ChatService,
+  normalizeConversationTurns,
+} from "../src/chat/chat.service.js";
 import { ZodValidationPipe } from "../src/common/pipes/zod-validation.pipe.js";
 import { validateEnv } from "../src/config/env.js";
 import { computeActivatedProjectPatch } from "../src/projects/project-lifecycle.helper.js";
@@ -56,6 +60,7 @@ import {
   maskProviderSecret,
 } from "../src/scraper/scraper-crypto.helper.js";
 import { ScraperService } from "../src/scraper/scraper.service.js";
+import { AiProvidersService } from "../src/settings/ai-providers.service.js";
 import { UsersService } from "../src/users/users.service.js";
 
 describe("NestJS Core Backend Unit Tests", () => {
@@ -155,14 +160,6 @@ describe("NestJS Core Backend Unit Tests", () => {
       scanPrompt: "Does it have an MCP server?",
     });
     expect(checklistResult.checked).toBe(true);
-
-    const aiReply = buildContextualAiResponse(
-      mapped,
-      "Write a 4-tweet X thread",
-      mapped.contexts
-    );
-    expect(aiReply).toContain("Test Protocol");
-    expect(aiReply).toContain("mcp_server");
   });
 
   it("validates DTOs with ZodValidationPipe and rejects invalid input", () => {
@@ -1521,5 +1518,316 @@ describe("NestJS Core Backend Unit Tests", () => {
     expect(relationalData.jobs).toHaveLength(1);
     expect(relationalData.pages).toHaveLength(2);
     expect(relationalData.pages[1]?.parentUrl).toBe("https://aetheris.network");
+  });
+
+  it("supports multi-provider AI key encryption, model selection, session memory, and zero hidden project context", async () => {
+    const aiConfigsStore: Array<Record<string, unknown>> = [];
+    const auditLogsStore: Array<Record<string, unknown>> = [];
+    const chatMessagesStore: Array<Record<string, unknown>> = [];
+    const now = new Date("2026-11-12T10:00:00.000Z");
+
+    const projectRecord: Record<string, unknown> = {
+      id: "proj-chat-1",
+      name: "Secret Project Alpha",
+      ticker: "$SECRET",
+      chain: "Solana",
+      stage: "Pre-TGE",
+      businessStatus: "new",
+      avatarBg: "bg-[#1d4ed8]",
+      logoUrl: null,
+      tagline: "Confidential GPU inference layer",
+      campaignBudget: "$25,000 / mo",
+      sentimentScore: 90,
+      platformRanks: null,
+      tags: ["new", "solana"],
+      isPinned: true,
+      unreadInsights: 0,
+      lastActivityTime: "Now",
+      lastScrapedAt: null,
+      archivedAt: null,
+      createdAt: now,
+      updatedAt: now,
+      contexts: [
+        {
+          id: "ctx-secret-1",
+          projectId: "proj-chat-1",
+          type: "website",
+          title: "Secret Docs",
+          value: "https://secret-alpha.example",
+          url: "https://secret-alpha.example",
+          summary: "Hidden internal summary",
+          isActive: true,
+          updatedAtLabel: "Now",
+          scrapeStatus: null,
+          lastScrapedAt: null,
+          scrapedMetadata: null,
+          createdAt: now,
+          updatedAt: now,
+        },
+      ],
+      checklistStates: [],
+    };
+
+    const ormMock = {
+      public: {
+        AiProviderConfig: {
+          all: async () => [...aiConfigsStore],
+          where: ({ provider }: { provider: string }) => ({
+            first: async () =>
+              aiConfigsStore.find((r) => r["provider"] === provider) ?? null,
+            update: async (patch: Record<string, unknown>) => {
+              const row = aiConfigsStore.find((r) => r["provider"] === provider);
+              if (row) Object.assign(row, patch, { updatedAt: new Date() });
+              return row ?? null;
+            },
+            deleteAll: async () => {
+              const idx = aiConfigsStore.findIndex(
+                (r) => r["provider"] === provider
+              );
+              if (idx >= 0) aiConfigsStore.splice(idx, 1);
+              return [];
+            },
+          }),
+          upsert: async (args: {
+            create: Record<string, unknown>;
+            update: Record<string, unknown>;
+          }) => {
+            const existing = aiConfigsStore.find(
+              (r) => r["provider"] === args.create["provider"]
+            );
+            if (existing) {
+              Object.assign(existing, args.update, { updatedAt: new Date() });
+              return existing;
+            }
+            const created = {
+              ...args.create,
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            };
+            aiConfigsStore.push(created);
+            return created;
+          },
+        },
+        AuditLog: {
+          create: async (data: Record<string, unknown>) => {
+            auditLogsStore.push(data);
+            return data;
+          },
+        },
+        Project: {
+          include: () => ({
+            include: () => ({
+              include: () => ({
+                where: ({ id }: { id: string }) => ({
+                  first: async () =>
+                    id === projectRecord["id"]
+                      ? {
+                          ...projectRecord,
+                          messages: [...chatMessagesStore].sort(
+                            (a, b) =>
+                              (a["createdAt"] as Date).getTime() -
+                              (b["createdAt"] as Date).getTime()
+                          ),
+                        }
+                      : null,
+                }),
+              }),
+            }),
+          }),
+          where: ({ id }: { id: string }) => ({
+            update: async (patch: Record<string, unknown>) => {
+              if (id === projectRecord["id"]) {
+                Object.assign(projectRecord, patch);
+              }
+              return projectRecord;
+            },
+          }),
+        },
+        ChatMessage: {
+          where: ({ projectId }: { projectId: string }) => ({
+            orderBy: () => ({
+              all: async () =>
+                chatMessagesStore
+                  .filter((m) => m["projectId"] === projectId)
+                  .sort(
+                    (a, b) =>
+                      (a["createdAt"] as Date).getTime() -
+                      (b["createdAt"] as Date).getTime()
+                  ),
+            }),
+            deleteAll: async () => {
+              for (let i = chatMessagesStore.length - 1; i >= 0; i--) {
+                if (chatMessagesStore[i]?.["projectId"] === projectId) {
+                  chatMessagesStore.splice(i, 1);
+                }
+              }
+              return [];
+            },
+          }),
+          create: async (data: Record<string, unknown>) => {
+            chatMessagesStore.push(data);
+            return data;
+          },
+        },
+        PromptTemplate: {
+          where: () => ({ first: async () => null }),
+        },
+      },
+    };
+
+    const prismaMock = {
+      db: {
+        orm: ormMock,
+        transaction: async (fn: (tx: { orm: typeof ormMock }) => Promise<unknown>) =>
+          fn({ orm: ormMock }),
+      },
+    };
+
+    const configMock = {
+      get: (key: string) => {
+        if (key === "JWT_SECRET") return "test-jwt-secret-key-2026-unit";
+        if (key === "GEMINI_MODEL") return "gemini-3.5-flash-lite";
+        if (key === "OPENAI_MODEL") return "gpt-4o-mini";
+        if (key === "ANTHROPIC_MODEL") return "claude-sonnet-4-20250514";
+        if (key === "GROQ_MODEL") return "llama-3.3-70b-versatile";
+        if (key === "OPENROUTER_MODEL") return "openai/gpt-4o-mini";
+        return "";
+      },
+    };
+
+    const aiProvidersService = new AiProvidersService(
+      prismaMock as never,
+      configMock as never
+    );
+    const chatService = new ChatService(
+      prismaMock as never,
+      aiProvidersService
+    );
+
+    const adminActor = {
+      id: "usr-admin",
+      email: "admin@pulseos.xyz",
+      name: "Admin",
+      role: "admin" as const,
+      title: "Admin",
+      avatarColor: "bg-[#1d4ed8]",
+      isActive: true,
+      permissions: [],
+    };
+
+    // 1. Before any API key is set, chat MUST reject with AI_API_KEY_REQUIRED (no deterministic fallback)
+    const initialStatus = await aiProvidersService.listProviderConfiguration();
+    expect(initialStatus.hasConfiguredProvider).toBe(false);
+
+    let missingKeyErr: unknown = null;
+    try {
+      await chatService.sendMessage("proj-chat-1", { content: "Hello!" });
+    } catch (err) {
+      missingKeyErr = err;
+    }
+    expect(missingKeyErr).toBeInstanceOf(PreconditionFailedException);
+    expect(chatMessagesStore).toHaveLength(0);
+
+    // 2. Admin saves Google AI Studio API key & selects model -> encrypted at rest & auto-activated
+    const updatedConfig = await aiProvidersService.saveProviderConfig(
+      "google",
+      { apiKey: "AIzaSyTestGoogleKey1234", selectedModel: "gemini-2.5-pro" },
+      adminActor
+    );
+    expect(updatedConfig.hasConfiguredProvider).toBe(true);
+    expect(updatedConfig.activeProvider).toBe("google");
+    expect(updatedConfig.activeModel).toBe("gemini-2.5-pro");
+    expect(aiConfigsStore[0]?.["apiKey"]).not.toBe("AIzaSyTestGoogleKey1234");
+    expect(String(aiConfigsStore[0]?.["apiKey"])).toContain("enc:v1:");
+    expect(auditLogsStore[0]?.["action"]).toBe("AI_PROVIDER_CONFIG_SAVED");
+
+    // 3. Intercept fetch to verify Google AI Studio payload, zero hidden project context, and multi-turn session retention
+    const originalFetch = globalThis.fetch;
+    const capturedBodies: Array<{ url: string; body: Record<string, unknown> }> = [];
+    globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input.toString();
+      const body = init?.body ? JSON.parse(String(init.body)) : {};
+      capturedBodies.push({ url, body });
+      return new Response(
+        JSON.stringify({
+          candidates: [
+            {
+              content: {
+                parts: [{ text: `Echo turn ${capturedBodies.length}` }],
+              },
+            },
+          ],
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      );
+    }) as typeof fetch;
+
+    try {
+      // Turn 1: Plain message — MUST NOT contain Secret Project Alpha or ctx-secret-1
+      const afterTurn1 = await chatService.sendMessage("proj-chat-1", {
+        content: "Remember my favorite number is 42.",
+      });
+      expect(afterTurn1.messages).toHaveLength(2);
+      expect(afterTurn1.messages[1]?.model).toBe("gemini-2.5-pro");
+      expect(afterTurn1.messages[1]?.provider).toBe("google");
+
+      const firstCallStr = JSON.stringify(capturedBodies[0]);
+      expect(capturedBodies[0]?.url).toContain(
+        "generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent"
+      );
+      expect(firstCallStr).not.toContain("Secret Project Alpha");
+      expect(firstCallStr).not.toContain("$SECRET");
+      expect(firstCallStr).not.toContain("secret-alpha.example");
+      expect(firstCallStr).not.toContain("Hidden internal summary");
+
+      // Turn 2: Follow-up message — MUST retain Turn 1 messages in `contents`
+      const afterTurn2 = await chatService.sendMessage("proj-chat-1", {
+        content: "What was my favorite number?",
+      });
+      expect(afterTurn2.messages).toHaveLength(4);
+      const secondContents = capturedBodies[1]?.body["contents"] as Array<{
+        role: string;
+        parts: Array<{ text: string }>;
+      }>;
+      expect(secondContents).toHaveLength(3);
+      expect(secondContents[0]?.role).toBe("user");
+      expect(secondContents[0]?.parts[0]?.text).toBe(
+        "Remember my favorite number is 42."
+      );
+      expect(secondContents[1]?.role).toBe("model");
+      expect(secondContents[1]?.parts[0]?.text).toBe("Echo turn 1");
+      expect(secondContents[2]?.role).toBe("user");
+      expect(secondContents[2]?.parts[0]?.text).toBe(
+        "What was my favorite number?"
+      );
+
+      // Turn 3: Explicitly attach a context from frontend -> ONLY then is context sent
+      await chatService.sendMessage("proj-chat-1", {
+        content: "Summarize the attached doc.",
+        contextIds: ["ctx-secret-1"],
+      });
+      const thirdCallStr = JSON.stringify(capturedBodies[2]);
+      expect(thirdCallStr).toContain("secret-alpha.example");
+      expect(thirdCallStr).toContain("Hidden internal summary");
+      expect(thirdCallStr).not.toContain("Secret Project Alpha");
+
+      // Reset conversation -> cleanly empty (no deterministic message)
+      const afterReset = await chatService.resetConversation("proj-chat-1");
+      expect(afterReset.messages).toHaveLength(0);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+
+    // Verify helper normalizes consecutive same-role turns cleanly
+    const normalized = normalizeConversationTurns([
+      { role: "assistant", content: "Ignored leading assistant" },
+      { role: "user", content: "Hello" },
+      { role: "user", content: "Second line" },
+      { role: "assistant", content: "Hi there" },
+    ]);
+    expect(normalized).toEqual([
+      { role: "user", content: "Hello\n\nSecond line" },
+      { role: "assistant", content: "Hi there" },
+    ]);
   });
 });

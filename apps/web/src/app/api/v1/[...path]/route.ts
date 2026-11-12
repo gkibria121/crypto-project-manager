@@ -48,7 +48,12 @@ async function proxyToCoreApi(
 
   const isScrapeAction =
     targetPath.endsWith("/scrape") || targetPath.endsWith("/scrape-all");
-  const requestTimeoutMs = isScrapeAction ? 240_000 : 30_000;
+  const isChatCompletion = targetPath.endsWith("/chat/messages");
+  const requestTimeoutMs = isScrapeAction
+    ? 240_000
+    : isChatCompletion
+      ? 90_000
+      : 30_000;
 
   try {
     const upstreamResponse = await fetch(targetUrl, {

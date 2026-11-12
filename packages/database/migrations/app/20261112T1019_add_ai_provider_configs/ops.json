@@ -1,0 +1,51 @@
+[
+  {
+    "id": "table.ai_provider_configs",
+    "label": "Create table \"ai_provider_configs\"",
+    "summary": "Creates table \"ai_provider_configs\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "ai_provider_configs"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"ai_provider_configs\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"ai_provider_configs\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "table \"ai_provider_configs\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"ai_provider_configs\"",
+        "sql": "CREATE TABLE \"public\".\"ai_provider_configs\" (\n  \"api_key\" text,\n  \"created_at\" timestamptz(3) DEFAULT (now()) NOT NULL,\n  \"extra_config\" json,\n  \"is_active\" bool DEFAULT false NOT NULL,\n  \"is_enabled\" bool DEFAULT true NOT NULL,\n  \"provider\" text NOT NULL,\n  \"selected_model\" text,\n  \"updated_at\" timestamptz(3) DEFAULT (now()) NOT NULL,\n  \"updated_by\" text,\n  PRIMARY KEY (\"provider\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"ai_provider_configs\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": [
+          "\"public\".\"ai_provider_configs\"",
+          "r",
+          "p"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "table \"ai_provider_configs\""
+        }
+      }
+    ]
+  }
+]

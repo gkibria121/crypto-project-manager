@@ -238,6 +238,11 @@ class BrowserFetcher:
             await cdp.send("Fetch.enable", {"patterns": [{"urlPattern": "*"}]})
 
             timeout_ms = config.timeout_seconds * 1000
+            goto_timeout_ms = (
+                min(timeout_ms, 8000)
+                if config.wait_until == "networkidle"
+                else timeout_ms
+            )
             page.set_default_timeout(timeout_ms)
 
             response: PlaywrightResponse | None = None
@@ -245,7 +250,7 @@ class BrowserFetcher:
                 response = await page.goto(
                     url,
                     wait_until=config.wait_until,
-                    timeout=timeout_ms,
+                    timeout=goto_timeout_ms,
                 )
             except (PlaywrightTimeoutError, PlaywrightError) as exc:
                 if blocked_error:

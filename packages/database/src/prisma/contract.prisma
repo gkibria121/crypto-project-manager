@@ -324,3 +324,16 @@ model ScraperProviderConfig {
 
   @@map("scraper_provider_configs")
 }
+
+model AiProviderConfig {
+  provider      String   @id
+  apiKey        String?  @map("api_key")
+  selectedModel String?  @map("selected_model")
+  isActive      Boolean  @default(false) @map("is_active")
+  isEnabled     Boolean  @default(true) @map("is_enabled")
+  extraConfig   Json?    @map("extra_config")
+  updatedBy     String?  @map("updated_by")
+  +Timestamps
+
+  @@map("ai_provider_configs")
+}

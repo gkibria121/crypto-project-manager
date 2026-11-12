@@ -55,6 +55,14 @@ export const specializedScraperProviderSchema = z.enum([
   "telegram",
 ]);
 
+export const aiProviderSchema = z.enum([
+  "google",
+  "openai",
+  "anthropic",
+  "groq",
+  "openrouter",
+]);
+
 export const scrapeWaitUntilSchema = z.enum([
   "domcontentloaded",
   "load",
@@ -262,6 +270,55 @@ export const updateScraperProviderKeyDtoSchema = z.object({
   apiKey: z.string().trim().min(1, "API key or token is required").max(4000),
 });
 
+export const aiProviderStatusSchema = z.object({
+  provider: aiProviderSchema,
+  label: z.string(),
+  shortLabel: z.string(),
+  envVar: z.string(),
+  docsUrl: z.string(),
+  defaultModel: z.string(),
+  recommendedModels: z.array(z.string()),
+  configured: z.boolean(),
+  source: z.enum(["workspace", "env", "none"]),
+  maskedKey: z.string().nullable().optional(),
+  selectedModel: z.string(),
+  isActive: z.boolean(),
+  updatedAt: z.string().nullable().optional(),
+});
+
+export const aiConfigurationSummarySchema = z.object({
+  activeProvider: aiProviderSchema.nullable(),
+  activeModel: z.string().nullable(),
+  hasConfiguredProvider: z.boolean(),
+  providers: z.array(aiProviderStatusSchema),
+});
+
+export const updateAiProviderConfigDtoSchema = z
+  .object({
+    apiKey: z.string().trim().max(4000).optional(),
+    selectedModel: z.string().trim().min(1).max(200).optional(),
+    activate: z.boolean().optional(),
+  })
+  .refine(
+    (val) =>
+      Boolean(val.apiKey) ||
+      Boolean(val.selectedModel) ||
+      val.activate !== undefined,
+    {
+      message: "Provide an API key, a selected model, or an activation flag.",
+    }
+  );
+
+export const activateAiProviderDtoSchema = z.object({
+  selectedModel: z.string().trim().min(1).max(200).optional(),
+});
+
+export const aiProviderModelsResponseSchema = z.object({
+  provider: aiProviderSchema,
+  models: z.array(z.string()),
+  source: z.enum(["live", "curated"]),
+});
+
 export const projectScrapedDataResponseSchema = z.object({
   projectId: z.string(),
   projectName: z.string(),
@@ -295,6 +352,8 @@ export const chatMessageSchema = z.object({
   usedContextIds: z.array(z.string()).optional(),
   suggestedActions: z.array(z.string()).optional(),
   appliedSystemPromptTitle: z.string().optional(),
+  model: z.string().optional(),
+  provider: z.string().optional(),
 });
 
 export const promptTemplateSchema = z.object({
@@ -462,6 +521,8 @@ export const sendMessageDtoSchema = z.object({
   content: z.string().trim().min(1, "Message content is required"),
   templateId: z.string().optional(),
   template: promptTemplateSchema.optional(),
+  contextIds: z.array(z.string().min(1)).max(50).optional(),
+  includeProjectSummary: z.boolean().optional(),
 });
 
 export const toggleAllContextsDtoSchema = z.object({
@@ -686,6 +747,16 @@ export type MessageSender = z.infer<typeof messageSenderSchema>;
 export type ScrapeStatus = z.infer<typeof scrapeStatusSchema>;
 export type SpecializedScraperProvider = z.infer<
   typeof specializedScraperProviderSchema
+>;
+export type AiProvider = z.infer<typeof aiProviderSchema>;
+export type AiProviderStatus = z.infer<typeof aiProviderStatusSchema>;
+export type AiConfigurationSummary = z.infer<typeof aiConfigurationSummarySchema>;
+export type UpdateAiProviderConfigDto = z.infer<
+  typeof updateAiProviderConfigDtoSchema
+>;
+export type ActivateAiProviderDto = z.infer<typeof activateAiProviderDtoSchema>;
+export type AiProviderModelsResponse = z.infer<
+  typeof aiProviderModelsResponseSchema
 >;
 export type ScrapeWaitUntil = z.infer<typeof scrapeWaitUntilSchema>;
 export type ScrapeConfig = z.infer<typeof scrapeConfigSchema>;

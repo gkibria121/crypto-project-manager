@@ -1,11 +1,9 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import {
   evaluateChecklistItemAgainstProject,
-  formatCurrentTimestamp,
   type ChecklistItemConfig,
   type CryptoProject,
 } from "@repo/shared";
-import { randomUUID } from "crypto";
 import { PrismaService } from "../prisma/prisma.service.js";
 import { computeActivatedProjectPatch } from "../projects/project-lifecycle.helper.js";
 import { findFullProjectOrThrow } from "../projects/project.mapper.js";
@@ -66,11 +64,6 @@ export class ChecklistService {
       (i) => i.createdAt.asc(),
     ]).all();
 
-    const enabledContexts = project.contexts.filter((c) => c.isActive);
-    const reportLines: string[] = [
-      `### Checklist Scan Report — ${project.name} (${project.ticker})`,
-    ];
-
     await this.prisma.db.transaction(async (tx) => {
       for (const item of items) {
         const configItem: ChecklistItemConfig = {
@@ -98,22 +91,7 @@ export class ChecklistService {
             checklistItemId: item.id,
           },
         });
-
-        reportLines.push(
-          `- **${item.label}** (${res.checked ? "Yes / Detected" : "Missing"}): *${item.scanPrompt}* — ${res.scanResultNote}`
-        );
       }
-
-      await tx.orm.public.ChatMessage.create({
-        id: `msg-scan-${Date.now()}-${randomUUID().slice(0, 6)}`,
-        projectId,
-        sender: "ai",
-        content: reportLines.join("\n"),
-        timestampLabel: formatCurrentTimestamp(),
-        usedContextIds: enabledContexts.map((c) => c.id),
-        suggestedActions: [],
-        model: "pulseos-engine",
-      });
 
       await tx.orm.public.Project.where({ id: projectId }).update(
         computeActivatedProjectPatch(project, "Just now")
@@ -145,11 +123,7 @@ export class ChecklistService {
       throw new NotFoundException(`Checklist item "${itemId}" not found.`);
     }
 
-    const enabledContexts = project.contexts.filter((c) => c.isActive);
     const res = evaluateChecklistItemAgainstProject(project, item);
-    const timestamp = formatCurrentTimestamp();
-    const now = Date.now();
-    const suffix = randomUUID().slice(0, 6);
 
     await this.prisma.db.transaction(async (tx) => {
       if (dbItem) {
@@ -172,29 +146,6 @@ export class ChecklistService {
           },
         });
       }
-
-      await tx.orm.public.ChatMessage.create({
-        id: `msg-chk-q-${now}-${suffix}`,
-        projectId,
-        sender: "admin",
-        content: `Checklist check — ${item.label}: ${item.scanPrompt}`,
-        timestampLabel: timestamp,
-        usedContextIds: [],
-        suggestedActions: [],
-        createdAt: new Date(now),
-      });
-
-      await tx.orm.public.ChatMessage.create({
-        id: `msg-chk-a-${now + 1}-${suffix}`,
-        projectId,
-        sender: "ai",
-        content: `### Checklist Result: ${item.label} — ${res.checked ? "Detected" : "Not Found"}\n- **Scanned Prompt:** "${item.scanPrompt}"\n- **Finding:** ${res.scanResultNote}`,
-        timestampLabel: timestamp,
-        usedContextIds: enabledContexts.map((c) => c.id),
-        suggestedActions: [],
-        model: "pulseos-engine",
-        createdAt: new Date(now + 5),
-      });
 
       await tx.orm.public.Project.where({ id: projectId }).update(
         computeActivatedProjectPatch(project, "Just now")

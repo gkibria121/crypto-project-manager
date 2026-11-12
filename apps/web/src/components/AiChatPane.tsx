@@ -1,21 +1,30 @@
 "use client";
 
-import React, { useCallback, useEffect, useId, useRef } from "react";
+import React, { useCallback, useEffect, useId, useRef, useState } from "react";
+import Link from "next/link";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
+  AlertCircle,
   ArrowLeft,
+  Bot,
   Check,
   Copy,
   Info,
+  KeyRound,
+  Layers,
   ListChecks,
   Lock,
   Plus,
   RotateCcw,
   Send,
   Settings,
+  Sparkles,
+  X,
 } from "lucide-react";
 import {
+  AI_PROVIDER_META,
+  type AiConfigurationSummary,
   type AuthUser,
   BUSINESS_STATUS_META,
   BUSINESS_STATUS_ORDER,
@@ -38,20 +47,37 @@ import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 import { useImeSafeSubmit } from "@/hooks/useImeSafeSubmit";
 import { usePagination } from "@/hooks/usePagination";
 
+export interface SendChatPayload {
+  content: string;
+  template?: PromptTemplate;
+  contextIds?: string[];
+  includeProjectSummary?: boolean;
+}
+
 interface AiChatPaneProps {
   project: CryptoProject;
   currentUser: AuthUser;
+  aiConfig?: AiConfigurationSummary;
+  isAiConfigLoading?: boolean;
   promptTemplates: PromptTemplate[];
   checklistItems: ChecklistItemConfig[];
   draftPrompt: string;
   setDraftPrompt: React.Dispatch<React.SetStateAction<string>>;
-  onSendMessage: (content: string, template?: PromptTemplate) => void;
+  attachedContextIds: string[];
+  setAttachedContextIds: React.Dispatch<React.SetStateAction<string[]>>;
+  includeProjectSummary: boolean;
+  setIncludeProjectSummary: React.Dispatch<React.SetStateAction<boolean>>;
+  onSendMessage: (payload: SendChatPayload) => Promise<void>;
+  sendMessageError?: string | null;
+  sendMessageErrorCode?: string | null;
+  onClearSendError?: () => void;
   onResetConversation: () => void;
   onUpdateBusinessStatus: (status: ProjectBusinessStatus) => void;
   onOpenAddContextModal: () => void;
   onOpenEditLogoModal: () => void;
   onOpenChecklistModal: () => void;
   onOpenGlobalSettings: () => void;
+  onOpenAiSettings?: () => void;
   isContextPanelOpen: boolean;
   onToggleContextPanel: () => void;
   isAiTyping: boolean;
@@ -63,17 +89,27 @@ interface AiChatPaneProps {
 export function AiChatPane({
   project,
   currentUser,
+  aiConfig,
+  isAiConfigLoading = false,
   promptTemplates,
   checklistItems,
   draftPrompt,
   setDraftPrompt,
+  attachedContextIds,
+  setAttachedContextIds,
+  includeProjectSummary,
+  setIncludeProjectSummary,
   onSendMessage,
+  sendMessageError,
+  sendMessageErrorCode,
+  onClearSendError,
   onResetConversation,
   onUpdateBusinessStatus,
   onOpenAddContextModal,
   onOpenEditLogoModal,
   onOpenChecklistModal,
   onOpenGlobalSettings,
+  onOpenAiSettings,
   isContextPanelOpen,
   onToggleContextPanel,
   isAiTyping,
@@ -85,11 +121,14 @@ export function AiChatPane({
   const canWriteChat = hasPermission(currentUser, "chat:write");
   const canWriteContexts = hasPermission(currentUser, "contexts:write");
   const canWriteSettings = hasPermission(currentUser, "settings:write");
+  const isAdminUser =
+    currentUser.role === "admin" || hasPermission(currentUser, "users:write");
 
   const chatInputId = useId();
   const statusSelectId = useId();
   const formRef = useRef<HTMLFormElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [isAttachMenuOpen, setIsAttachMenuOpen] = useState(false);
 
   const { copiedId, copy } = useCopyToClipboard();
 
@@ -112,7 +151,15 @@ export function AiChatPane({
     setValue("content", draftPrompt, { shouldValidate: false });
   }, [draftPrompt, setValue]);
 
-  const activeContexts = project.contexts.filter((c) => c.isActive);
+  const validAttachedIds = attachedContextIds.filter((id) =>
+    project.contexts.some((c) => c.id === id)
+  );
+  const attachedContexts = project.contexts.filter((c) =>
+    validAttachedIds.includes(c.id)
+  );
+  const totalAttachedCount =
+    attachedContexts.length + (includeProjectSummary ? 1 : 0);
+
   const checkedCount = checklistItems.filter(
     (item) => project.checklistState?.[item.id]?.checked
   ).length;
@@ -128,11 +175,44 @@ export function AiChatPane({
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [project.id, project.messages.length, isAiTyping]);
 
-  const handleFormSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    void handleSubmit((values) => {
-      onSendMessage(values.content);
+  const needsApiKey =
+    (!isAiConfigLoading && aiConfig !== undefined && !aiConfig.hasConfiguredProvider) ||
+    sendMessageErrorCode === "AI_API_KEY_REQUIRED";
+
+  const activeProviderLabel =
+    aiConfig?.activeProvider && aiConfig.hasConfiguredProvider
+      ? `${AI_PROVIDER_META[aiConfig.activeProvider].shortLabel}${
+          aiConfig.activeModel ? ` · ${aiConfig.activeModel}` : ""
+        }`
+      : null;
+
+  const dispatchMessage = async (
+    content: string,
+    template?: PromptTemplate
+  ) => {
+    onClearSendError?.();
+    try {
+      await onSendMessage({
+        content,
+        template,
+        ...(validAttachedIds.length > 0
+          ? { contextIds: validAttachedIds }
+          : {}),
+        ...(includeProjectSummary ? { includeProjectSummary: true } : {}),
+      });
       reset({ content: "" });
       setDraftPrompt("");
+      setAttachedContextIds([]);
+      setIncludeProjectSummary(false);
+      setIsAttachMenuOpen(false);
+    } catch {
+      // Error surfaced via sendMessageError; keep user draft intact.
+    }
+  };
+
+  const handleFormSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    void handleSubmit(async (values) => {
+      await dispatchMessage(values.content);
     })(e);
   };
 
@@ -145,8 +225,25 @@ export function AiChatPane({
   const contentRegister = register("content", {
     onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => {
       setDraftPrompt(e.target.value);
+      if (sendMessageError) onClearSendError?.();
     },
   });
+
+  const toggleAttachedContext = (contextId: string) => {
+    setAttachedContextIds((prev) =>
+      prev.includes(contextId)
+        ? prev.filter((id) => id !== contextId)
+        : [...prev, contextId]
+    );
+  };
+
+  const handleOpenConfigureKey = () => {
+    if (onOpenAiSettings) {
+      onOpenAiSettings();
+    } else {
+      onOpenGlobalSettings();
+    }
+  };
 
   return (
     <main
@@ -154,7 +251,7 @@ export function AiChatPane({
         isMobileHidden ? "hidden md:flex" : "flex"
       } flex-1 h-full flex-col min-w-0 bg-[#f0f2f5] dark:bg-[#0b141a]`}
     >
-      {/* Responsive Messenger / WhatsApp Header */}
+      {/* Header */}
       <header className="min-h-15 px-2.5 sm:px-4 py-2 border-b border-[#e4e6eb] dark:border-[#222d34] bg-white dark:bg-[#202c33] flex items-center justify-between gap-2 sm:gap-4 shrink-0">
         <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
           {onBackToProjects && (
@@ -192,7 +289,7 @@ export function AiChatPane({
               </span>
             </div>
 
-            {/* Subtitle Row: Inline Business Status Selector + Active Contexts Count */}
+            {/* Subtitle Row: Inline Business Status + Active AI Model */}
             <div className="flex items-center gap-1.5 text-[11px] sm:text-xs text-[#65676b] dark:text-[#8696a0] min-w-0">
               <span
                 className={`w-2 h-2 rounded-full shrink-0 ${
@@ -225,11 +322,27 @@ export function AiChatPane({
                 ))}
               </select>
               <span className="shrink-0">·</span>
-              <span className="truncate">
-                {activeContexts.length}/{project.contexts.length}{" "}
-                <span className="hidden sm:inline">contexts active</span>
-                <span className="sm:hidden">ctx</span>
-              </span>
+              {activeProviderLabel ? (
+                <span className="inline-flex items-center gap-1 truncate text-[#00a884] dark:text-emerald-400 font-medium">
+                  <Sparkles className="w-3 h-3 shrink-0" aria-hidden="true" />
+                  <span className="truncate">{activeProviderLabel}</span>
+                </span>
+              ) : !isAiConfigLoading ? (
+                <button
+                  type="button"
+                  onClick={
+                    canWriteSettings ? handleOpenConfigureKey : undefined
+                  }
+                  className={`inline-flex items-center gap-1 truncate text-amber-600 dark:text-amber-400 font-semibold ${
+                    canWriteSettings ? "hover:underline cursor-pointer" : "cursor-default"
+                  }`}
+                >
+                  <KeyRound className="w-3 h-3 shrink-0" aria-hidden="true" />
+                  <span>API Key Needed</span>
+                </button>
+              ) : (
+                <span className="truncate">AI Chat</span>
+              )}
             </div>
           </div>
         </div>
@@ -253,8 +366,8 @@ export function AiChatPane({
             <button
               type="button"
               onClick={onOpenGlobalSettings}
-              title="Edit system prompts & global checklist"
-              aria-label="Edit system prompts and global checklist"
+              title="AI providers, system prompts & global checklist"
+              aria-label="Global settings"
               className="w-9 h-9 rounded-full text-[#65676b] dark:text-[#8696a0] hover:bg-[#f0f2f5] dark:hover:bg-[#2a3942] flex items-center justify-center transition cursor-pointer"
             >
               <Settings className="w-4 h-4" />
@@ -265,7 +378,7 @@ export function AiChatPane({
             <button
               type="button"
               onClick={onResetConversation}
-              title="Clear chat"
+              title="New chat / Clear conversation"
               aria-label="Clear chat"
               className="w-9 h-9 rounded-full text-[#65676b] dark:text-[#8696a0] hover:bg-[#f0f2f5] dark:hover:bg-[#2a3942] flex items-center justify-center transition cursor-pointer"
             >
@@ -289,8 +402,52 @@ export function AiChatPane({
         </div>
       </header>
 
-      {/* Messenger / WhatsApp Message Stream */}
+      {/* Message Stream */}
       <div className="flex-1 overflow-y-auto scroller px-3 sm:px-6 py-3 sm:py-4 space-y-3">
+        {/* Missing API Key Prompt */}
+        {needsApiKey && (
+          <div
+            role="alert"
+            className="max-w-2xl mx-auto rounded-2xl border border-amber-500/40 bg-amber-500/10 dark:bg-amber-500/15 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+          >
+            <div className="flex items-start gap-3 min-w-0">
+              <div className="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-700 dark:text-amber-300 flex items-center justify-center shrink-0">
+                <KeyRound className="w-4 h-4" aria-hidden="true" />
+              </div>
+              <div className="space-y-0.5 min-w-0">
+                <h3 className="text-xs sm:text-sm font-bold text-[#050505] dark:text-[#e9edef]">
+                  API Key Required to Start Chatting
+                </h3>
+                <p className="text-xs text-[#65676b] dark:text-[#d1d7db] leading-relaxed">
+                  {canWriteSettings
+                    ? "No AI provider API key is configured. Add your Google AI Studio (Gemini), OpenAI, Anthropic, Groq, or OpenRouter API key to activate the chatbot."
+                    : "No AI provider API key is configured yet. Ask a Workspace Admin to set an API key (e.g., Google AI Studio) in Admin Dashboard → AI Providers."}
+                </p>
+              </div>
+            </div>
+
+            {canWriteSettings && (
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={handleOpenConfigureKey}
+                  className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-[#0084ff] hover:bg-[#0073e6] text-white transition cursor-pointer"
+                >
+                  Set API Key
+                </button>
+                {isAdminUser && (
+                  <Link
+                    href="/admin?section=ai"
+                    className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-white dark:bg-[#202c33] border border-[#e4e6eb] dark:border-[#2a3942] text-[#050505] dark:text-[#e9edef] hover:bg-[#f0f2f5] dark:hover:bg-[#2a3942] transition"
+                  >
+                    Admin Dashboard
+                  </Link>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
         {project.messages.length > 10 && (
           <div className="pb-2 border-b border-[#e4e6eb] dark:border-[#222d34]">
             <PaginationBar
@@ -303,6 +460,42 @@ export function AiChatPane({
               ariaLabel="Chat messages pagination"
               hideWhenSinglePage={project.messages.length <= 10}
             />
+          </div>
+        )}
+
+        {/* Clean Empty State */}
+        {project.messages.length === 0 && !isAiTyping && (
+          <div className="max-w-xl mx-auto py-10 px-4 text-center space-y-4">
+            <div className="w-12 h-12 rounded-2xl bg-[#0084ff]/12 text-[#0084ff] flex items-center justify-center mx-auto">
+              <Bot className="w-6 h-6" aria-hidden="true" />
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-base font-bold text-[#050505] dark:text-[#e9edef]">
+                How can I help you today?
+              </h3>
+              <p className="text-xs text-[#65676b] dark:text-[#8696a0] max-w-md mx-auto leading-relaxed">
+                This session retains your conversation history automatically.
+                The AI has no hidden project context unless you write it here
+                or attach context from the composer below.
+              </p>
+            </div>
+
+            {canWriteChat && promptTemplates.length > 0 && (
+              <div className="flex flex-wrap items-center justify-center gap-1.5 pt-2">
+                {promptTemplates.map((tpl) => (
+                  <button
+                    key={tpl.id}
+                    type="button"
+                    disabled={isAiTyping}
+                    onClick={() => void dispatchMessage(tpl.label, tpl)}
+                    title={`System Prompt: ${tpl.systemPrompt}`}
+                    className="px-3 py-1.5 rounded-full text-xs font-medium bg-white hover:bg-[#e4e6eb]/60 dark:bg-[#202c33] dark:hover:bg-[#2a3942] text-[#0084ff] dark:text-[#4599ff] border border-[#e4e6eb] dark:border-[#2a3942] disabled:opacity-50 transition cursor-pointer"
+                  >
+                    {tpl.label}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -326,8 +519,8 @@ export function AiChatPane({
               }`}
             >
               {!isAdmin && (
-                <div className="hidden xs:block sm:block shrink-0">
-                  <ProjectAvatar project={project} size="sm" decorative />
+                <div className="hidden xs:block sm:block shrink-0 w-7 h-7 rounded-full bg-[#0084ff]/15 text-[#0084ff] flex items-center justify-center">
+                  <Bot className="w-4 h-4" aria-hidden="true" />
                 </div>
               )}
 
@@ -346,7 +539,7 @@ export function AiChatPane({
                 >
                   <FormattedMessageContent content={msg.content} />
 
-                  {/* Subtle Inline Footer: Context Pills + Copy + Timestamp */}
+                  {/* Footer: Attached Context Pills (only if explicitly provided) + Model + Copy + Timestamp */}
                   <div
                     className={`flex items-center justify-between gap-2 sm:gap-3 mt-1.5 pt-1 text-[11px] flex-wrap ${
                       isAdmin
@@ -354,13 +547,17 @@ export function AiChatPane({
                         : "text-[#65676b] dark:text-[#8696a0] border-t border-[#f0f2f5] dark:border-[#2a3942]"
                     }`}
                   >
-                    {!isAdmin && referencedContexts.length > 0 && (
+                    {referencedContexts.length > 0 && (
                       <div className="flex items-center gap-1 flex-wrap min-w-0">
                         {referencedContexts.map((ctx) => (
                           <span
                             key={ctx.id}
                             title={`${ctx.title}: ${ctx.value}`}
-                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#f0f2f5] dark:bg-[#2a3942] text-[10px] text-[#65676b] dark:text-[#d1d7db]"
+                            className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] ${
+                              isAdmin
+                                ? "bg-white/15 text-white"
+                                : "bg-[#f0f2f5] dark:bg-[#2a3942] text-[#65676b] dark:text-[#d1d7db]"
+                            }`}
                           >
                             <ContextTypeIcon type={ctx.type} variant="sm" />
                             <span className="max-w-24 truncate">
@@ -372,6 +569,11 @@ export function AiChatPane({
                     )}
 
                     <div className="flex items-center gap-2 ml-auto shrink-0">
+                      {!isAdmin && msg.model && (
+                        <span className="font-mono text-[10px] opacity-80">
+                          {msg.model}
+                        </span>
+                      )}
                       {!isAdmin && (
                         <button
                           type="button"
@@ -396,16 +598,17 @@ export function AiChatPane({
                   </div>
                 </div>
 
-                {/* Global Editable System Prompt Chips (Shown on the latest AI message) */}
+                {/* Quick Prompt Chips on Latest AI Message */}
                 {!isAdmin && canWriteChat && isLatestMessage && (
                   <div className="chip-wrap-balance items-center gap-1.5 mt-2">
                     {promptTemplates.map((tpl) => (
                       <button
                         key={tpl.id}
                         type="button"
-                        onClick={() => onSendMessage(tpl.label, tpl)}
+                        disabled={isAiTyping}
+                        onClick={() => void dispatchMessage(tpl.label, tpl)}
                         title={`System Prompt: ${tpl.systemPrompt}`}
-                        className="px-3 py-1.5 sm:py-1 rounded-full text-xs font-medium text-left bg-white hover:bg-[#e4e6eb]/60 dark:bg-[#202c33] dark:hover:bg-[#2a3942] text-[#0084ff] dark:text-[#4599ff] border border-[#e4e6eb] dark:border-[#2a3942] transition cursor-pointer"
+                        className="px-3 py-1.5 sm:py-1 rounded-full text-xs font-medium text-left bg-white hover:bg-[#e4e6eb]/60 dark:bg-[#202c33] dark:hover:bg-[#2a3942] text-[#0084ff] dark:text-[#4599ff] border border-[#e4e6eb] dark:border-[#2a3942] disabled:opacity-50 transition cursor-pointer"
                       >
                         {tpl.label}
                       </button>
@@ -429,9 +632,11 @@ export function AiChatPane({
 
         {isAiTyping && (
           <div className="flex items-center gap-2">
-            <ProjectAvatar project={project} size="sm" decorative />
+            <div className="w-7 h-7 rounded-full bg-[#0084ff]/15 text-[#0084ff] flex items-center justify-center shrink-0">
+              <Bot className="w-4 h-4" aria-hidden="true" />
+            </div>
             <div className="px-3.5 py-2 rounded-2xl bg-white dark:bg-[#202c33] text-xs text-[#65676b] dark:text-[#8696a0]">
-              Typing...
+              Thinking...
             </div>
           </div>
         )}
@@ -439,8 +644,149 @@ export function AiChatPane({
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Single-Row Messenger / WhatsApp Composer Footer */}
-      <div className="px-2.5 sm:px-3 pt-2 pb-[max(0.625rem,env(safe-area-inset-bottom))] bg-white dark:bg-[#202c33] border-t border-[#e4e6eb] dark:border-[#222d34] shrink-0">
+      {/* Composer Footer */}
+      <div className="relative px-2.5 sm:px-3 pt-2 pb-[max(0.625rem,env(safe-area-inset-bottom))] bg-white dark:bg-[#202c33] border-t border-[#e4e6eb] dark:border-[#222d34] shrink-0 space-y-2">
+        {/* Inline Send Error Banner */}
+        {sendMessageError && (
+          <div
+            role="alert"
+            className="rounded-xl bg-rose-500/12 border border-rose-500/30 px-3 py-2 text-xs text-rose-700 dark:text-rose-300 flex items-center justify-between gap-2"
+          >
+            <div className="flex items-center gap-2 min-w-0">
+              <AlertCircle className="w-4 h-4 shrink-0" aria-hidden="true" />
+              <span className="truncate">{sendMessageError}</span>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              {sendMessageErrorCode === "AI_API_KEY_REQUIRED" &&
+                canWriteSettings && (
+                  <button
+                    type="button"
+                    onClick={handleOpenConfigureKey}
+                    className="px-2 py-1 rounded-lg bg-[#0084ff] text-white text-[11px] font-semibold cursor-pointer"
+                  >
+                    Set API Key
+                  </button>
+                )}
+              <button
+                type="button"
+                onClick={() => onClearSendError?.()}
+                aria-label="Dismiss error"
+                className="p-0.5 hover:opacity-75 cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Explicit Attached Context Popover */}
+        {isAttachMenuOpen && canWriteChat && (
+          <div className="absolute bottom-full left-3 right-3 sm:right-auto sm:w-96 mb-2 rounded-2xl bg-white dark:bg-[#202c33] border border-[#e4e6eb] dark:border-[#2a3942] shadow-xl p-3 space-y-2.5 z-20">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs font-bold text-[#050505] dark:text-[#e9edef]">
+                Attach Context to This Message
+              </span>
+              <button
+                type="button"
+                onClick={() => setIsAttachMenuOpen(false)}
+                aria-label="Close attach context menu"
+                className="p-1 rounded-lg text-[#65676b] hover:bg-[#f0f2f5] dark:hover:bg-[#2a3942] cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+            <p className="text-[11px] text-[#65676b] dark:text-[#8696a0]">
+              Only items you check below are sent to the AI with your message.
+            </p>
+            <div className="max-h-56 overflow-y-auto scroller space-y-1.5 pr-1">
+              <label className="flex items-start gap-2.5 p-2 rounded-xl hover:bg-[#f0f2f5] dark:hover:bg-[#2a3942] cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={includeProjectSummary}
+                  onChange={(e) => setIncludeProjectSummary(e.target.checked)}
+                  className="checkbox-native mt-0.5 shrink-0"
+                />
+                <div className="min-w-0">
+                  <div className="text-xs font-semibold text-[#050505] dark:text-[#e9edef]">
+                    Project Overview ({project.name})
+                  </div>
+                  <div className="text-[11px] text-[#65676b] dark:text-[#8696a0] truncate">
+                    {project.ticker} · {project.chain} · {project.stage}
+                  </div>
+                </div>
+              </label>
+
+              {project.contexts.map((ctx) => {
+                const isChecked = validAttachedIds.includes(ctx.id);
+                return (
+                  <label
+                    key={ctx.id}
+                    className="flex items-start gap-2.5 p-2 rounded-xl hover:bg-[#f0f2f5] dark:hover:bg-[#2a3942] cursor-pointer"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      onChange={() => toggleAttachedContext(ctx.id)}
+                      className="checkbox-native mt-0.5 shrink-0"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5 text-xs font-semibold text-[#050505] dark:text-[#e9edef]">
+                        <ContextTypeIcon type={ctx.type} variant="sm" />
+                        <span className="truncate">{ctx.title}</span>
+                      </div>
+                      <div className="text-[11px] text-[#65676b] dark:text-[#8696a0] truncate">
+                        {ctx.value}
+                      </div>
+                    </div>
+                  </label>
+                );
+              })}
+
+              {project.contexts.length === 0 && (
+                <div className="text-[11px] text-[#65676b] dark:text-[#8696a0] px-2 py-1">
+                  No project links or notes saved yet.
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Attached Context Chips */}
+        {totalAttachedCount > 0 && (
+          <div className="flex items-center gap-1.5 flex-wrap px-1">
+            {includeProjectSummary && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-[#e7f3ff] dark:bg-[#0084ff]/20 text-[#0084ff] dark:text-[#4599ff]">
+                <span>Project Overview</span>
+                <button
+                  type="button"
+                  onClick={() => setIncludeProjectSummary(false)}
+                  aria-label="Remove project overview attachment"
+                  className="hover:opacity-75 cursor-pointer"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            )}
+            {attachedContexts.map((ctx) => (
+              <span
+                key={ctx.id}
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-[#f0f2f5] dark:bg-[#2a3942] text-[#050505] dark:text-[#e9edef]"
+              >
+                <ContextTypeIcon type={ctx.type} variant="sm" />
+                <span className="max-w-36 truncate">{ctx.title}</span>
+                <button
+                  type="button"
+                  onClick={() => toggleAttachedContext(ctx.id)}
+                  aria-label={`Remove ${ctx.title} attachment`}
+                  className="hover:opacity-75 cursor-pointer"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+
         {canWriteChat ? (
           <form
             ref={formRef}
@@ -448,11 +794,26 @@ export function AiChatPane({
             noValidate
             className="flex items-end gap-1.5 sm:gap-2"
           >
+            <button
+              type="button"
+              onClick={() => setIsAttachMenuOpen((prev) => !prev)}
+              title="Attach project context to this message"
+              aria-label="Attach project context to this message"
+              aria-expanded={isAttachMenuOpen}
+              className={`w-10 h-10 sm:w-9 sm:h-9 rounded-full flex items-center justify-center shrink-0 transition cursor-pointer ${
+                totalAttachedCount > 0 || isAttachMenuOpen
+                  ? "bg-[#e7f3ff] text-[#0084ff] dark:bg-[#0084ff]/20 dark:text-[#4599ff]"
+                  : "text-[#65676b] dark:text-[#8696a0] hover:bg-[#f0f2f5] dark:hover:bg-[#2a3942]"
+              }`}
+            >
+              <Layers className="w-4 h-4" />
+            </button>
+
             {canWriteContexts && (
               <button
                 type="button"
                 onClick={onOpenAddContextModal}
-                title="Add project context or link"
+                title="Save new project link or note"
                 aria-label="Add project context or link"
                 className="w-10 h-10 sm:w-9 sm:h-9 rounded-full text-[#0084ff] hover:bg-[#f0f2f5] dark:hover:bg-[#2a3942] flex items-center justify-center shrink-0 transition cursor-pointer"
               >
@@ -469,14 +830,18 @@ export function AiChatPane({
                 {...contentRegister}
                 onCompositionEnd={onCompositionEnd}
                 onKeyDown={onKeyDown}
-                placeholder={`Message ${project.name} (${activeContexts.length} contexts active)...`}
+                placeholder={
+                  totalAttachedCount > 0
+                    ? `Message AI (${totalAttachedCount} context${totalAttachedCount > 1 ? "s" : ""} attached)...`
+                    : "Message AI..."
+                }
                 className="chat-auto-textarea bg-transparent text-base sm:text-[14px] text-[#050505] dark:text-[#e9edef] placeholder:text-[#65676b] dark:placeholder:text-[#8696a0] outline-none resize-none"
               />
             </div>
 
             <button
               type="submit"
-              disabled={!watchedContent.trim()}
+              disabled={!watchedContent.trim() || isAiTyping}
               aria-label="Send message"
               className="w-10 h-10 sm:w-9 sm:h-9 rounded-full bg-[#0084ff] hover:bg-[#0073e6] disabled:opacity-40 disabled:pointer-events-none text-white flex items-center justify-center shrink-0 transition cursor-pointer"
             >
@@ -491,7 +856,7 @@ export function AiChatPane({
               <strong className="font-semibold text-[#050505] dark:text-[#e9edef]">
                 {USER_ROLE_META[currentUser.role].label}
               </strong>
-              ) has read-only access to AI chat and campaign streams.
+              ) has read-only access to AI chat.
             </span>
           </div>
         )}

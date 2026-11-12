@@ -10,6 +10,8 @@ import { formatCurrentTimestamp } from "@/lib/ai-engine";
 import { apiClient } from "@/services/apiClient";
 import type {
   AddContextFormValues,
+  AiConfigurationSummary,
+  AiProvider,
   AuthUser,
   BulkDeleteProjectsDto,
   BulkUpdateBusinessStatusDto,
@@ -26,6 +28,7 @@ import type {
   SyncProjectsDto,
   SyncProjectsResponse,
   TriggerScrapeDto,
+  UpdateAiProviderConfigDto,
   UpdateProjectFormValues,
   UserRole,
 } from "@/types/project";
@@ -50,6 +53,11 @@ export const queryKeys = {
   },
   scraper: {
     providers: ["scraper", "providers"] as const,
+  },
+  ai: {
+    providers: ["settings", "ai-providers"] as const,
+    models: (provider: AiProvider) =>
+      ["settings", "ai-providers", provider, "models"] as const,
   },
   promptTemplates: {
     all: ["prompt-templates"] as const,
@@ -148,6 +156,14 @@ export function useScraperProvidersQuery(enabled = true) {
   return useQuery({
     queryKey: queryKeys.scraper.providers,
     queryFn: () => apiClient.fetchScraperProviders(),
+    enabled,
+  });
+}
+
+export function useAiProvidersQuery(enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.ai.providers,
+    queryFn: () => apiClient.fetchAiProviders(),
     enabled,
   });
 }
@@ -519,8 +535,10 @@ export function useSendMessageMutation() {
       projectId: string;
       content: string;
       template?: PromptTemplate;
+      contextIds?: string[];
+      includeProjectSummary?: boolean;
     }) => apiClient.sendMessage(params),
-    onMutate: async ({ projectId, content }) => {
+    onMutate: async ({ projectId, content, contextIds }) => {
       await queryClient.cancelQueries({ queryKey: queryKeys.projects.all });
       const previousProjects = queryClient.getQueryData<CryptoProject[]>(
         queryKeys.projects.all
@@ -531,6 +549,9 @@ export function useSendMessageMutation() {
         sender: "admin" as const,
         content: content.trim(),
         timestamp: formatCurrentTimestamp(),
+        ...(contextIds && contextIds.length > 0
+          ? { usedContextIds: contextIds }
+          : {}),
       };
 
       queryClient.setQueryData<CryptoProject[]>(
@@ -1003,6 +1024,63 @@ export function useDeleteChecklistItemMutation() {
     },
     onSuccess: (nextList) => {
       queryClient.setQueryData(queryKeys.checklistItems.all, nextList);
+    },
+  });
+}
+
+/**
+ * Multi-Provider AI Configuration Mutations
+ */
+export function useSaveAiProviderConfigMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (params: { provider: AiProvider } & UpdateAiProviderConfigDto) =>
+      apiClient.saveAiProviderConfig(params),
+    onSuccess: (summary) => {
+      queryClient.setQueryData<AiConfigurationSummary>(
+        queryKeys.ai.providers,
+        summary
+      );
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.users.auditLogs,
+      });
+    },
+  });
+}
+
+export function useActivateAiProviderMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (params: { provider: AiProvider; selectedModel?: string }) =>
+      apiClient.activateAiProvider(params),
+    onSuccess: (summary) => {
+      queryClient.setQueryData<AiConfigurationSummary>(
+        queryKeys.ai.providers,
+        summary
+      );
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.users.auditLogs,
+      });
+    },
+  });
+}
+
+export function useDeleteAiProviderKeyMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (provider: AiProvider) =>
+      apiClient.deleteAiProviderKey(provider),
+    onSuccess: (summary) => {
+      queryClient.setQueryData<AiConfigurationSummary>(
+        queryKeys.ai.providers,
+        summary
+      );
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.users.auditLogs,
+      });
     },
   });
 }

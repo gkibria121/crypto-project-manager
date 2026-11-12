@@ -164,17 +164,6 @@ export class ProjectsService {
           }))
         );
       }
-
-      await tx.orm.public.ChatMessage.create({
-        id: `msg-${baseTime}-${suffix}`,
-        projectId,
-        sender: "ai",
-        content: `Chat initialized for **${input.name} (${cleanTicker})** with ${contextCreates.length} context items active.`,
-        timestampLabel: "Now",
-        usedContextIds: contextCreates.map((c) => c.id),
-        suggestedActions: [],
-        model: "pulseos-engine",
-      });
     });
 
     return findFullProjectOrThrow(this.prisma, projectId);

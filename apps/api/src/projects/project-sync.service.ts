@@ -1422,17 +1422,6 @@ export class ProjectSyncService {
 
           await tx.orm.public.ProjectContext.createAll(contextCreates);
 
-          await tx.orm.public.ChatMessage.create({
-            id: `msg-${itemTime}-${suffix}`,
-            projectId,
-            sender: "ai",
-            content: `Synced **${item.name} (${cleanTicker})** from **${meta.shortLabel}** into **New** status and tagged **\`new\`** with **${contextCreates.length} active contexts** (Website: \`${websiteCtx.url}\`, X: \`${xCtx.handle}\`, LinkedIn: \`${linkedinCtx.value}\`).`,
-            timestampLabel: "Now",
-            usedContextIds: contextCreates.map((c) => c.id),
-            suggestedActions: [],
-            model: "pulseos-engine",
-          });
-
           createdProjectIds.push(projectId);
           pushLog(
             "success",

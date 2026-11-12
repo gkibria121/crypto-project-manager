@@ -1,4 +1,6 @@
 import {
+  aiConfigurationSummarySchema,
+  aiProviderModelsResponseSchema,
   auditLogItemSchema,
   authRegisterResponseSchema,
   authSessionResponseSchema,
@@ -14,6 +16,9 @@ import {
   syncProviderStatusSchema,
   systemHealthSchema,
   type AddContextFormValues,
+  type AiConfigurationSummary,
+  type AiProvider,
+  type AiProviderModelsResponse,
   type AuditLogItem,
   type AuthRegisterResponse,
   type AuthSessionResponse,
@@ -38,6 +43,7 @@ import {
   type SyncProviderStatus,
   type SystemHealthStatus,
   type TriggerScrapeDto,
+  type UpdateAiProviderConfigDto,
   type UpdateProjectFormValues,
   type UserRole,
 } from "@/types/project";
@@ -68,7 +74,8 @@ export function getSyncWebSocketUrl(): string {
 export class ApiClientError extends Error {
   constructor(
     message: string,
-    public readonly statusCode: number
+    public readonly statusCode: number,
+    public readonly code?: string
   ) {
     super(message);
     this.name = "ApiClientError";
@@ -110,7 +117,14 @@ async function requestJson<T>(
               : (parsedBody as { message: unknown }).message
           )
         : `Request failed with status ${response.status}`;
-    throw new ApiClientError(errMsg, response.status);
+    const errCode =
+      typeof parsedBody === "object" &&
+      parsedBody !== null &&
+      "code" in parsedBody &&
+      typeof (parsedBody as { code: unknown }).code === "string"
+        ? (parsedBody as { code: string }).code
+        : undefined;
+    throw new ApiClientError(errMsg, response.status, errCode);
   }
 
   if (schema) {
@@ -419,6 +433,8 @@ export const apiClient = {
     projectId: string;
     content: string;
     template?: PromptTemplate;
+    contextIds?: string[];
+    includeProjectSummary?: boolean;
   }): Promise<CryptoProject> {
     return requestJson(
       `/projects/${encodeURIComponent(params.projectId)}/chat/messages`,
@@ -428,6 +444,12 @@ export const apiClient = {
           content: params.content,
           templateId: params.template?.id,
           template: params.template,
+          ...(params.contextIds && params.contextIds.length > 0
+            ? { contextIds: params.contextIds }
+            : {}),
+          ...(params.includeProjectSummary
+            ? { includeProjectSummary: true }
+            : {}),
         }),
       },
       cryptoProjectSchema
@@ -639,6 +661,62 @@ export const apiClient = {
       `/settings/checklist-items/${encodeURIComponent(id)}`,
       { method: "DELETE" },
       z.array(checklistItemConfigSchema)
+    );
+  },
+
+  fetchAiProviders(): Promise<AiConfigurationSummary> {
+    return requestJson(
+      "/settings/ai-providers",
+      { method: "GET" },
+      aiConfigurationSummarySchema
+    );
+  },
+
+  fetchAiProviderModels(provider: AiProvider): Promise<AiProviderModelsResponse> {
+    return requestJson(
+      `/settings/ai-providers/${encodeURIComponent(provider)}/models`,
+      { method: "GET" },
+      aiProviderModelsResponseSchema
+    );
+  },
+
+  saveAiProviderConfig(
+    params: { provider: AiProvider } & UpdateAiProviderConfigDto
+  ): Promise<AiConfigurationSummary> {
+    const { provider, ...body } = params;
+    return requestJson(
+      `/settings/ai-providers/${encodeURIComponent(provider)}`,
+      {
+        method: "PUT",
+        body: JSON.stringify(body),
+      },
+      aiConfigurationSummarySchema
+    );
+  },
+
+  activateAiProvider(params: {
+    provider: AiProvider;
+    selectedModel?: string;
+  }): Promise<AiConfigurationSummary> {
+    return requestJson(
+      `/settings/ai-providers/${encodeURIComponent(params.provider)}/activate`,
+      {
+        method: "PUT",
+        body: JSON.stringify({
+          ...(params.selectedModel
+            ? { selectedModel: params.selectedModel }
+            : {}),
+        }),
+      },
+      aiConfigurationSummarySchema
+    );
+  },
+
+  deleteAiProviderKey(provider: AiProvider): Promise<AiConfigurationSummary> {
+    return requestJson(
+      `/settings/ai-providers/${encodeURIComponent(provider)}`,
+      { method: "DELETE" },
+      aiConfigurationSummarySchema
     );
   },
 };

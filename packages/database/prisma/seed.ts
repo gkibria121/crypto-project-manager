@@ -174,41 +174,15 @@ const INITIAL_PROJECTS = [
         updatedAtLabel: "3d ago",
       },
     ],
-    messages: [
-      {
-        id: "msg-aeth-1",
-        sender: "ai" as const,
-        content:
-          "Welcome back! I have loaded **4 active context sources** for **Aetheris AI Network ($AETH)** — including the website positioning, `@AetherisNetwork` X tone profile, LinkedIn founder credentials, and your Q4 TGE Campaign Brief.\n\nHow would you like to orchestrate today's campaign?",
-        timestampLabel: "10:14 AM",
-        usedContextIds: ["ctx-aeth-1", "ctx-aeth-2", "ctx-aeth-3", "ctx-aeth-4"],
-        suggestedActions: [],
-        model: "pulseos-engine",
-      },
-      {
-        id: "msg-aeth-2",
-        sender: "admin" as const,
-        content:
-          "Draft a high-converting 4-part X announcement thread for our Testnet Epoch 3 milestone and a LinkedIn post aimed at institutional compute partners.",
-        timestampLabel: "10:18 AM",
-        usedContextIds: [],
-        suggestedActions: [],
-      },
-      {
-        id: "msg-aeth-3",
-        sender: "ai" as const,
-        content:
-          "Here is a coordinated cross-channel drop aligned with your **Q4 TGE Brief** and `@AetherisNetwork` voice:\n\n### 1. X (Twitter) Thread — `@AetherisNetwork`\n- **1/4 (Hook):** Verifiable AI inference shouldn't cost $40/hr on centralized clouds. Today, Aetheris Testnet Epoch 3 crosses 12,400 active GPU nodes on Solana — delivering sub-200ms agentic inference at 68% lower cost. 🧵👇\n- **2/4 (The Proof):** Unlike idle DePIN networks, every query routed through Aetheris settles on-chain and directly fuels `$AETH` compute-burn mechanics. Real enterprise demand, verifiable execution.\n- **3/4 (Builder Call):** Building autonomous DeFi agents? Plug into our SDK in 4 lines of TypeScript.\n- **4/4 (CTA):** Explore the live node map at `aetheris.network` before our Nov 28 milestone.\n\n### 2. LinkedIn Executive Post (`linkedin.com/company/aetheris-labs`)\n> **Institutional AI Needs Verifiable Infrastructure.**\n> Our team of former DeepMind and Solana systems engineers built Aetheris Labs to solve the #1 bottleneck in autonomous finance: deterministic, low-latency GPU compute. With Epoch 3 now processing 1.8M daily inferences, we are opening institutional partner onboarding ahead of Q4 mainnet.",
-        timestampLabel: "10:19 AM",
-        usedContextIds: ["ctx-aeth-1", "ctx-aeth-2", "ctx-aeth-3", "ctx-aeth-4"],
-        suggestedActions: [
-          "Generate 5 Tier-1 KOL DM outreach scripts",
-          "Rewrite hook for CT degen audience",
-          "Create Discord & Telegram announcement",
-        ],
-        model: "pulseos-engine",
-      },
-    ],
+    messages: [] as Array<{
+      id: string;
+      sender: "admin" | "ai";
+      content: string;
+      timestampLabel: string;
+      usedContextIds: string[];
+      suggestedActions: string[];
+      model?: string;
+    }>,
   },
   {
     id: "proj-zkflow",
@@ -274,18 +248,7 @@ const INITIAL_PROJECTS = [
         updatedAtLabel: "Pinned",
       },
     ],
-    messages: [
-      {
-        id: "msg-zk-1",
-        sender: "ai" as const,
-        content:
-          "Connected to **zkFlow Protocol ($ZKFL)** workspace. All **4 contexts** are active, including your *MEV Protection & Institutional Execution Confidentiality* guardrails.\n\nReady to craft DAO treasury pitches, X threads, or LinkedIn thought-leadership posts.",
-        timestampLabel: "Yesterday",
-        usedContextIds: ["ctx-zk-1", "ctx-zk-2", "ctx-zk-3", "ctx-zk-4"],
-        suggestedActions: [],
-        model: "pulseos-engine",
-      },
-    ],
+    messages: [],
   },
   {
     id: "proj-solvex",
@@ -350,18 +313,7 @@ const INITIAL_PROJECTS = [
         updatedAtLabel: "1h ago",
       },
     ],
-    messages: [
-      {
-        id: "msg-slv-1",
-        sender: "ai" as const,
-        content:
-          "I detected a new context note: **Morpho Curated Vault Launch Note** ($25M initial cap on Base, Spearbit audited). Want me to draft the co-marketing announcement for `@SolvexFinance` and LinkedIn?",
-        timestampLabel: "09:30 AM",
-        usedContextIds: ["ctx-slv-1", "ctx-slv-2", "ctx-slv-4"],
-        suggestedActions: [],
-        model: "pulseos-engine",
-      },
-    ],
+    messages: [],
   },
   {
     id: "proj-nebula",
@@ -415,18 +367,7 @@ const INITIAL_PROJECTS = [
         updatedAtLabel: "2d ago",
       },
     ],
-    messages: [
-      {
-        id: "msg-neb-1",
-        sender: "ai" as const,
-        content:
-          "Nebula Perps ($NEBU) context loaded. We have 3 active contexts ready for your Season 2 Trading Competition ($250K prize pool, 0 bps maker fees). What are we shipping today?",
-        timestampLabel: "Yesterday",
-        usedContextIds: ["ctx-neb-1", "ctx-neb-2", "ctx-neb-3"],
-        suggestedActions: [],
-        model: "pulseos-engine",
-      },
-    ],
+    messages: [],
   },
   {
     id: "proj-omni",
@@ -477,18 +418,7 @@ const INITIAL_PROJECTS = [
         updatedAtLabel: "1w ago",
       },
     ],
-    messages: [
-      {
-        id: "msg-omni-1",
-        sender: "ai" as const,
-        content:
-          "Stealth workspace for **OmniLayer Restaking ($OMNI)** is active. Currently marked **Unresponsive** after initial outreach — ask me to draft a high-value follow-up bump with a free competitor narrative audit.",
-        timestampLabel: "2 days ago",
-        usedContextIds: ["ctx-omni-1", "ctx-omni-2", "ctx-omni-3"],
-        suggestedActions: [],
-        model: "pulseos-engine",
-      },
-    ],
+    messages: [],
   },
   {
     id: "proj-krono",
@@ -528,18 +458,7 @@ const INITIAL_PROJECTS = [
         updatedAtLabel: "2w ago",
       },
     ],
-    messages: [
-      {
-        id: "msg-kron-1",
-        sender: "ai" as const,
-        content:
-          "This project workspace (**KronoSwap Modular — $KRON**) is currently **Archived**. You can unarchive it or switch its business status anytime to resume campaigns.",
-        timestampLabel: "2 weeks ago",
-        usedContextIds: ["ctx-kron-1", "ctx-kron-2"],
-        suggestedActions: [],
-        model: "pulseos-engine",
-      },
-    ],
+    messages: [],
   },
 ];
 
@@ -598,6 +517,10 @@ async function main() {
   const db = createDbClient(process.env["DATABASE_URL"]);
 
   try {
+    // Clean up any legacy deterministic engine messages so chats start clean
+    await db.orm.public.ChatMessage.where({ model: "pulseos-engine" }).deleteAll();
+    await db.orm.public.ChatMessage.where({ id: "msg-aeth-2" }).deleteAll();
+
     for (const u of INITIAL_USERS) {
       const existingUser = await db.orm.public.User.select("id")
         .where({ email: u.email })
