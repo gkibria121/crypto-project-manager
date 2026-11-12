@@ -5,6 +5,7 @@ import {
   ArrowLeft,
   CornerDownLeft,
   ExternalLink,
+  Pencil,
   Plus,
   RefreshCw,
   Trash2,
@@ -37,6 +38,7 @@ interface ContextInspectorProps {
   onReferenceInPrompt: (ctx: ProjectContextItem) => void;
   onOpenAddContextModal: () => void;
   onOpenEditLogoModal: () => void;
+  onOpenEditProjectModal?: () => void;
   isDesktopOpen?: boolean;
   isMobileOpen?: boolean;
   onCloseMobile?: () => void;
@@ -57,6 +59,7 @@ export function ContextInspector({
   onReferenceInPrompt,
   onOpenAddContextModal,
   onOpenEditLogoModal,
+  onOpenEditProjectModal,
   isDesktopOpen = true,
   isMobileOpen = false,
   onCloseMobile,
@@ -118,13 +121,33 @@ export function ContextInspector({
         />
 
         {canUpdateProject && (
-          <button
-            type="button"
-            onClick={onOpenEditLogoModal}
-            className="mt-2 text-xs font-medium text-[#0084ff] hover:underline cursor-pointer"
-          >
-            {project.logoUrl ? "Change photo" : "Add photo"}
-          </button>
+          <div className="mt-2 flex items-center justify-center gap-3">
+            <button
+              type="button"
+              onClick={onOpenEditLogoModal}
+              className="text-xs font-medium text-[#0084ff] hover:underline cursor-pointer"
+            >
+              {project.logoUrl ? "Change photo" : "Add photo"}
+            </button>
+            {onOpenEditProjectModal && (
+              <>
+                <span
+                  aria-hidden="true"
+                  className="text-xs text-[#65676b] dark:text-[#8696a0]"
+                >
+                  ·
+                </span>
+                <button
+                  type="button"
+                  onClick={onOpenEditProjectModal}
+                  className="inline-flex items-center gap-1 text-xs font-medium text-[#0084ff] hover:underline cursor-pointer"
+                >
+                  <Pencil className="w-3 h-3" aria-hidden="true" />
+                  <span>Edit project</span>
+                </button>
+              </>
+            )}
+          </div>
         )}
 
         <h2 className="mt-1.5 font-bold text-base text-[#050505] dark:text-[#e9edef]">

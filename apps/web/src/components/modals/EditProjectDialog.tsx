@@ -1,9 +1,15 @@
 "use client";
 
-import React, { useEffect, useId, type RefObject } from "react";
+import React, {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type RefObject,
+} from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Trash2, Upload } from "lucide-react";
+import { CheckCircle2, Trash2, Upload } from "lucide-react";
 import {
   BUSINESS_STATUS_META,
   BUSINESS_STATUS_ORDER,
@@ -92,6 +98,11 @@ export function EditProjectDialog({
 }: EditProjectDialogProps) {
   const editLogoFileId = useId();
   const isPinnedCheckboxId = useId();
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const {
     register,
@@ -109,6 +120,9 @@ export function EditProjectDialog({
 
   useEffect(() => {
     reset(buildFormValuesFromProject(project));
+    setUploadedFileName(null);
+    setUploadError(null);
+    setSubmitError(null);
   }, [project, reset]);
 
   const watchedName = useWatch({ control, name: "name" }) ?? "";
@@ -123,16 +137,37 @@ export function EditProjectDialog({
   const handleLogoFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    readFileAsDataUrl(file, (dataUrl) => {
-      setValue("logoUrl", dataUrl, { shouldDirty: true, shouldValidate: true });
-    });
+    setUploadError(null);
+    readFileAsDataUrl(
+      file,
+      (dataUrl) => {
+        setUploadedFileName(file.name);
+        setValue("logoUrl", dataUrl, {
+          shouldDirty: true,
+          shouldValidate: true,
+        });
+      },
+      (message) => {
+        setUploadError(message);
+      }
+    );
+    e.target.value = "";
   };
 
   const handleFormSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     void handleSubmit(async (values) => {
       if (!project) return;
-      await onUpdateProject(project.id, values);
-      dialogRef.current?.close();
+      setSubmitError(null);
+      try {
+        await onUpdateProject(project.id, values);
+        dialogRef.current?.close();
+      } catch (err) {
+        setSubmitError(
+          err instanceof Error
+            ? err.message
+            : "Failed to save project changes."
+        );
+      }
     })(e);
   };
 
@@ -163,6 +198,18 @@ export function EditProjectDialog({
         noValidate
         className="space-y-4 mt-4"
       >
+        {/* Live error feedback inside modal */}
+        <div aria-live="polite">
+          {(uploadError || submitError) && (
+            <div
+              role="alert"
+              className="rounded-xl bg-rose-500/12 border border-rose-500/30 px-3.5 py-2.5 text-xs text-rose-700 dark:text-rose-300 font-medium"
+            >
+              {uploadError || submitError}
+            </div>
+          )}
+        </div>
+
         {/* Section 1: Project Profile Photo, Preset Icons & Avatar Color */}
         <fieldset className="rounded-xl bg-[#f0f2f5] dark:bg-[#111b21] border border-[#e4e6eb] dark:border-[#2a3942] p-3.5 space-y-3">
           <legend className="px-1 text-xs font-bold uppercase tracking-wider text-[#65676b] dark:text-[#8696a0]">
@@ -181,12 +228,14 @@ export function EditProjectDialog({
               }}
               size="xl"
               showOnlineDot
+              onEditClick={() => fileInputRef.current?.click()}
               decorative={false}
             />
 
             <div className="flex-1 min-w-0 space-y-2 w-full">
               <div className="flex items-center gap-2 flex-wrap">
                 <input
+                  ref={fileInputRef}
                   id={editLogoFileId}
                   name="edit-project-logo-file"
                   type="file"
@@ -205,12 +254,14 @@ export function EditProjectDialog({
                 {watchedLogoUrl && (
                   <button
                     type="button"
-                    onClick={() =>
+                    onClick={() => {
+                      setUploadedFileName(null);
+                      setUploadError(null);
                       setValue("logoUrl", "", {
                         shouldDirty: true,
                         shouldValidate: true,
-                      })
-                    }
+                      });
+                    }}
                     className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-black/5 dark:hover:bg-white/5 transition cursor-pointer"
                   >
                     <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
@@ -219,25 +270,50 @@ export function EditProjectDialog({
                 )}
               </div>
 
+              <div aria-live="polite" className="text-[11px]">
+                {uploadedFileName ? (
+                  <span className="inline-flex items-center gap-1 font-medium text-emerald-700 dark:text-emerald-400">
+                    <CheckCircle2
+                      className="w-3.5 h-3.5 shrink-0"
+                      aria-hidden="true"
+                    />
+                    <span className="truncate">
+                      Loaded {uploadedFileName} — click Save Changes below to
+                      apply
+                    </span>
+                  </span>
+                ) : (
+                  <span className="text-[#65676b] dark:text-[#8696a0]">
+                    Supports PNG, JPG, SVG, WebP, or GIF.
+                  </span>
+                )}
+              </div>
+
               <FormField label="Profile Image URL" error={errors.logoUrl}>
                 {(a11yProps) => (
                   <input
                     {...a11yProps}
                     name="edit-project-logo-url"
-                    type="url"
+                    type="text"
+                    inputMode="url"
                     autoCorrect="off"
                     autoCapitalize="none"
                     spellCheck={false}
                     value={
                       watchedLogoUrl.startsWith("data:") ? "" : watchedLogoUrl
                     }
-                    onChange={(e) =>
+                    onChange={(e) => {
+                      setUploadedFileName(null);
                       setValue("logoUrl", e.target.value, {
                         shouldDirty: true,
                         shouldValidate: true,
-                      })
+                      });
+                    }}
+                    placeholder={
+                      watchedLogoUrl.startsWith("data:")
+                        ? "Custom image uploaded (or paste https:// URL to replace)"
+                        : "https://example.com/logo.png"
                     }
-                    placeholder="https://example.com/logo.png"
                     className="w-full px-2.5 py-1.5 text-xs rounded-lg bg-white dark:bg-[#202c33] text-[#050505] dark:text-[#e9edef] border border-[#e4e6eb] dark:border-[#2a3942] outline-none"
                   />
                 )}
@@ -257,12 +333,14 @@ export function EditProjectDialog({
                     <button
                       key={preset.label}
                       type="button"
-                      onClick={() =>
+                      onClick={() => {
+                        setUploadedFileName(null);
+                        setUploadError(null);
                         setValue("logoUrl", preset.url, {
                           shouldDirty: true,
                           shouldValidate: true,
-                        })
-                      }
+                        });
+                      }}
                       aria-pressed={isSelected}
                       className={`flex flex-col items-center gap-1 p-1.5 rounded-lg border text-[10px] font-medium transition cursor-pointer ${
                         isSelected
@@ -273,6 +351,8 @@ export function EditProjectDialog({
                       <img
                         src={preset.url}
                         alt=""
+                        width={24}
+                        height={24}
                         className="w-6 h-6 block aspect-square rounded-full object-cover"
                       />
                       <span className="truncate w-full text-center">
@@ -299,6 +379,7 @@ export function EditProjectDialog({
                       key={colorClass}
                       type="button"
                       onClick={() => {
+                        setUploadedFileName(null);
                         setValue("avatarBg", colorClass, {
                           shouldDirty: true,
                           shouldValidate: true,
@@ -354,7 +435,11 @@ export function EditProjectDialog({
               )}
             </FormField>
 
-            <FormField label="Ticker (max 12 chars)" required error={errors.ticker}>
+            <FormField
+              label="Ticker (max 12 chars)"
+              required
+              error={errors.ticker}
+            >
               {(a11yProps) => (
                 <input
                   {...a11yProps}

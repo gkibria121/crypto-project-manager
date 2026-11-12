@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useId, type RefObject } from "react";
+import React, { useId, useRef, useState, type RefObject } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Upload } from "lucide-react";
+import { CheckCircle2, Trash2, Upload } from "lucide-react";
 import {
   BUSINESS_STATUS_META,
   BUSINESS_STATUS_ORDER,
@@ -19,7 +19,7 @@ import { readFileAsDataUrl } from "@/lib/file-utils";
 
 interface NewProjectDialogProps {
   dialogRef: RefObject<HTMLDialogElement | null>;
-  onCreateProject: (values: NewProjectFormValues) => void;
+  onCreateProject: (values: NewProjectFormValues) => Promise<void> | void;
 }
 
 const DEFAULT_VALUES: NewProjectFormValues = {
@@ -41,6 +41,9 @@ export function NewProjectDialog({
 }: NewProjectDialogProps) {
   const newLogoFileId = useId();
   const newLogoUrlId = useId();
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   const {
     register,
@@ -64,15 +67,29 @@ export function NewProjectDialog({
   const handleNewLogoFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    readFileAsDataUrl(file, (dataUrl) => {
-      setValue("logoUrl", dataUrl, { shouldDirty: true, shouldValidate: true });
-    });
+    setUploadError(null);
+    readFileAsDataUrl(
+      file,
+      (dataUrl) => {
+        setUploadedFileName(file.name);
+        setValue("logoUrl", dataUrl, {
+          shouldDirty: true,
+          shouldValidate: true,
+        });
+      },
+      (message) => {
+        setUploadError(message);
+      }
+    );
+    e.target.value = "";
   };
 
   const handleFormSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    void handleSubmit((values) => {
-      onCreateProject(values);
+    void handleSubmit(async (values) => {
+      await onCreateProject(values);
       reset(DEFAULT_VALUES);
+      setUploadedFileName(null);
+      setUploadError(null);
       dialogRef.current?.close();
     })(e);
   };
@@ -88,6 +105,17 @@ export function NewProjectDialog({
       maxWidthClass="max-w-lg"
     >
       <form onSubmit={handleFormSubmit} noValidate className="space-y-3 mt-4">
+        <div aria-live="polite">
+          {uploadError && (
+            <div
+              role="alert"
+              className="rounded-xl bg-rose-500/12 border border-rose-500/30 px-3.5 py-2.5 text-xs text-rose-700 dark:text-rose-300 font-medium"
+            >
+              {uploadError}
+            </div>
+          )}
+        </div>
+
         <div className="flex flex-col sm:flex-row sm:items-center gap-3.5 p-3 rounded-xl bg-[#f0f2f5] dark:bg-[#2a3942]">
           <ProjectAvatar
             project={{
@@ -98,11 +126,13 @@ export function NewProjectDialog({
               logoUrl: watchedLogoUrl.trim() || undefined,
             }}
             size="lg"
-            decorative
+            onEditClick={() => fileInputRef.current?.click()}
+            decorative={false}
           />
-          <div className="flex-1 min-w-0 w-full">
+          <div className="flex-1 min-w-0 w-full space-y-1.5">
             <div className="flex items-center gap-2 flex-wrap">
               <input
+                ref={fileInputRef}
                 id={newLogoFileId}
                 name="new-project-logo-file"
                 type="file"
@@ -114,31 +144,68 @@ export function NewProjectDialog({
                 htmlFor={newLogoFileId}
                 className="inline-flex items-center gap-1.5 px-3 py-2 sm:py-1.5 rounded-lg text-xs font-semibold bg-[#0084ff] hover:bg-[#0073e6] text-white transition cursor-pointer"
               >
-                <Upload className="w-3.5 h-3.5" />
+                <Upload className="w-3.5 h-3.5" aria-hidden="true" />
                 <span>Upload photo</span>
               </label>
 
-              <label htmlFor={newLogoUrlId} className="sr-only">
+              {watchedLogoUrl && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setUploadedFileName(null);
+                    setUploadError(null);
+                    setValue("logoUrl", "", {
+                      shouldDirty: true,
+                      shouldValidate: true,
+                    });
+                  }}
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-black/5 transition cursor-pointer"
+                >
+                  <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
+                  <span>Remove</span>
+                </button>
+              )}
+
+              <label htmlFor={newLogoUrlId} className="visually-hidden">
                 Image URL
               </label>
               <input
                 id={newLogoUrlId}
                 name="new-project-logo-url"
-                type="url"
+                type="text"
+                inputMode="url"
                 autoCorrect="off"
-                autoCapitalize="off"
+                autoCapitalize="none"
                 spellCheck={false}
                 value={watchedLogoUrl.startsWith("data:") ? "" : watchedLogoUrl}
-                onChange={(e) =>
+                onChange={(e) => {
+                  setUploadedFileName(null);
                   setValue("logoUrl", e.target.value, {
                     shouldDirty: true,
                     shouldValidate: true,
-                  })
+                  });
+                }}
+                placeholder={
+                  watchedLogoUrl.startsWith("data:")
+                    ? "Custom photo uploaded"
+                    : "Or paste image URL..."
                 }
-                placeholder="Or paste image URL..."
                 className="flex-1 min-w-36 px-2.5 py-2 sm:py-1.5 text-xs rounded-lg bg-white dark:bg-[#202c33] outline-none"
               />
             </div>
+
+            {uploadedFileName && (
+              <div
+                aria-live="polite"
+                className="text-[11px] inline-flex items-center gap-1 font-medium text-emerald-700 dark:text-emerald-400"
+              >
+                <CheckCircle2
+                  className="w-3.5 h-3.5 shrink-0"
+                  aria-hidden="true"
+                />
+                <span className="truncate">Loaded {uploadedFileName}</span>
+              </div>
+            )}
           </div>
         </div>
 
@@ -170,7 +237,7 @@ export function NewProjectDialog({
                 type="text"
                 required
                 autoCorrect="off"
-                autoCapitalize="off"
+                autoCapitalize="none"
                 spellCheck={false}
                 placeholder="$HYPR"
                 className="w-full px-3 py-2 text-sm font-mono rounded-lg bg-[#f0f2f5] dark:bg-[#2a3942] outline-none"
@@ -253,7 +320,7 @@ export function NewProjectDialog({
                 {...register("website")}
                 type="text"
                 autoCorrect="off"
-                autoCapitalize="off"
+                autoCapitalize="none"
                 spellCheck={false}
                 placeholder="Website URL"
                 className="w-full px-2.5 py-2 text-xs rounded-lg bg-[#f0f2f5] dark:bg-[#2a3942] outline-none"
@@ -268,7 +335,7 @@ export function NewProjectDialog({
                 {...register("xHandle")}
                 type="text"
                 autoCorrect="off"
-                autoCapitalize="off"
+                autoCapitalize="none"
                 spellCheck={false}
                 placeholder="@XHandle"
                 className="w-full px-2.5 py-2 text-xs rounded-lg bg-[#f0f2f5] dark:bg-[#2a3942] outline-none"
@@ -283,7 +350,7 @@ export function NewProjectDialog({
                 {...register("linkedin")}
                 type="text"
                 autoCorrect="off"
-                autoCapitalize="off"
+                autoCapitalize="none"
                 spellCheck={false}
                 placeholder="LinkedIn URL"
                 className="w-full px-2.5 py-2 text-xs rounded-lg bg-[#f0f2f5] dark:bg-[#2a3942] outline-none"

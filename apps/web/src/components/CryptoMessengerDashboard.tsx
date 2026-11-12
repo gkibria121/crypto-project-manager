@@ -45,6 +45,7 @@ import {
   useToggleContextMutation,
   useUpdateBusinessStatusMutation,
   useUpdateProjectLogoMutation,
+  useUpdateProjectMutation,
   useUpdateUserRoleMutation,
   useUpdateUserStatusMutation,
   useUsersQuery,
@@ -55,6 +56,7 @@ import { AiChatPane } from "@/components/AiChatPane";
 import { ContextInspector } from "@/components/ContextInspector";
 import {
   AddContextDialog,
+  EditProjectDialog,
   GlobalSettingsDialog,
   NewProjectDialog,
   ProjectChecklistDialog,
@@ -102,12 +104,14 @@ export function CryptoMessengerDashboard() {
   const {
     addContextDialogRef,
     newProjectDialogRef,
+    editProjectDialogRef,
     editLogoDialogRef,
     checklistDialogRef,
     globalSettingsDialogRef,
     teamRbacDialogRef,
     openAddContextModal,
     openNewProjectModal,
+    openEditProjectModal,
     openEditLogoModal,
     openChecklistModal,
     openGlobalSettingsModal,
@@ -124,6 +128,7 @@ export function CryptoMessengerDashboard() {
 
   const markProjectReadMutation = useMarkProjectReadMutation();
   const createProjectMutation = useCreateProjectMutation();
+  const updateProjectMutation = useUpdateProjectMutation();
   const deleteProjectMutation = useDeleteProjectMutation();
   const updateBusinessStatusMutation = useUpdateBusinessStatusMutation();
   const updateProjectLogoMutation = useUpdateProjectLogoMutation();
@@ -460,6 +465,7 @@ export function CryptoMessengerDashboard() {
         onReferenceInPrompt={handleReferenceInPrompt}
         onOpenAddContextModal={openAddContextModal}
         onOpenEditLogoModal={openEditLogoModal}
+        onOpenEditProjectModal={openEditProjectModal}
         isDesktopOpen={isDesktopContextOpen}
         isMobileOpen={isMobileContextOpen}
         onCloseMobile={() => setIsMobileContextOpen(false)}
@@ -475,6 +481,14 @@ export function CryptoMessengerDashboard() {
       <NewProjectDialog
         dialogRef={newProjectDialogRef}
         onCreateProject={handleCreateProject}
+      />
+
+      <EditProjectDialog
+        dialogRef={editProjectDialogRef}
+        project={activeProject}
+        onUpdateProject={async (projectId, values) => {
+          await updateProjectMutation.mutateAsync({ projectId, values });
+        }}
       />
 
       <UpdateProjectLogoDialog
