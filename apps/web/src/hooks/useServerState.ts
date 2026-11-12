@@ -11,6 +11,7 @@ import { apiClient } from "@/services/apiClient";
 import type {
   AddContextFormValues,
   AuthUser,
+  BulkDeleteProjectsDto,
   BulkUpdateBusinessStatusDto,
   ChecklistItemConfig,
   CreateUserDto,
@@ -253,6 +254,22 @@ export function useDeleteProjectMutation() {
       queryClient.setQueryData<CryptoProject[]>(
         queryKeys.projects.all,
         (prev = []) => prev.filter((p) => p.id !== id)
+      );
+    },
+  });
+}
+
+export function useBulkDeleteProjectsMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: BulkDeleteProjectsDto) =>
+      apiClient.bulkDeleteProjects(input),
+    onSuccess: ({ deletedIds }) => {
+      const deletedSet = new Set(deletedIds);
+      queryClient.setQueryData<CryptoProject[]>(
+        queryKeys.projects.all,
+        (prev = []) => prev.filter((p) => !deletedSet.has(p.id))
       );
     },
   });

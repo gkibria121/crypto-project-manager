@@ -65,6 +65,7 @@ import {
 } from "@/types/project";
 import {
   useAuditLogsQuery,
+  useBulkDeleteProjectsMutation,
   useBulkUpdateBusinessStatusMutation,
   useChecklistItemsQuery,
   useCreateProjectMutation,
@@ -99,7 +100,7 @@ import {
   NewProjectDialog,
   SyncProjectsDialog,
 } from "@/components/modals";
-import { FilterChip, FormField, PaginationBar } from "@/components/ui";
+import { FilterChip, FormField, ModalDialog, PaginationBar } from "@/components/ui";
 
 type AdminSectionId =
   | "overview"
@@ -191,6 +192,7 @@ export function AdminDashboard() {
   const updateBusinessStatusMutation = useUpdateBusinessStatusMutation();
   const bulkUpdateBusinessStatusMutation =
     useBulkUpdateBusinessStatusMutation();
+  const bulkDeleteProjectsMutation = useBulkDeleteProjectsMutation();
   const deleteProjectMutation = useDeleteProjectMutation();
 
   const {
@@ -212,9 +214,11 @@ export function AdminDashboard() {
     newProjectDialogRef,
     editProjectDialogRef,
     syncProjectsDialogRef,
+    bulkDeleteProjectsDialogRef,
     openNewProjectModal,
     openEditProjectModal,
     openSyncProjectsModal,
+    openBulkDeleteProjectsModal,
   } = useDashboardDialogs();
 
   const mainHeadingRef = useRef<HTMLHeadingElement | null>(null);
@@ -376,7 +380,7 @@ export function AdminDashboard() {
     resetKey: `${userFilter}:${userSearchQuery}`,
   });
   const projectsPagination = usePagination(filteredProjects, {
-    initialPageSize: 25,
+    initialPageSize: 100,
     pageSizeOptions: DEFAULT_PAGE_SIZE_OPTIONS,
     resetKey: `${projectFilter}:${projectSearchQuery}`,
   });
@@ -592,13 +596,23 @@ export function AdminDashboard() {
     }
   };
 
+  const existingProjectIdSet = new Set(projects.map((p) => p.id));
+  const activeSelectedProjectIds = selectedProjectIds.filter((id) =>
+    existingProjectIdSet.has(id)
+  );
+  const selectedProjectIdSet = new Set(activeSelectedProjectIds);
+  const selectedProjects = projects.filter((p) =>
+    selectedProjectIdSet.has(p.id)
+  );
+  const canDeleteProjects = hasPermission(currentUser, "projects:delete");
+
   const handleBulkUpdateProjectStatus = async () => {
-    if (selectedProjectIds.length === 0) return;
+    if (activeSelectedProjectIds.length === 0) return;
     setActionError(null);
     setStatusAnnouncement(null);
     try {
       const result = await bulkUpdateBusinessStatusMutation.mutateAsync({
-        projectIds: selectedProjectIds,
+        projectIds: activeSelectedProjectIds,
         status: bulkStatusTarget,
       });
       setSelectedProjectIds([]);
@@ -614,6 +628,34 @@ export function AdminDashboard() {
     }
   };
 
+  const handleConfirmBulkDeleteProjects = async () => {
+    if (activeSelectedProjectIds.length === 0) return;
+    setActionError(null);
+    setStatusAnnouncement(null);
+    try {
+      const result = await bulkDeleteProjectsMutation.mutateAsync({
+        projectIds: activeSelectedProjectIds,
+      });
+      const deletedSet = new Set(result.deletedIds);
+      setSelectedProjectIds((prev) =>
+        prev.filter((id) => !deletedSet.has(id))
+      );
+      if (editingProject && deletedSet.has(editingProject.id)) {
+        setEditingProject(null);
+      }
+      bulkDeleteProjectsDialogRef.current?.close();
+      setStatusAnnouncement(
+        `Deleted ${result.deletedCount} selected ${result.deletedCount === 1 ? "project" : "projects"}.`
+      );
+    } catch (err) {
+      setActionError(
+        err instanceof Error
+          ? err.message
+          : "Failed to delete selected projects."
+      );
+    }
+  };
+
   const toggleProjectSelection = (projectId: string) => {
     setSelectedProjectIds((prev) =>
       prev.includes(projectId)
@@ -625,7 +667,7 @@ export function AdminDashboard() {
   const currentPageProjectIds = projectsPagination.items.map((p) => p.id);
   const allCurrentPageSelected =
     currentPageProjectIds.length > 0 &&
-    currentPageProjectIds.every((id) => selectedProjectIds.includes(id));
+    currentPageProjectIds.every((id) => selectedProjectIdSet.has(id));
 
   const handleToggleSelectCurrentPage = () => {
     if (allCurrentPageSelected) {
@@ -646,6 +688,7 @@ export function AdminDashboard() {
     setStatusAnnouncement(null);
     try {
       await deleteProjectMutation.mutateAsync(projectId);
+      setSelectedProjectIds((prev) => prev.filter((id) => id !== projectId));
       setStatusAnnouncement(`Deleted project ${projectName}.`);
     } catch (err) {
       setActionError(
@@ -800,6 +843,7 @@ export function AdminDashboard() {
   ];
 
   const activeSectionMeta = SECTION_META[activeSection];
+  const isProjectsSection = activeSection === "projects";
 
   const pendingApprovalsCallout = inactiveUsers.length > 0 && (
     <section
@@ -1092,7 +1136,9 @@ export function AdminDashboard() {
       <div className="flex-1 min-w-0 flex flex-col h-full overflow-hidden">
         {/* Right-Pane Sticky Header */}
         <header className="shrink-0 bg-white dark:bg-[#111b21] border-b border-[#e4e6eb] dark:border-[#222d34] px-4 sm:px-6 py-3.5">
-          <div className="max-w-6xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div
+            className={`${isProjectsSection ? "w-full" : "max-w-6xl mx-auto"} flex flex-col sm:flex-row sm:items-center justify-between gap-3`}
+          >
             <div className="min-w-0">
               <h1
                 ref={mainHeadingRef}
@@ -1171,10 +1217,26 @@ export function AdminDashboard() {
         </header>
 
         {/* Scrollable Main Content Landmark */}
-        <main className="flex-1 overflow-y-auto scroller p-4 sm:p-6">
-          <div className="max-w-6xl mx-auto space-y-6 pb-8">
+        <main
+          className={
+            isProjectsSection
+              ? "flex-1 min-h-0 flex flex-col overflow-y-auto md:overflow-hidden p-3 sm:p-4"
+              : "flex-1 overflow-y-auto scroller p-4 sm:p-6"
+          }
+        >
+          <div
+            className={
+              isProjectsSection
+                ? "w-full flex-1 min-h-0 flex flex-col gap-3"
+                : "max-w-6xl mx-auto space-y-6 pb-8"
+            }
+          >
             {/* Centralized Live Regions for Announcements & Errors */}
-            <div aria-live="polite" role="status">
+            <div
+              aria-live="polite"
+              role="status"
+              className={statusAnnouncement ? "shrink-0" : "visually-hidden"}
+            >
               {statusAnnouncement && (
                 <div className="rounded-xl bg-emerald-500/12 border border-emerald-500/30 px-4 py-2.5 text-xs text-emerald-800 dark:text-emerald-300 font-medium flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
@@ -1195,7 +1257,10 @@ export function AdminDashboard() {
               )}
             </div>
 
-            <div aria-live="polite">
+            <div
+              aria-live="polite"
+              className={actionError ? "shrink-0" : "visually-hidden"}
+            >
               {actionError && (
                 <div
                   role="alert"
@@ -1436,7 +1501,9 @@ export function AdminDashboard() {
                         }
                         itemLabel="projects"
                         ariaLabel="Overview projects pagination"
-                        hideWhenSinglePage
+                        hideWhenSinglePage={
+                          projects.length <= COMPACT_PAGE_SIZE_OPTIONS[0]
+                        }
                       />
                     </div>
                   </section>
@@ -2059,50 +2126,26 @@ export function AdminDashboard() {
             {activeSection === "projects" && (
               <section
                 aria-labelledby="projects-directory-heading"
-                className="rounded-2xl bg-white dark:bg-[#202c33] border border-[#e4e6eb] dark:border-[#2a3942] p-4 sm:p-5 shadow-2xs space-y-4"
+                className="md:flex-1 md:min-h-0 flex flex-col rounded-2xl bg-white dark:bg-[#202c33] border border-[#e4e6eb] dark:border-[#2a3942] p-3 sm:p-4 shadow-2xs gap-3"
               >
-                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-                  <div>
-                    <h2
-                      id="projects-directory-heading"
-                      className="text-base sm:text-lg font-bold"
-                    >
-                      All Crypto Projects ({projects.length})
-                    </h2>
-                    <p className="text-xs text-[#65676b] dark:text-[#8696a0]">
-                      New projects enter Active automatically on admin/user
-                      interaction (chat, scrape, contexts, checklist, or edit),
-                      or can be moved manually across pipeline states.
-                    </p>
-                  </div>
-
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-2.5">
-                    <div className="flex items-center gap-1.5 overflow-x-auto scroller">
-                      <FilterChip
-                        active={projectFilter === "all"}
-                        onClick={() => setProjectFilter("all")}
-                        count={projects.length}
+                <div className="shrink-0 space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                    <div>
+                      <h2
+                        id="projects-directory-heading"
+                        className="text-base sm:text-lg font-bold"
                       >
-                        All
-                      </FilterChip>
-                      {BUSINESS_STATUS_ORDER.map((statusKey) => (
-                        <FilterChip
-                          key={statusKey}
-                          active={projectFilter === statusKey}
-                          onClick={() => setProjectFilter(statusKey)}
-                          count={
-                            projects.filter(
-                              (p) => p.businessStatus === statusKey
-                            ).length
-                          }
-                        >
-                          {BUSINESS_STATUS_META[statusKey].shortLabel}
-                        </FilterChip>
-                      ))}
+                        All Crypto Projects ({projects.length})
+                      </h2>
+                      <p className="text-xs text-[#65676b] dark:text-[#8696a0]">
+                        New projects enter Active automatically on admin/user
+                        interaction (chat, scrape, contexts, checklist, or edit),
+                        or can be moved manually across pipeline states.
+                      </p>
                     </div>
 
-                    <div className="flex items-center gap-2">
-                      <search className="relative min-w-56 flex-1">
+                    <div className="flex items-center gap-2 shrink-0">
+                      <search className="relative min-w-56 flex-1 sm:w-64 sm:flex-none">
                         <label
                           htmlFor={projectSearchInputId}
                           className="visually-hidden"
@@ -2154,14 +2197,38 @@ export function AdminDashboard() {
                       </button>
                     </div>
                   </div>
+
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <FilterChip
+                      active={projectFilter === "all"}
+                      onClick={() => setProjectFilter("all")}
+                      count={projects.length}
+                    >
+                      All
+                    </FilterChip>
+                    {BUSINESS_STATUS_ORDER.map((statusKey) => (
+                      <FilterChip
+                        key={statusKey}
+                        active={projectFilter === statusKey}
+                        onClick={() => setProjectFilter(statusKey)}
+                        count={
+                          projects.filter(
+                            (p) => p.businessStatus === statusKey
+                          ).length
+                        }
+                      >
+                        {BUSINESS_STATUS_META[statusKey].shortLabel}
+                      </FilterChip>
+                    ))}
+                  </div>
                 </div>
 
-                {/* Bulk State Management Toolbar */}
-                {selectedProjectIds.length > 0 && (
-                  <div className="rounded-xl bg-[#e7f3ff]/70 dark:bg-[#0084ff]/15 border border-[#0084ff]/35 px-3.5 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                {/* Bulk State & Delete Management Toolbar */}
+                {activeSelectedProjectIds.length > 0 && (
+                  <div className="shrink-0 rounded-xl bg-[#e7f3ff]/70 dark:bg-[#0084ff]/15 border border-[#0084ff]/35 px-3.5 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
                     <div className="text-xs font-semibold text-[#050505] dark:text-[#e9edef]">
-                      {selectedProjectIds.length}{" "}
-                      {selectedProjectIds.length === 1
+                      {activeSelectedProjectIds.length}{" "}
+                      {activeSelectedProjectIds.length === 1
                         ? "project"
                         : "projects"}{" "}
                       selected
@@ -2191,7 +2258,10 @@ export function AdminDashboard() {
                       </select>
                       <button
                         type="button"
-                        disabled={bulkUpdateBusinessStatusMutation.isPending}
+                        disabled={
+                          bulkUpdateBusinessStatusMutation.isPending ||
+                          bulkDeleteProjectsMutation.isPending
+                        }
                         onClick={() => void handleBulkUpdateProjectStatus()}
                         className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#0084ff] hover:bg-[#0073e6] disabled:opacity-50 text-white transition cursor-pointer"
                       >
@@ -2199,10 +2269,27 @@ export function AdminDashboard() {
                           ? "Updating..."
                           : "Apply State"}
                       </button>
+                      {canDeleteProjects && (
+                        <button
+                          type="button"
+                          disabled={
+                            bulkDeleteProjectsMutation.isPending ||
+                            bulkUpdateBusinessStatusMutation.isPending
+                          }
+                          onClick={openBulkDeleteProjectsModal}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white transition cursor-pointer"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
+                          <span>
+                            Delete Selected ({activeSelectedProjectIds.length})
+                          </span>
+                        </button>
+                      )}
                       <button
                         type="button"
+                        disabled={bulkDeleteProjectsMutation.isPending}
                         onClick={() => setSelectedProjectIds([])}
-                        className="px-2.5 py-1.5 rounded-lg text-xs font-semibold text-[#65676b] dark:text-[#8696a0] hover:bg-black/5 dark:hover:bg-white/5 transition cursor-pointer"
+                        className="px-2.5 py-1.5 rounded-lg text-xs font-semibold text-[#65676b] dark:text-[#8696a0] hover:bg-black/5 dark:hover:bg-white/5 disabled:opacity-50 transition cursor-pointer"
                       >
                         Clear
                       </button>
@@ -2215,7 +2302,7 @@ export function AdminDashboard() {
                   tabIndex={0}
                   role="region"
                   aria-labelledby={projectsCaptionId}
-                  className="table-wrapper scroller rounded-xl border border-[#e4e6eb] dark:border-[#2a3942]"
+                  className="table-wrapper table-wrapper--full scroller md:flex-1 md:min-h-0 rounded-xl border border-[#e4e6eb] dark:border-[#2a3942]"
                 >
                   <table
                     className="responsive-data-table text-left text-xs"
@@ -2286,7 +2373,7 @@ export function AdminDashboard() {
                           ).length;
                           const isArchived =
                             project.businessStatus === "archived";
-                          const isSelectedRow = selectedProjectIds.includes(
+                          const isSelectedRow = selectedProjectIdSet.has(
                             project.id
                           );
 
@@ -2332,7 +2419,7 @@ export function AdminDashboard() {
                                         </span>
                                       )}
                                     </div>
-                                    <div className="text-[11px] text-[#65676b] dark:text-[#8696a0] truncate max-w-xs">
+                                    <div className="text-[11px] text-[#65676b] dark:text-[#8696a0] truncate max-w-xs xl:max-w-md">
                                       {project.tagline}
                                     </div>
                                   </div>
@@ -2500,6 +2587,7 @@ export function AdminDashboard() {
                   onPageSizeChange={projectsPagination.setPageSize}
                   itemLabel="projects"
                   ariaLabel="Crypto projects pagination"
+                  className="shrink-0 pt-1"
                 />
               </section>
             )}
@@ -3112,6 +3200,79 @@ export function AdminDashboard() {
         project={editingProject}
         onUpdateProject={handleUpdateProject}
       />
+
+      <ModalDialog
+        dialogRef={bulkDeleteProjectsDialogRef}
+        title="Delete Selected Projects"
+        subtitle={`Permanently remove ${activeSelectedProjectIds.length} selected ${activeSelectedProjectIds.length === 1 ? "project" : "projects"}`}
+        maxWidthClass="max-w-md"
+      >
+        <div className="mt-4 space-y-4">
+          <p className="text-xs text-[#65676b] dark:text-[#8696a0] leading-relaxed">
+            This will permanently delete{" "}
+            <strong className="text-[#050505] dark:text-[#e9edef]">
+              {activeSelectedProjectIds.length}
+            </strong>{" "}
+            selected{" "}
+            {activeSelectedProjectIds.length === 1 ? "project" : "projects"}{" "}
+            along with their contexts, AI chat messages, and due-diligence
+            checklist records. This action cannot be undone.
+          </p>
+
+          {selectedProjects.length > 0 && (
+            <div className="rounded-xl bg-[#f0f2f5] dark:bg-[#111b21] border border-[#e4e6eb] dark:border-[#2a3942] p-3 space-y-1.5">
+              <div className="text-[11px] font-semibold text-[#65676b] dark:text-[#8696a0]">
+                Projects queued for deletion:
+              </div>
+              <ul className="text-xs text-[#050505] dark:text-[#e9edef] space-y-1">
+                {selectedProjects.slice(0, 5).map((project) => (
+                  <li
+                    key={project.id}
+                    className="flex items-center justify-between gap-2"
+                  >
+                    <span className="truncate font-medium">{project.name}</span>
+                    <span className="font-mono text-[11px] text-[#0084ff] shrink-0">
+                      {project.ticker}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              {selectedProjects.length > 5 && (
+                <p className="text-[11px] text-[#65676b] dark:text-[#8696a0]">
+                  and {selectedProjects.length - 5} more...
+                </p>
+              )}
+            </div>
+          )}
+
+          <div className="flex items-center justify-end gap-2 pt-1">
+            <button
+              type="button"
+              disabled={bulkDeleteProjectsMutation.isPending}
+              onClick={() => bulkDeleteProjectsDialogRef.current?.close()}
+              className="px-3.5 py-2 rounded-xl text-xs font-semibold text-[#65676b] dark:text-[#8696a0] hover:bg-[#f0f2f5] dark:hover:bg-[#2a3942] disabled:opacity-50 transition cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              disabled={
+                bulkDeleteProjectsMutation.isPending ||
+                activeSelectedProjectIds.length === 0
+              }
+              onClick={() => void handleConfirmBulkDeleteProjects()}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white transition cursor-pointer"
+            >
+              <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
+              <span>
+                {bulkDeleteProjectsMutation.isPending
+                  ? "Deleting..."
+                  : `Delete ${activeSelectedProjectIds.length} ${activeSelectedProjectIds.length === 1 ? "Project" : "Projects"}`}
+              </span>
+            </button>
+          </div>
+        </div>
+      </ModalDialog>
     </div>
   );
 }

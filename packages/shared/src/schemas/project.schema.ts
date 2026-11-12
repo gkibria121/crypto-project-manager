@@ -296,6 +296,13 @@ export const bulkUpdateBusinessStatusDtoSchema = z.object({
   status: projectBusinessStatusSchema,
 });
 
+export const bulkDeleteProjectsDtoSchema = z.object({
+  projectIds: z
+    .array(z.string().min(1))
+    .min(1, "Select at least one project")
+    .max(1000, "Cannot delete more than 1000 projects at once"),
+});
+
 export const updateProjectLogoDtoSchema = z.object({
   logoUrl: z.string().trim().nullable().optional(),
 });
@@ -526,6 +533,7 @@ export type UpdateBusinessStatusDto = z.infer<typeof updateBusinessStatusDtoSche
 export type BulkUpdateBusinessStatusDto = z.infer<
   typeof bulkUpdateBusinessStatusDtoSchema
 >;
+export type BulkDeleteProjectsDto = z.infer<typeof bulkDeleteProjectsDtoSchema>;
 export type UpdateProjectLogoDto = z.infer<typeof updateProjectLogoDtoSchema>;
 export type SendMessageDto = z.infer<typeof sendMessageDtoSchema>;
 export type ToggleAllContextsDto = z.infer<typeof toggleAllContextsDtoSchema>;

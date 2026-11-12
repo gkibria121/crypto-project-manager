@@ -7,6 +7,7 @@ export function useDashboardDialogs() {
   const newProjectDialogRef = useRef<HTMLDialogElement | null>(null);
   const editProjectDialogRef = useRef<HTMLDialogElement | null>(null);
   const syncProjectsDialogRef = useRef<HTMLDialogElement | null>(null);
+  const bulkDeleteProjectsDialogRef = useRef<HTMLDialogElement | null>(null);
   const editLogoDialogRef = useRef<HTMLDialogElement | null>(null);
   const checklistDialogRef = useRef<HTMLDialogElement | null>(null);
   const globalSettingsDialogRef = useRef<HTMLDialogElement | null>(null);
@@ -26,6 +27,10 @@ export function useDashboardDialogs() {
   );
   const openSyncProjectsModal = useCallback(
     () => syncProjectsDialogRef.current?.showModal(),
+    []
+  );
+  const openBulkDeleteProjectsModal = useCallback(
+    () => bulkDeleteProjectsDialogRef.current?.showModal(),
     []
   );
   const openEditLogoModal = useCallback(
@@ -50,6 +55,7 @@ export function useDashboardDialogs() {
     newProjectDialogRef,
     editProjectDialogRef,
     syncProjectsDialogRef,
+    bulkDeleteProjectsDialogRef,
     editLogoDialogRef,
     checklistDialogRef,
     globalSettingsDialogRef,
@@ -58,6 +64,7 @@ export function useDashboardDialogs() {
     openNewProjectModal,
     openEditProjectModal,
     openSyncProjectsModal,
+    openBulkDeleteProjectsModal,
     openEditLogoModal,
     openChecklistModal,
     openGlobalSettingsModal,

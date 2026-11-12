@@ -16,6 +16,7 @@ import {
   type AuthRegisterResponse,
   type AuthSessionResponse,
   type AuthUser,
+  type BulkDeleteProjectsDto,
   type BulkUpdateBusinessStatusDto,
   type ChecklistItemConfig,
   type CreateUserDto,
@@ -380,6 +381,16 @@ export const apiClient = {
   }> {
     return requestJson("/projects/bulk/status", {
       method: "PATCH",
+      body: JSON.stringify(input),
+    });
+  },
+
+  bulkDeleteProjects(input: BulkDeleteProjectsDto): Promise<{
+    deletedCount: number;
+    deletedIds: string[];
+  }> {
+    return requestJson("/projects/bulk/delete", {
+      method: "POST",
       body: JSON.stringify(input),
     });
   },

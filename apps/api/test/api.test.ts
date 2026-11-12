@@ -13,11 +13,14 @@ import {
   verifyPassword,
 } from "@repo/database";
 import {
+  COMPACT_PAGE_SIZE_OPTIONS,
   CREATABLE_BUSINESS_STATUS_ORDER,
+  DEFAULT_PAGE_SIZE_OPTIONS,
   addContextFormSchema,
   type AuthUser,
   buildContextualAiResponse,
   buildPaginationWindow,
+  bulkDeleteProjectsDtoSchema,
   calculatePaginationMeta,
   clampPage,
   evaluateChecklistItemAgainstProject,
@@ -821,6 +824,12 @@ describe("NestJS Core Backend Unit Tests", () => {
               if (target) Object.assign(target, patch);
               return target ?? null;
             },
+            delete: async () => {
+              const idx = projectsStore.findIndex((p) => p["id"] === id);
+              if (idx === -1) return null;
+              const [removed] = projectsStore.splice(idx, 1);
+              return removed ?? null;
+            },
           }),
           select: () => ({
             where: ({ id }: { id: string }) => ({
@@ -918,9 +927,26 @@ describe("NestJS Core Backend Unit Tests", () => {
     expect(bulkResult.updatedCount).toBe(2);
     expect(projectsStore[0]?.["businessStatus"]).toBe("contacted");
     expect(projectsStore[1]?.["businessStatus"]).toBe("contacted");
+
+    // 7. Bulk delete validates DTO and removes selected projects atomically
+    const bulkDeletePipe = new ZodValidationPipe(bulkDeleteProjectsDtoSchema);
+    expect(() => bulkDeletePipe.transform({ projectIds: [] })).toThrow(
+      BadRequestException
+    );
+    const parsedBulkDelete = bulkDeletePipe.transform({
+      projectIds: ["proj-new-1", "proj-collab-1", "proj-missing"],
+    });
+    const bulkDeleteResult = await projectsService.bulkDelete(
+      parsedBulkDelete.projectIds
+    );
+    expect(bulkDeleteResult.deletedCount).toBe(2);
+    expect(bulkDeleteResult.deletedIds).toEqual(["proj-new-1", "proj-collab-1"]);
+    expect(projectsStore).toHaveLength(0);
   });
 
   it("computes pagination metadata, slices items, and builds balanced page windows", () => {
+    expect(DEFAULT_PAGE_SIZE_OPTIONS).toContain(100);
+    expect(COMPACT_PAGE_SIZE_OPTIONS).toContain(100);
     const sample = Array.from({ length: 53 }, (_, i) => `item-${i + 1}`);
 
     const page2 = paginateItems(sample, 2, 10);

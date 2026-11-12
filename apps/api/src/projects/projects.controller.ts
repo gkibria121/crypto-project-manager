@@ -9,12 +9,14 @@ import {
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import {
+  bulkDeleteProjectsDtoSchema,
   bulkUpdateBusinessStatusDtoSchema,
   newProjectFormSchema,
   syncProjectsDtoSchema,
   updateBusinessStatusDtoSchema,
   updateProjectFormSchema,
   updateProjectLogoDtoSchema,
+  type BulkDeleteProjectsDto,
   type BulkUpdateBusinessStatusDto,
   type NewProjectFormValues,
   type SyncProjectsDto,
@@ -143,6 +145,16 @@ export class ProjectsController {
       body.projectIds,
       body.status
     );
+  }
+
+  @Post("bulk/delete")
+  @RequirePermissions("projects:delete")
+  @ApiOperation({ summary: "Bulk-delete selected crypto project workspaces" })
+  bulkDelete(
+    @Body(new ZodValidationPipe(bulkDeleteProjectsDtoSchema))
+    body: BulkDeleteProjectsDto
+  ) {
+    return this.projectsService.bulkDelete(body.projectIds);
   }
 
   @Get(":projectId")

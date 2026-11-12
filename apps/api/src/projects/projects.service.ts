@@ -494,4 +494,32 @@ export class ProjectsService {
     }
     return { deleted: true, id: projectId };
   }
+
+  async bulkDelete(projectIds: readonly string[]): Promise<{
+    deletedCount: number;
+    deletedIds: string[];
+  }> {
+    const uniqueIds = Array.from(
+      new Set(projectIds.map((id) => id.trim()).filter(Boolean))
+    );
+    if (uniqueIds.length === 0) {
+      throw new BadRequestException("Select at least one project to delete.");
+    }
+
+    const deletedIds: string[] = [];
+
+    await this.prisma.db.transaction(async (tx) => {
+      for (const id of uniqueIds) {
+        const deleted = await tx.orm.public.Project.where({ id }).delete();
+        if (deleted) {
+          deletedIds.push(id);
+        }
+      }
+    });
+
+    return {
+      deletedCount: deletedIds.length,
+      deletedIds,
+    };
+  }
 }

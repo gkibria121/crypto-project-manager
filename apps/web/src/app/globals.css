@@ -240,6 +240,10 @@ textarea[aria-invalid="true"] {
   container-type: inline-size;
 }
 
+.table-wrapper.table-wrapper--full {
+  max-block-size: none;
+}
+
 .responsive-data-table {
   width: 100%;
   border-collapse: separate;
@@ -250,6 +254,10 @@ textarea[aria-invalid="true"] {
   position: sticky;
   inset-block-start: 0;
   z-index: 2;
+}
+
+.responsive-data-table thead th {
+  border-block-end: 1px solid var(--border-color);
 }
 
 .responsive-data-table tbody th {

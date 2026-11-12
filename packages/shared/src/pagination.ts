@@ -1,5 +1,5 @@
 export const DEFAULT_PAGE_SIZE_OPTIONS = [10, 25, 50, 100] as const;
-export const COMPACT_PAGE_SIZE_OPTIONS = [5, 10, 25, 50] as const;
+export const COMPACT_PAGE_SIZE_OPTIONS = [5, 10, 25, 50, 100] as const;
 
 export type PageNumberItem = number | "ellipsis";
 
