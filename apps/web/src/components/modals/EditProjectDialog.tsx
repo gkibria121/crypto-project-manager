@@ -100,9 +100,52 @@ export function EditProjectDialog({
   const isPinnedCheckboxId = useId();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
-  const [uploadError, setUploadError] = useState<string | null>(null);
-  const [submitError, setSubmitError] = useState<string | null>(null);
+  const currentProjectId = project?.id ?? "";
+  const [uploadMeta, setUploadMeta] = useState<{
+    projectId: string;
+    fileName: string | null;
+    uploadError: string | null;
+    submitError: string | null;
+  }>({
+    projectId: "",
+    fileName: null,
+    uploadError: null,
+    submitError: null,
+  });
+
+  const uploadedFileName =
+    uploadMeta.projectId === currentProjectId ? uploadMeta.fileName : null;
+  const uploadError =
+    uploadMeta.projectId === currentProjectId ? uploadMeta.uploadError : null;
+  const submitError =
+    uploadMeta.projectId === currentProjectId ? uploadMeta.submitError : null;
+
+  const setUploadedFileName = (fileName: string | null) =>
+    setUploadMeta((prev) => ({
+      ...(prev.projectId === currentProjectId
+        ? prev
+        : { fileName: null, uploadError: null, submitError: null }),
+      projectId: currentProjectId,
+      fileName,
+    }));
+
+  const setUploadError = (error: string | null) =>
+    setUploadMeta((prev) => ({
+      ...(prev.projectId === currentProjectId
+        ? prev
+        : { fileName: null, uploadError: null, submitError: null }),
+      projectId: currentProjectId,
+      uploadError: error,
+    }));
+
+  const setSubmitError = (error: string | null) =>
+    setUploadMeta((prev) => ({
+      ...(prev.projectId === currentProjectId
+        ? prev
+        : { fileName: null, uploadError: null, submitError: null }),
+      projectId: currentProjectId,
+      submitError: error,
+    }));
 
   const {
     register,
@@ -120,9 +163,6 @@ export function EditProjectDialog({
 
   useEffect(() => {
     reset(buildFormValuesFromProject(project));
-    setUploadedFileName(null);
-    setUploadError(null);
-    setSubmitError(null);
   }, [project, reset]);
 
   const watchedName = useWatch({ control, name: "name" }) ?? "";

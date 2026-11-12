@@ -35,8 +35,39 @@ export function UpdateProjectLogoDialog({
 }: UpdateProjectLogoDialogProps) {
   const fileInputId = useId();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
-  const [uploadError, setUploadError] = useState<string | null>(null);
+  const currentProjectId = project.id;
+  const [uploadMeta, setUploadMeta] = useState<{
+    projectId: string;
+    fileName: string | null;
+    uploadError: string | null;
+  }>({
+    projectId: "",
+    fileName: null,
+    uploadError: null,
+  });
+
+  const uploadedFileName =
+    uploadMeta.projectId === currentProjectId ? uploadMeta.fileName : null;
+  const uploadError =
+    uploadMeta.projectId === currentProjectId ? uploadMeta.uploadError : null;
+
+  const setUploadedFileName = (fileName: string | null) =>
+    setUploadMeta((prev) => ({
+      ...(prev.projectId === currentProjectId
+        ? prev
+        : { fileName: null, uploadError: null }),
+      projectId: currentProjectId,
+      fileName,
+    }));
+
+  const setUploadError = (error: string | null) =>
+    setUploadMeta((prev) => ({
+      ...(prev.projectId === currentProjectId
+        ? prev
+        : { fileName: null, uploadError: null }),
+      projectId: currentProjectId,
+      uploadError: error,
+    }));
 
   const {
     handleSubmit,
@@ -55,8 +86,6 @@ export function UpdateProjectLogoDialog({
 
   useEffect(() => {
     reset({ logoUrl: project.logoUrl ?? "" });
-    setUploadedFileName(null);
-    setUploadError(null);
   }, [project.id, project.logoUrl, reset]);
 
   const previewUrl = useWatch({ control, name: "logoUrl" }) ?? "";
