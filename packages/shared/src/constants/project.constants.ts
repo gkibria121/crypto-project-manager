@@ -404,7 +404,8 @@ export const DEFAULT_SCRAPE_CONFIG: ScrapeConfig = {
   timeoutSeconds: 15,
   includePatterns: [],
   excludePatterns: [],
-  specializedMaxItems: 15,
+  xPostsLimit: 10,
+  specializedMaxItems: 10,
 };
 
 export const SPECIALIZED_SCRAPER_PROVIDERS: readonly SpecializedScraperProvider[] =

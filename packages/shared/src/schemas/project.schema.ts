@@ -112,7 +112,8 @@ export const scrapeConfigSchema = z.object({
   timeoutSeconds: z.coerce.number().int().min(5).max(60).default(15),
   includePatterns: z.array(z.string().trim().min(1)).max(20).default([]),
   excludePatterns: z.array(z.string().trim().min(1)).max(20).default([]),
-  specializedMaxItems: z.coerce.number().int().min(1).max(100).default(15),
+  xPostsLimit: z.coerce.number().int().min(1).max(100).default(10),
+  specializedMaxItems: z.coerce.number().int().min(1).max(100).default(10),
 });
 
 export const triggerScrapeDtoSchema = scrapeConfigSchema.partial();

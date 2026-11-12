@@ -243,21 +243,23 @@ async def _scrape_x_api(
             config_used=req.config,
         )
 
+    x_limit = req.config.x_posts_limit
     tweets: list[dict[str, Any]] = []
-    if req.config.levels >= 2 and user_data.get("id") and not tweet_id:
-        max_results = min(max(5, req.config.specialized_max_items), 100)
+    if user_data.get("id") and not tweet_id and x_limit > 0:
+        # X API v2 /users/:id/tweets requires max_results in [5, 100]; slice to exact configured limit
+        api_max_results = min(max(5, x_limit), 100)
         tweets_resp = await client.get(
             f"https://api.x.com/2/users/{user_data['id']}/tweets",
             headers=headers,
             params={
-                "max_results": max_results,
+                "max_results": api_max_results,
                 "tweet.fields": "created_at,public_metrics,entities,lang",
                 "exclude": "retweets,replies",
             },
             timeout=timeout,
         )
         if tweets_resp.status_code == 200:
-            tweets = tweets_resp.json().get("data") or []
+            tweets = (tweets_resp.json().get("data") or [])[:x_limit]
 
     explicit_urls: list[str] = []
     for url_item in (user_data.get("entities") or {}).get("url", {}).get("urls", []):
@@ -368,7 +370,8 @@ async def _scrape_x_api(
         "bio": bio,
         "location": user_data.get("location"),
         "recentPostsCount": len(tweets),
-        "recentPosts": tweets[:15],
+        "xPostsLimit": x_limit,
+        "recentPosts": tweets,
     }
 
     levels_scraped = max((p.depth for p in pages), default=1)

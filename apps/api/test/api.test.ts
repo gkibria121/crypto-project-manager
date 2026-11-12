@@ -1368,7 +1368,8 @@ describe("NestJS Core Backend Unit Tests", () => {
         timeoutSeconds: 15,
         includePatterns: [],
         excludePatterns: [],
-        specializedMaxItems: 15,
+        specializedMaxItems: 10,
+        xPostsLimit: 10,
       }
     );
 

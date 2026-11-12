@@ -432,6 +432,14 @@ export function ScrapedDataDialog({
                         Max pages: {activeJob.config.maxPages}
                       </span>
                     )}
+                    {activeJob.config.xPostsLimit !== undefined &&
+                      (activeJob.providerUsed === "x_api_v2" ||
+                        activeJob.targetType === "x_handle" ||
+                        specializedProvider === "x") && (
+                        <span className="px-1.5 py-0.5 rounded bg-white dark:bg-[#202c33] border border-[#e4e6eb] dark:border-[#2a3942]">
+                          X posts limit: {activeJob.config.xPostsLimit}
+                        </span>
+                      )}
                     {activeJob.config.sameDomainOnly !== undefined && (
                       <span className="px-1.5 py-0.5 rounded bg-white dark:bg-[#202c33] border border-[#e4e6eb] dark:border-[#2a3942]">
                         {activeJob.config.sameDomainOnly

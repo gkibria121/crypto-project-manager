@@ -135,6 +135,9 @@ export function ScrapeConfigDialog({
   const [specializedMaxItems, setSpecializedMaxItems] = useState<string>(
     String(DEFAULT_SCRAPE_CONFIG.specializedMaxItems)
   );
+  const [xPostsLimit, setXPostsLimit] = useState<string>(
+    String(DEFAULT_SCRAPE_CONFIG.xPostsLimit)
+  );
   const [includePatternsInput, setIncludePatternsInput] = useState<string>("");
   const [excludePatternsInput, setExcludePatternsInput] = useState<string>("");
 
@@ -159,6 +162,7 @@ export function ScrapeConfigDialog({
         .filter((p): p is SpecializedScraperProvider => p !== null)
     )
   );
+  const hasXTarget = detectedProviders.includes("x");
 
   const hasStandardWebsites = targetsToInspect.some(
     (c) =>
@@ -222,7 +226,18 @@ export function ScrapeConfigDialog({
       60
     );
     const parsedSpecializedMax = Math.min(
-      Math.max(Number.parseInt(specializedMaxItems, 10) || 15, 1),
+      Math.max(
+        Number.parseInt(specializedMaxItems, 10) ||
+          DEFAULT_SCRAPE_CONFIG.specializedMaxItems,
+        1
+      ),
+      100
+    );
+    const parsedXPostsLimit = Math.min(
+      Math.max(
+        Number.parseInt(xPostsLimit, 10) || DEFAULT_SCRAPE_CONFIG.xPostsLimit,
+        1
+      ),
       100
     );
 
@@ -243,6 +258,7 @@ export function ScrapeConfigDialog({
       includePatterns: parsePatternList(includePatternsInput),
       excludePatterns: parsePatternList(excludePatternsInput),
       specializedMaxItems: parsedSpecializedMax,
+      xPostsLimit: parsedXPostsLimit,
     };
 
     try {
@@ -682,7 +698,7 @@ export function ScrapeConfigDialog({
                 htmlFor={`${baseId}-specialized-items`}
                 className="block text-[11px] font-semibold text-[#65676b] dark:text-[#8696a0] mb-1"
               >
-                API Feed Items (X / LI / TG)
+                API Feed Items (LinkedIn / TG)
               </label>
               <input
                 id={`${baseId}-specialized-items`}
@@ -692,6 +708,59 @@ export function ScrapeConfigDialog({
                 onChange={(e) => setSpecializedMaxItems(e.target.value)}
                 className="w-full px-2.5 py-1.5 text-xs font-mono rounded-lg bg-white dark:bg-[#202c33] text-[#050505] dark:text-[#e9edef] border border-[#e4e6eb] dark:border-[#2a3942] outline-none"
               />
+            </div>
+          </div>
+
+          <div
+            className={`rounded-lg border p-3 space-y-2 ${
+              hasXTarget
+                ? "border-[#0084ff]/40 bg-[#e7f3ff]/50 dark:bg-[#0084ff]/10"
+                : "border-[#e4e6eb] dark:border-[#2a3942] bg-white/70 dark:bg-[#202c33]/60"
+            }`}
+          >
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div>
+                <label
+                  htmlFor={`${baseId}-x-posts-limit`}
+                  className="block text-xs font-semibold text-[#050505] dark:text-[#e9edef]"
+                >
+                  X Latest Posts Limit (1–100, default: 10)
+                </label>
+                <p
+                  id={`${baseId}-x-posts-hint`}
+                  className="text-[11px] text-[#65676b] dark:text-[#8696a0]"
+                >
+                  Always fetches X account details plus the latest configured number of posts via X API v2.
+                </p>
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <input
+                  id={`${baseId}-x-posts-limit`}
+                  type="text"
+                  inputMode="numeric"
+                  aria-describedby={`${baseId}-x-posts-hint`}
+                  value={xPostsLimit}
+                  onChange={(e) => setXPostsLimit(e.target.value)}
+                  className="w-16 px-2.5 py-1.5 text-xs font-mono text-center rounded-lg bg-white dark:bg-[#202c33] text-[#050505] dark:text-[#e9edef] border border-[#e4e6eb] dark:border-[#2a3942] outline-none"
+                />
+                {([5, 10, 25, 50] as const).map((preset) => {
+                  const isActivePreset = Number(xPostsLimit) === preset;
+                  return (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => setXPostsLimit(String(preset))}
+                      className={`px-2 py-1 rounded-md text-[11px] font-semibold border transition cursor-pointer ${
+                        isActivePreset
+                          ? "bg-[#0084ff] text-white border-[#0084ff]"
+                          : "bg-white dark:bg-[#202c33] text-[#65676b] dark:text-[#d1d7db] border-[#e4e6eb] dark:border-[#2a3942] hover:border-[#0084ff]/60"
+                      }`}
+                    >
+                      {preset}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
 

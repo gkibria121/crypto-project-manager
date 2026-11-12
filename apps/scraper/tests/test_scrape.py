@@ -210,6 +210,8 @@ def test_scrape_specialized_platforms_require_api_key_when_unconfigured(monkeypa
 
 
 def test_scrape_specialized_x_linkedin_telegram_when_configured():
+    x_tweet_max_results: list[str | None] = []
+
     def handler(request: httpx.Request) -> httpx.Response:
         url = str(request.url)
         # X API v2
@@ -233,18 +235,24 @@ def test_scrape_specialized_x_linkedin_telegram_when_configured():
                 },
             )
         if "api.x.com/2/users/12345/tweets" in url:
-            return httpx.Response(
-                200,
-                json={
-                    "data": [
-                        {
-                            "id": "999",
-                            "text": "Epoch 3 mainnet staking and TypeScript SDK docs live at https://docs.aetheris.network",
-                            "created_at": "2026-11-11T10:00:00Z",
-                        }
-                    ]
-                },
-            )
+            x_tweet_max_results.append(request.url.params.get("max_results"))
+            tweets = [
+                {
+                    "id": "999",
+                    "text": "Epoch 3 mainnet staking and TypeScript SDK docs live at https://docs.aetheris.network",
+                    "created_at": "2026-11-11T10:00:00Z",
+                }
+            ]
+            for idx in range(2, 13):
+                tweets.append(
+                    {
+                        "id": str(1000 + idx),
+                        "text": f"Aetheris status update #{idx}",
+                        "created_at": f"2026-11-10T{idx:02d}:00:00Z",
+                    }
+                )
+            limit = int(request.url.params.get("max_results") or 10)
+            return httpx.Response(200, json={"data": tweets[:limit]})
         # LinkedIn REST API
         if "api.linkedin.com/rest/organizations" in url:
             assert request.headers.get("authorization") == "Bearer li-test-token"
@@ -320,12 +328,15 @@ def test_scrape_specialized_x_linkedin_telegram_when_configured():
             "telegramBotToken": "tg-test-token",
         }
 
+        import json
+
+        # Default X scrape (levels=1, default xPostsLimit=10): account + 10 latest posts
         x_res = client.post(
             "/api/v1/scrape",
             json={
                 "targetType": "x_handle",
                 "targetValue": "@AetherisNetwork",
-                "config": {"levels": 2},
+                "config": {"levels": 1},
                 "providerCredentials": creds,
             },
         )
@@ -334,10 +345,32 @@ def test_scrape_specialized_x_linkedin_telegram_when_configured():
         assert x_data["status"] == "completed"
         assert x_data["providerUsed"] == "x_api_v2"
         assert x_data["apiKeyConfigured"] is True
-        assert x_data["levelsScraped"] == 2
         assert x_data["pagesScraped"] == 2
         assert x_data["platformData"]["metrics"]["followers_count"] == 48200
         assert "mcp_server" in x_data["signals"]
+        x_platform_json = json.dumps(x_data["platformData"])
+        assert "Aetheris status update #10" in x_platform_json
+        assert "Aetheris status update #11" not in x_platform_json
+
+        # Custom X scrape with xPostsLimit=2 (clamped upstream max_results=5, sliced to 2)
+        x_custom_res = client.post(
+            "/api/v1/scrape",
+            json={
+                "targetType": "x_handle",
+                "targetValue": "@AetherisNetwork",
+                "config": {"levels": 2, "xPostsLimit": 2},
+                "providerCredentials": creds,
+            },
+        )
+        assert x_custom_res.status_code == 200
+        x_custom = x_custom_res.json()
+        assert x_custom["status"] == "completed"
+        assert x_custom["levelsScraped"] == 2
+        assert x_custom["pagesScraped"] == 2
+        x_custom_json = json.dumps(x_custom["platformData"])
+        assert "Aetheris status update #2" in x_custom_json
+        assert "Aetheris status update #3" not in x_custom_json
+        assert x_tweet_max_results == ["10", "5"]
 
         li_res = client.post(
             "/api/v1/scrape",
